@@ -51,17 +51,14 @@ import {
   rainWateringDue,
   spaceReceivesRain,
   BRONZE_PER_GOLD,
-  BACKPACK_SLOT_OFFSET,
   BASE_BACKPACK_CAPACITY,
   CRAFTING_SLOT_COUNT,
-  CRAFTING_SLOT_OFFSET,
   HUNGER_MAX_CENTI,
   HUNGER_TOOL_USE_CENTI,
   HUNGER_WEAPON_USE_CENTI,
   hungerCostForSprintVigour,
   modifiersForHunger,
   CURRENT_EQUIPMENT_LAYOUT_VERSION,
-  CURRENT_INVENTORY_PROTOCOL_VERSION,
   migrateEquipmentLayout,
   EQUIPMENT_SLOT_COUNT,
   EQUIPMENT_SLOT_OFFSET,
@@ -178,7 +175,6 @@ import {
   inventoryContainerSlotCount,
   accessibleBackpackCapacity,
   isAccessibleCarriedSlot,
-  inventoryContainerSlotOffset,
   isHotbarSlot,
   itemStacksCompatible,
   runtimePlaceableDefinition,
@@ -432,6 +428,19 @@ import {
 import { runtimeResourceObstacle, runtimeSpaceSurfaceDefinition, runtimeSpaceSurfaceObstacle } from '@orchard/sim';
 import { farmingSkillEffects, farmingCropDefinition, farmingHarvestReward, firstHarvestOfDay, runtimeSkillCapabilities, runtimeSkillNodeRank } from '@orchard/sim';
 import { authoredHookApproved, authoredHookRegistrations, type AuthoredHookAuthority } from '@orchard/sim';
+import {
+  CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION, CURRENT_CONTAINER_LAYOUT_VERSION, buildDenseContainer, diffDenseContainer,
+  cellToLegacyGlobalSlot, isPlayerContainerId, legacyGlobalSlotToCell, runtimeStoredStackCodec, selectedSlotCell,
+  type SparseContainerBuild,
+} from '@orchard/sim';
+import {
+  CARRIED_CONTAINERS, CURRENT_HOTBAR_LAYOUT_VERSION, applyPlaceableContainerWrites, applyPlayerContainerWrites, carriedPlayerCellRows,
+  containerCellMigrationStatus, copyPlaceableToContainerCells, deletePlaceableCells, hotbarSlotCountForLayoutVersion,
+  hasUnmovedLegacyStorage, isCarriedContainer, legacyPlayerStorage, legacySlotRows,
+  movePlayerToContainerCells, playerCellId, placeableCellRows, planLegacyPlayerContainerMove, playerCellOrVacant, playerContainerCellsCurrent, playerContainerRows,
+  putPlaceableCell, putPlayerCell, spillPlayerCells,
+  type CarriedContainerId, type PlaceableCellRow, type PlayerCellRow,
+} from './container-cells.js';
 import { AUTHORED_HOOK_BUNDLE_SHA256, AUTHORED_LIFECYCLE_HOOKS } from '@orchard/lifecycle-authoring/hooks';
 import { AUTHORED_ITEM_LIFECYCLE_REGISTRATIONS } from '@orchard/lifecycle-authoring/generated';
 import { Identity } from 'spacetimedb';
@@ -755,15 +764,6 @@ import {
 import { raiseSystemLifecycleEvent } from './behaviour/system-events.js';
 
 const DEFAULT_BACKPACK_CAPACITY = BASE_BACKPACK_CAPACITY;
-/** Persistent layout history. Add the outgoing shared count before changing
- * HOTBAR_SLOT_COUNT again so existing global inventory slots shift atomically. */
-const HOTBAR_LAYOUT_SLOT_COUNTS = [9, HOTBAR_SLOT_COUNT] as const;
-const CURRENT_HOTBAR_LAYOUT_VERSION = HOTBAR_LAYOUT_SLOT_COUNTS.length - 1;
-
-function hotbarSlotCountForLayoutVersion(version: number): number {
-  const bounded = Math.max(0, Math.min(CURRENT_HOTBAR_LAYOUT_VERSION, Math.floor(version)));
-  return HOTBAR_LAYOUT_SLOT_COUNTS[bounded] ?? HOTBAR_SLOT_COUNT;
-}
 const STARTING_CURRENCY_BRONZE = BRONZE_PER_GOLD;
 const MAX_WORLD_CALENDAR_TICK = BigInt(AUTHORITY_TICKS_PER_DAY * DAYS_PER_SEASON * 4 * 999);
 const HIVE_PRODUCTION_INTERVAL_TICKS = BigInt(Math.max(1, Math.floor(AUTHORITY_TICKS_PER_DAY / 20)));
@@ -783,10 +783,6 @@ const ARCHERY_TARGET_EMBEDDED_ARROW_TICKS = BigInt(RECOVERABLE_ARROW_LIFETIME_TI
 
 type InventoryContainerId = 'hotbar' | 'backpack' | 'equipment' | 'crafting';
 
-function inventorySlotOffset(containerId: InventoryContainerId): number {
-  return inventoryContainerSlotOffset(containerId);
-}
-
 function inventoryContainerCapacity(containerId: InventoryContainerId): number {
   return inventoryContainerSlotCount(containerId);
 }
@@ -801,13 +797,14 @@ function accessibleInventoryContainerCapacity(
   return accessibleBackpackCapacity(equippedCapacity, debugBackpackSlots);
 }
 
+/** Backpack capacity granted by the bag in the equipment Bag cell (equipment index 4). */
 function equippedInventoryCapacity(
   ctx: ContentReadContext,
-  rows: Iterable<{ readonly slot: number; readonly itemKind: string; readonly quantity: number }>,
+  cells: Iterable<{ readonly container: string; readonly index: number; readonly itemKind: string; readonly quantity: number }>,
 ): number {
-  for (const row of rows) {
-    if (row.slot !== EQUIPMENT_SLOT_OFFSET + 4 || row.quantity <= 0) continue;
-    return runtimeItemInventoryCapacity(contentRegistry(ctx), row.itemKind)
+  for (const cell of cells) {
+    if (cell.container !== 'equipment' || cell.index !== 4 || cell.quantity <= 0) continue;
+    return runtimeItemInventoryCapacity(contentRegistry(ctx), cell.itemKind)
       ?? DEFAULT_BACKPACK_CAPACITY;
   }
   return DEFAULT_BACKPACK_CAPACITY;
@@ -821,16 +818,17 @@ function playerDebugBackpackSlots(
 }
 
 type CarriedInventoryReadContext = ContentReadContext & { readonly db: {
-  readonly inventory_slot: { readonly by_identity: Pick<WorldReducerContext['db']['inventory_slot']['by_identity'], 'filter'> };
+  readonly player_container_cell: { readonly by_identity: Pick<WorldReducerContext['db']['player_container_cell']['by_identity'], 'filter'> };
   readonly player_survival: { readonly identity: Pick<WorldReducerContext['db']['player_survival']['identity'], 'find'> };
 } };
 
-/** A player's inventory rows and accessible backpack capacity: the equipped bag and debug slots through the one rule
- * the menus use. Bow ammunition and expedition readiness both read carried cells through it (BUG-068). */
+/** A player's carried cells (numbered by the frozen legacy layout for the sim rules that still use it) and accessible
+ * backpack capacity: the equipped bag and debug slots through the one rule the menus use. Bow ammunition and
+ * expedition readiness both read carried cells through it (BUG-068). Views call it too, so it only reads. */
 function carriedInventoryFor(ctx: CarriedInventoryReadContext, identity: WorldReducerContext['sender']) {
-  const rows = [...ctx.db.inventory_slot.by_identity.filter(identity)];
+  const cells = [...ctx.db.player_container_cell.by_identity.filter(identity)].filter(row => isCarriedContainer(row.container));
   const debugBackpackSlots = ctx.db.player_survival.identity.find(identity)?.debugBackpackSlots ?? 0;
-  return { rows, backpackCapacity: accessibleInventoryContainerCapacity('backpack', equippedInventoryCapacity(ctx, rows), debugBackpackSlots) };
+  return { rows: legacySlotRows(cells), backpackCapacity: accessibleInventoryContainerCapacity('backpack', equippedInventoryCapacity(ctx, cells), debugBackpackSlots) };
 }
 
 /** The ammunition a bow may draw, lowest slot first (BUG-068): the hotbar and the accessible backpack only, as
@@ -1137,6 +1135,30 @@ const inventory_slot = table(
   },
 );
 
+/** Container-scoped player storage (Uncapped Storage step 4, wiki Roadmap/Uncapped Storage). One row per occupied
+ * cell, keyed `identity:container:index` (hotbar, backpack, equipment, crafting or stash; u32 index). A missing row is
+ * an empty cell. Rows move here once per player at connect time (`inventory_migration.containerLayoutVersion`); the
+ * legacy `inventory_slot` and `hearth_stash_slot` rows stay behind untouched and are never written again. */
+const player_container_cell = table(
+  {
+    name: 'player_container_cell',
+    indexes: [
+      { accessor: 'by_identity', algorithm: 'btree', columns: ['identity'] },
+      { accessor: 'by_identity_container', algorithm: 'btree', columns: ['identity', 'container'] },
+    ],
+  },
+  {
+    id: t.string().primaryKey(),
+    identity: t.identity(),
+    container: t.string(),
+    index: t.u32(),
+    itemKind: t.string(),
+    quantity: t.u16(),
+    durability: t.u16().default(0),
+    lit: t.bool().default(true),
+  },
+);
+
 /** Private discovery state for the recipe guide. A learned row reveals a
  * pattern and enables ghost-fill, but never gates manual authority crafting. */
 const player_known_recipe = table(
@@ -1204,6 +1226,8 @@ const inventory_migration = table(
     durabilityVersion: t.u8(),
     hotbarLayoutVersion: t.u8().default(0),
     equipmentLayoutVersion: t.u8().default(0),
+    /** Uncapped Storage step 4: 0 = legacy `inventory_slot`/`hearth_stash_slot` rows, 1 = `player_container_cell`. */
+    containerLayoutVersion: t.u8().default(0),
   },
 );
 
@@ -2669,6 +2693,53 @@ const world_placeable_slot = table(
   },
 );
 
+/** Container-scoped placeable storage (Uncapped Storage step 4): one row per occupied cell, keyed
+ * `placeableId:index` (u32 index). Legacy `world_placeable_slot` rows are copied here once per placeable, lazily on
+ * first access and by the release-lane backfill, and are never written again. */
+const placeable_container_cell = table(
+  {
+    name: 'placeable_container_cell',
+    indexes: [
+      { accessor: 'by_placeable', algorithm: 'btree', columns: ['placeableId'] },
+    ],
+  },
+  {
+    id: t.string().primaryKey(),
+    placeableId: t.u64(),
+    index: t.u32(),
+    itemKind: t.string(),
+    quantity: t.u16(),
+    durability: t.u16().default(0),
+    lit: t.bool().default(true),
+  },
+);
+
+/** Private receipt of one placeable's legacy-row copy: its presence means the legacy rows were copied and verified
+ * (read back, fingerprints equal) and must never be copied again. Placeables without legacy rows need no receipt. */
+const placeable_container_copy = table(
+  { name: 'placeable_container_copy' },
+  {
+    placeableId: t.u64().primaryKey(),
+    sourceRows: t.u32(),
+    cells: t.u32(),
+    totalQuantity: t.u64(),
+    sourceFingerprint: t.string(),
+    copiedAt: t.timestamp(),
+  },
+);
+
+/** Singleton release-lane cursor for the placeable copy backfill (Uncapped Storage step 4). */
+const container_cell_migration = table(
+  { name: 'container_cell_migration' },
+  {
+    id: t.u8().primaryKey(),
+    placeableCursor: t.option(t.u64()),
+    placeableBackfillComplete: t.bool(),
+    updatedAt: t.timestamp(),
+    updatedBy: t.identity(),
+  },
+);
+
 /** Private construction provenance. Spatial clients only need the public
  * placeable row; the authority uses this row for undo-grace and salvage. */
 const world_placeable_build = table(
@@ -3065,6 +3136,7 @@ const spacetimedb = schema({
   player_statistic,
   player_statistic_milestone,
   inventory_slot,
+  player_container_cell,
   player_known_recipe,
   inventory_overflow,
   inventory_overflow_retry,
@@ -3149,6 +3221,9 @@ const spacetimedb = schema({
   world_placeable_damage,
   world_placeable,
   world_placeable_slot,
+  placeable_container_cell,
+  placeable_container_copy,
+  container_cell_migration,
   world_placeable_build,
   active_chest,
   active_placeable,
@@ -3192,7 +3267,6 @@ type WorldProjectileRow = NonNullable<ReturnType<WorldReducerContext['db']['worl
 type WorldCombatTargetRow = NonNullable<ReturnType<WorldReducerContext['db']['world_combat_target']['id']['find']>>;
 type WorldSoilRow = NonNullable<ReturnType<WorldReducerContext['db']['world_soil']['id']['find']>>;
 type EnemyAttackRow = NonNullable<ReturnType<WorldReducerContext['db']['enemy_attack']['npcId']['find']>>;
-type InventorySlotRow = NonNullable<ReturnType<WorldReducerContext['db']['inventory_slot']['id']['find']>>;
 type WorldClockRow = NonNullable<ReturnType<WorldReducerContext['db']['world_clock']['id']['find']>>;
 type ConnectionPresenceRow = NonNullable<ReturnType<WorldReducerContext['db']['connection_presence_v2']['connectionId']['find']>>;
 type HomesteadRow = NonNullable<ReturnType<WorldReducerContext['db']['homestead']['spaceId']['find']>>;
@@ -3383,13 +3457,6 @@ function adminPlayerSummary(tx: AdminProcedureTx, identity: Identity): AdminPlay
     tileY: position === null ? null : Math.floor(position.y / TILE_SIZE_FIXED),
     lastSeenMicros: profile.lastActiveAtMicros.toString(),
   };
-}
-
-function adminInventoryArea(slot: number): { readonly area: AdminInventoryArea; readonly index: number } {
-  if (slot < BACKPACK_SLOT_OFFSET) return { area: 'hotbar', index: slot };
-  if (slot < EQUIPMENT_SLOT_OFFSET) return { area: 'backpack', index: slot - BACKPACK_SLOT_OFFSET };
-  if (slot < CRAFTING_SLOT_OFFSET) return { area: 'equipment', index: slot - EQUIPMENT_SLOT_OFFSET };
-  return { area: 'crafting', index: slot - CRAFTING_SLOT_OFFSET };
 }
 
 function adminResolvedStack(ctx: Pick<WorldReducerContext, 'db'>, row: { readonly itemKind: string; readonly quantity: number; readonly durability: number }): AdminResolvedStack {
@@ -4214,11 +4281,14 @@ function rogueRunForIdentity(
   return member === null ? null : ctx.db.rogue_run.id.find(member.runId);
 }
 
+/** Inventory protocol 2 (Uncapped Storage step 4, `CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION`): container-scoped cells
+ * with u32 indices. A tab still speaking protocol 1 (global slots) is refused by every inventory reducer until it
+ * reloads. */
 function requireInventoryProtocol(ctx: WorldReducerContext): void {
   const acknowledgement = ctx.connectionId === null ? null
     : ctx.db.inventory_protocol.connectionId.find(ctx.connectionId);
   if (acknowledgement === null || !acknowledgement.identity.isEqual(ctx.sender)
-    || acknowledgement.version !== CURRENT_INVENTORY_PROTOCOL_VERSION) {
+    || acknowledgement.version !== CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION) {
     throw new SenderError('inventory_client_update_required');
   }
 }
@@ -4227,7 +4297,7 @@ export const acknowledgeInventoryProtocol = spacetimedb.reducer(
   { version: t.u16() },
   (ctx, { version }) => {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-    if (version !== CURRENT_INVENTORY_PROTOCOL_VERSION || ctx.connectionId === null) {
+    if (version !== CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION || ctx.connectionId === null) {
       throw new SenderError('inventory_client_update_required');
     }
     const row = { connectionId: ctx.connectionId, identity: ctx.sender, version };
@@ -5235,7 +5305,7 @@ function questProgressSourceFor(
     statistics.set(`${row.statisticKind}:${row.subjectKind}`, row.value);
   }
   const itemCounts = new Map<string, number>();
-  for (const row of ctx.db.inventory_slot.by_identity.filter(identity)) {
+  for (const row of carriedPlayerCellRows(ctx.db, identity)) {
     if (row.itemKind === 'empty' || row.quantity === 0) continue;
     itemCounts.set(row.itemKind, (itemCounts.get(row.itemKind) ?? 0) + row.quantity);
   }
@@ -5717,7 +5787,7 @@ function activePlayerModifiers(
 ): readonly Modifier[] {
   const registry = contentRegistry(ctx);
   const effects = [...ctx.db.player_effect.by_identity.filter(identity)];
-  const inventory = [...ctx.db.inventory_slot.by_identity.filter(identity)];
+  const inventory = legacySlotRows(carriedPlayerCellRows(ctx.db, identity));
   const selectedSlot = ctx.db.player_survival.identity.find(identity)?.selectedSlot ?? 0;
   const loadout = compileEquipmentLoadout({
     registry, inventory, selectedSlot,
@@ -6041,15 +6111,83 @@ function requireUsableTool<T extends { readonly itemKind: string; readonly durab
   if (slot.durability === 0) throw new SenderError('tool_broken');
 }
 
-/** Single-row runtime custody changes may alter selected or equipped benefits.
+/** Rethrows a plain `Error(code)` from the sim or `container-cells` as a `SenderError` with the same code. */
+function withSenderErrors<T>(run: () => T): T {
+  try {
+    return run();
+  } catch (error) {
+    if (error instanceof SenderError || !(error instanceof Error)) throw error;
+    throw new SenderError(error.message);
+  }
+}
+
+/** Player storage lives in `player_container_cell` once the connect-time move has run. A write for a player still on
+ * the legacy layout (an offline player reached by a scheduled or admin path) is refused: the move would then refuse
+ * the player's cells rather than merge them. */
+function requirePlayerContainerCells(ctx: Pick<WorldReducerContext, 'db'>, identity: WorldReducerContext['sender']): void {
+  if (!playerContainerCellsCurrent(ctx.db, identity)) throw new SenderError('inventory_migration_pending');
+}
+
+/** The cell a stored `selectedSlot` names (a hotbar cell, or Main Hand for `MAIN_HAND_SELECTED_SLOT`), as its stored
+ * row or vacant value; null when the value names no cell. */
+function selectedInventorySlot(
+  ctx: Pick<WorldReducerContext, 'db'>,
+  identity: WorldReducerContext['sender'],
+  selectedSlot: number,
+): PlayerCellRow | null {
+  const cell = selectedSlotCell(selectedSlot);
+  return cell === null ? null : playerCellOrVacant(ctx.db, identity, cell.container, cell.index);
+}
+
+/** The Main Hand, shield or other equipment cell by its equipment index. */
+function equipmentInventorySlot(
+  ctx: Pick<WorldReducerContext, 'db'>,
+  identity: WorldReducerContext['sender'],
+  equipmentIndex: number,
+): PlayerCellRow {
+  return playerCellOrVacant(ctx.db, identity, 'equipment', equipmentIndex);
+}
+
+/** Hotbar then backpack cells in slot order (every stored cell, as the legacy `slot < EQUIPMENT_SLOT_OFFSET` scans
+ * read them, including any stranded past a smaller bag). */
+function hotbarAndBackpackCells(ctx: Pick<WorldReducerContext, 'db'>, identity: WorldReducerContext['sender']): PlayerCellRow[] {
+  return [
+    ...playerContainerRows(ctx.db, identity, 'hotbar').sort((left, right) => left.index - right.index),
+    ...playerContainerRows(ctx.db, identity, 'backpack').sort((left, right) => left.index - right.index),
+  ];
+}
+
+/** Every carried cell in legacy slot order: hotbar, backpack, equipment, crafting, each by index. */
+function carriedCellsInSlotOrder(ctx: Pick<WorldReducerContext, 'db'>, identity: WorldReducerContext['sender']): PlayerCellRow[] {
+  const order = new Map<string, number>(CARRIED_CONTAINERS.map((container, position) => [container, position]));
+  return carriedPlayerCellRows(ctx.db, identity)
+    .sort((left, right) => (order.get(left.container)! - order.get(right.container)!) || left.index - right.index);
+}
+
+/** The frozen legacy global slot of a carried cell: `selectedSlot` values, behaviour item refs and the global-slot sim
+ * rules still speak it. */
+function legacySlotOfCell(cell: { readonly container: string; readonly index: number }): number {
+  return isPlayerContainerId(cell.container)
+    ? cellToLegacyGlobalSlot({ container: cell.container, index: cell.index }) ?? -1 : -1;
+}
+
+/** Stores one player cell exactly as given (a vacant value deletes the row), without loadout side effects. */
+function putInventoryCell(ctx: Pick<WorldReducerContext, 'db'>, row: PlayerCellRow): void {
+  requirePlayerContainerCells(ctx, row.identity);
+  if (!isPlayerContainerId(row.container)) throw new SenderError('inventory_slot_missing');
+  putPlayerCell(ctx.db, row.identity, row.container, row.index, row);
+}
+
+/** Single-cell runtime custody changes may alter selected or equipped benefits.
  * Multi-slot menu transactions settle the complete loadout in writePlayerInventory. */
-function writeInventorySlot(ctx: WorldReducerContext, row: InventorySlotRow): void {
+function writeInventorySlot(ctx: WorldReducerContext, row: PlayerCellRow): void {
   const survival = ctx.db.player_survival.identity.find(row.identity);
-  const affectsLoadout = row.slot === survival?.selectedSlot
-    || (row.slot >= EQUIPMENT_SLOT_OFFSET && row.slot < CRAFTING_SLOT_OFFSET);
+  const selected = survival === null ? null : selectedSlotCell(survival.selectedSlot);
+  const affectsLoadout = row.container === 'equipment'
+    || (selected !== null && selected.container === row.container && selected.index === row.index);
   const tick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
   if (affectsLoadout) advancePlayerStats(ctx, row.identity, tick);
-  ctx.db.inventory_slot.id.update(row);
+  putInventoryCell(ctx, row);
   if (affectsLoadout) {
     updateEquippedForIdentity(ctx, row.identity);
     advancePlayerStats(ctx, row.identity, tick);
@@ -6067,7 +6205,7 @@ function wearInventoryTool(
   wear = 1,
 ): void {
   const worn = runtimeWearTool(contentRegistry(ctx), slot.itemKind, slot.durability, wear);
-  const row = ctx.db.inventory_slot.id.find(slot.id);
+  const row = ctx.db.player_container_cell.id.find(slot.id);
   if (row === null) throw new SenderError('inventory_slot_missing');
   writeInventorySlot(ctx, { ...row, durability: worn.durability });
   if (worn.broken) {
@@ -6082,34 +6220,36 @@ function wearInventoryTool(
   }
 }
 
+/** Dense snapshots of the four carried containers, built only from their occupied cells. `rows` numbers the carried
+ * cells by the frozen legacy layout for the sim rules that still take global slots. Cells at or past a container's
+ * capacity (a smaller bag, fewer debug slots) are left out of the snapshot and spill to overflow on the next write. */
 function loadPlayerInventory(
   ctx: Pick<WorldReducerContext, 'db'>,
   identity: WorldReducerContext['sender'],
 ) {
-  const rows = [...ctx.db.inventory_slot.by_identity.filter(identity)];
-  const rowBySlot = new Map(rows.map((row) => [row.slot, row]));
-  const carriedCapacity = equippedInventoryCapacity(ctx, rows);
-  const make = (id: InventoryContainerId): ContainerSnapshot => {
-    const capacity = accessibleInventoryContainerCapacity(id, carriedCapacity, playerDebugBackpackSlots(ctx, identity));
-    const offset = inventorySlotOffset(id);
-    return {
-      id,
-      capacity,
-      slots: Array.from({ length: capacity }, (_, index) => {
-        const row = rowBySlot.get(offset + index);
-        return row === undefined ? null : storedStack(ctx, row.itemKind, row.quantity, row.durability, row.lit);
-      }),
-      ...(id === 'equipment' ? { restrictions: EQUIPMENT_SLOT_RESTRICTIONS } : {}),
-    };
-  };
+  const cells = carriedPlayerCellRows(ctx.db, identity);
+  const byContainer = new Map<string, PlayerCellRow[]>();
+  for (const cell of cells) byContainer.set(cell.container, [...(byContainer.get(cell.container) ?? []), cell]);
+  const carriedCapacity = equippedInventoryCapacity(ctx, cells);
+  const debugBackpackSlots = playerDebugBackpackSlots(ctx, identity);
+  const codec = runtimeStoredStackCodec(contentRegistry(ctx));
+  const build = (id: CarriedContainerId): SparseContainerBuild<PlayerCellRow> => withSenderErrors(() => buildDenseContainer({
+    id,
+    capacity: accessibleInventoryContainerCapacity(id, carriedCapacity, debugBackpackSlots),
+    cells: byContainer.get(id) ?? [],
+    codec,
+    ...(id === 'equipment' ? { restrictions: EQUIPMENT_SLOT_RESTRICTIONS } : {}),
+  }));
+  const builds = { hotbar: build('hotbar'), backpack: build('backpack'), equipment: build('equipment'), crafting: build('crafting') };
   return {
-    rows,
-    rowBySlot,
+    identity,
+    rows: legacySlotRows(cells),
+    builds,
     containers: {
-      hotbar: make('hotbar'),
-      backpack: make('backpack'),
-      equipment: make('equipment'),
-      crafting: make('crafting'),
+      hotbar: builds.hotbar.container,
+      backpack: builds.backpack.container,
+      equipment: builds.equipment.container,
+      crafting: builds.crafting.container,
     },
   };
 }
@@ -6139,16 +6279,17 @@ function loadAdminInventoryState(
 
 function writePlayerInventory(
   ctx: WorldReducerContext,
-  rowBySlot: ReturnType<typeof loadPlayerInventory>['rowBySlot'],
+  inventory: Pick<ReturnType<typeof loadPlayerInventory>, 'identity' | 'builds'>,
   before: Readonly<Record<string, ContainerSnapshot>>,
   after: Readonly<Record<string, ContainerSnapshot>>,
 ): void {
   const registry = contentRegistry(ctx);
+  const owner = inventory.identity;
+  requirePlayerContainerCells(ctx, owner);
   const equipmentChanged=Array.from({length:EQUIPMENT_SLOT_COUNT},(_,index)=>index).some(index=>
     !sameStoredStack(before.equipment?.slots[index],after.equipment?.slots[index]));
-  const owner=rowBySlot.values().next().value?.identity;
   const tick=ctx.db.world_clock.id.find(0)?.authorityTick??0n;
-  if (equipmentChanged && owner!==undefined) advancePlayerStats(ctx,owner,tick);
+  if (equipmentChanged) advancePlayerStats(ctx,owner,tick);
 
   const carriedCapacity = (containers: Readonly<Record<string, ContainerSnapshot>>): number => {
     const equipped = containers.equipment?.slots[4];
@@ -6162,33 +6303,60 @@ function writePlayerInventory(
     .slice(afterCapacity).some((stack) => stack !== null)) {
     throw new SenderError('backpack_in_use');
   }
-  for (const id of ['hotbar', 'backpack', 'equipment', 'crafting'] as const) {
-    const previousContainer = before[id];
+  const codec = runtimeStoredStackCodec(registry);
+  let changed = false;
+  for (const id of CARRIED_CONTAINERS) {
+    const loaded = inventory.builds[id];
     const nextContainer = after[id];
-    if (previousContainer === undefined || nextContainer === undefined) continue;
-    const offset = inventorySlotOffset(id);
-    for (let index = 0; index < nextContainer.capacity; index += 1) {
-      const previous = previousContainer.slots[index];
-      const next = nextContainer.slots[index];
-      if (sameStoredStack(previous, next)) continue;
-      const row = rowBySlot.get(offset + index);
-      if (row === undefined) throw new SenderError('inventory_slot_missing');
-      ctx.db.inventory_slot.id.update({
-        ...row,
-        itemKind: next?.itemKind ?? 'empty',
-        quantity: next?.quantity ?? 0,
-        durability: storedDurability(ctx, next?.itemKind ?? 'empty', next?.durability),
-        lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
-      });
-      if (ctx.db.inventory_overflow_retry.identity.find(row.identity) !== null) {
-        ctx.db.inventory_overflow_retry.identity.delete(row.identity);
-      }
-    }
+    if (before[id] === undefined || nextContainer === undefined) continue;
+    // An admin restore may carry a snapshot taken at another backpack size: rebuild the same rows at its capacity.
+    const build = nextContainer.capacity === loaded.container.capacity ? loaded
+      : withSenderErrors(() => buildDenseContainer({
+        id, capacity: nextContainer.capacity, codec,
+        cells: [...loaded.cellsByIndex.values(), ...loaded.spill, ...loaded.staleVacant],
+        ...(loaded.container.restrictions === undefined ? {} : { restrictions: loaded.container.restrictions }),
+      }));
+    // Only changed cells are written: an upsert per changed occupied cell, a delete per emptied cell.
+    const writes = withSenderErrors(() => diffDenseContainer(build, nextContainer, codec));
+    if (applyPlayerContainerWrites(ctx.db, owner, id, writes)) changed = true;
+    // Items stranded past a shrunk container move to overflow custody; the drain returns them as space opens. A retired
+    // item stays in its cell (the drain could never place it) and an over-maximum stack splits (spillPlayerCells).
+    const spill = spillPlayerCells(ctx.db, owner, build, itemKind => runtimeMaxStack(registry, itemKind));
+    if (spill.spilled > 0 || build.staleVacant.length > 0) changed = true;
+  }
+  if (changed && ctx.db.inventory_overflow_retry.identity.find(owner) !== null) {
+    ctx.db.inventory_overflow_retry.identity.delete(owner);
   }
   // Unequip clamps to the lower maximum immediately. Re-equipping never heals
   // that discarded reserve or retroactively applies the new gear to regeneration.
-  if (equipmentChanged && owner!==undefined) advancePlayerStats(ctx,owner,tick);
+  if (equipmentChanged) advancePlayerStats(ctx,owner,tick);
 
+}
+
+/** Hotbar then backpack as one dense container, the order pickups fill: position p is hotbar index p below the
+ * hotbar size (equal to its legacy slot), then backpack index p - hotbar size. */
+function carriedPickupContainer(inventory: ReturnType<typeof loadPlayerInventory>): ContainerSnapshot {
+  const { hotbar, backpack } = inventory.containers;
+  return { id: 'carried', capacity: hotbar.capacity + backpack.capacity, slots: [...hotbar.slots, ...backpack.slots] };
+}
+
+/** Writes a changed `carriedPickupContainer` back through the sparse cells; returns the first changed position. */
+function writeCarriedPickupContainer(
+  ctx: WorldReducerContext,
+  inventory: ReturnType<typeof loadPlayerInventory>,
+  before: ContainerSnapshot,
+  after: ContainerSnapshot,
+): number | null {
+  let first: number | null = null;
+  for (let slot = 0; slot < after.capacity && first === null; slot += 1) {
+    if (!sameStoredStack(before.slots[slot], after.slots[slot])) first = slot;
+  }
+  const { hotbar, backpack } = inventory.containers;
+  writePlayerInventory(ctx, inventory, { hotbar, backpack }, {
+    hotbar: { ...hotbar, slots: after.slots.slice(0, hotbar.capacity) },
+    backpack: { ...backpack, slots: after.slots.slice(hotbar.capacity, hotbar.capacity + backpack.capacity) },
+  });
+  return first;
 }
 
 function playerInventoryCursor(
@@ -6223,7 +6391,7 @@ function writePlayerInventoryCursor(
 interface OpenMenuInventory {
   readonly inventory: ReturnType<typeof loadPlayerInventory>;
   readonly containers: Readonly<Record<string, ContainerSnapshot>>;
-  readonly stash?: {readonly container:ContainerSnapshot;readonly rowsBySlot:ReadonlyMap<number,ReturnType<typeof loadHearthStashRows>[number]>};
+  readonly stash?: {readonly container:ContainerSnapshot;readonly build:SparseContainerBuild<PlayerCellRow>};
   readonly chest?: {
     readonly container: ContainerSnapshot;
     readonly rowsBySlot: ReadonlyMap<number, ReturnType<typeof ensureChestStorageRows>[number]>;
@@ -6231,34 +6399,50 @@ interface OpenMenuInventory {
   readonly placeable?: {
     readonly placeable: WorldPlaceableRow;
     readonly container: ContainerSnapshot;
-    readonly rowsBySlot: ReadonlyMap<number, ReturnType<typeof loadOpenPlaceableRows>[number]>;
+    readonly build: SparseContainerBuild<PlaceableCellRow>;
   };
 }
 
-/** Lazily materializes interface slots so tagging an already-placed prop is a
- * complete migration: its next settlement/interaction gains the UI without a
- * bespoke data backfill. */
-function loadOpenPlaceableRows(ctx: WorldReducerContext, placeable: WorldPlaceableRow) {
-  const rows = [...ctx.db.world_placeable_slot.by_placeable.filter(placeable.id)];
-  const occupied = new Set(rows.map((row) => row.slot));
-  for (let slot = 0; slot < genericPlaceableCapacity(ctx, placeable); slot += 1) {
-    if (occupied.has(slot)) continue;
-    rows.push(ctx.db.world_placeable_slot.insert({
-      id: `${placeable.id}:${slot}`,
-      placeableId: placeable.id,
-      slot,
-      itemKind: 'empty',
-      quantity: 0,
-      durability: 0,
-      lit: true,
-    }));
-  }
-  return rows.sort((left, right) => left.slot - right.slot);
+/** Copies a placeable's legacy `world_placeable_slot` rows into `placeable_container_cell` once, before any read or
+ * write of its storage; the release lane's backfill copies every other placeable. No-op once copied. */
+function ensurePlaceableContainerCells(ctx: Pick<WorldReducerContext, 'db' | 'timestamp'>, placeableId: bigint): void {
+  withSenderErrors(() => copyPlaceableToContainerCells(ctx.db, placeableId, ctx.timestamp));
+}
+
+/** A placeable's occupied cells, by index. A missing index is an empty cell, so tagging an already-placed prop with a
+ * container needs no backfill: its cells simply start empty. */
+function loadPlaceableCells(ctx: Pick<WorldReducerContext, 'db' | 'timestamp'>, placeable: Pick<WorldPlaceableRow, 'id'>) {
+  ensurePlaceableContainerCells(ctx, placeable.id);
+  return placeableCellRows(ctx.db, placeable.id);
+}
+
+/** Stores one placeable cell from a dense stack: insert or update when occupied, delete when null. */
+function writePlaceableStack(
+  ctx: Pick<WorldReducerContext, 'db'>, placeableId: bigint, index: number, stack: ItemStack | null,
+): void {
+  putPlaceableCell(ctx.db, placeableId, index, stack === null ? null : {
+    itemKind: stack.itemKind, quantity: stack.quantity,
+    durability: storedDurability(ctx, stack.itemKind, stack.durability), lit: storedLit(stack.itemKind, stack.lit),
+  });
+}
+
+/** Dense snapshot of a placeable's container. Cells past its capacity stay stored exactly as the legacy rows did
+ * (a processor topology and a container can size one object differently, so nothing is moved on their behalf). */
+function loadPlaceableBuild(
+  ctx: WorldReducerContext, placeable: WorldPlaceableRow, id: string, capacity: number,
+  restrictions: ContainerSnapshot['restrictions'],
+): SparseContainerBuild<PlaceableCellRow> {
+  const cells = loadPlaceableCells(ctx, placeable);
+  return withSenderErrors(() => buildDenseContainer({
+    id, capacity, cells, codec: runtimeStoredStackCodec(contentRegistry(ctx)),
+    ...(restrictions === undefined || Object.keys(restrictions).length === 0 ? {} : { restrictions }),
+  }));
 }
 
 const processorBehaviourDependencies: ProcessorBehaviourDependencies = {
   contentRegistry,
-  loadOpenPlaceableRows,
+  loadPlaceableCells,
+  writePlaceableCell: writePlaceableStack,
   storedStack,
   sameStoredStack,
   storedDurability,
@@ -6376,17 +6560,15 @@ function hearthStashSessionAvailable(ctx:WorldReducerContext):boolean {
 function clearActiveHearthStash(ctx:WorldReducerContext,identity:WorldReducerContext['sender']):void {
   ctx.db.active_hearth_stash.identity.delete(identity);
 }
-function loadHearthStashRows(ctx:WorldReducerContext){
-  const capacity=activeHearthLobbyDefinition(contentRegistry(ctx))?.stashCapacity;
+/** The sender's stash as a dense snapshot of its `stash` cells. Capacity is the stash content's; restrictions are the
+ * authored frame rules the client applies (BUG-046, insertion only). Cells past a smaller capacity spill on write. */
+function loadHearthStashBuild(ctx:WorldReducerContext):SparseContainerBuild<PlayerCellRow>{
+  const registry=contentRegistry(ctx);
+  const capacity=activeHearthLobbyDefinition(registry)?.stashCapacity;
   if(capacity===undefined)throw new SenderError('stash_unavailable');
-  const rows=[...ctx.db.hearth_stash_slot.by_identity.filter(ctx.sender)];
-  const occupied=new Set(rows.map(row=>row.slot));
-  for(let slot=0;slot<capacity;slot++){
-    if(!occupied.has(slot))rows.push(ctx.db.hearth_stash_slot.insert({
-      id:`${ctx.sender.toHexString()}:${slot}`,identity:ctx.sender,slot,itemKind:'empty',quantity:0,durability:0,lit:true,
-    }));
-  }
-  return rows;
+  const restrictions=hearthStashFrameRestrictions(registry);
+  return withSenderErrors(()=>buildDenseContainer({id:'stash',capacity,cells:playerContainerRows(ctx.db,ctx.sender,'stash'),
+    codec:runtimeStoredStackCodec(registry),...(Object.keys(restrictions).length===0?{}:{restrictions})}));
 }
 function openHearthStashEndpoint(ctx: WorldReducerContext, endpointId: string): void {
   requireAuthorizedSender(ctx.senderAuth.jwt,ctx.db.membership.identity.find(ctx.sender));
@@ -6403,7 +6585,7 @@ function openHearthStashEndpoint(ctx: WorldReducerContext, endpointId: string): 
   if(legacyChest!==null)syncLegacyChestGenericMirror(ctx,legacyChest);
   clearActivePlaceable(ctx,ctx.sender);
   ctx.db.active_dialogue.identity.delete(ctx.sender);
-  loadHearthStashRows(ctx);
+  loadHearthStashBuild(ctx);
   const next={identity:ctx.sender,connectionId:ctx.connectionId,endpointId};
   if(ctx.db.active_hearth_stash.identity.find(ctx.sender)===null)ctx.db.active_hearth_stash.insert(next);
   else ctx.db.active_hearth_stash.identity.update(next);
@@ -6430,19 +6612,8 @@ function loadOpenMenuInventory(ctx: WorldReducerContext): OpenMenuInventory {
   const containers: Record<string, ContainerSnapshot> = { ...inventory.containers };
   let stashResult:OpenMenuInventory['stash'];
   if(hearthStashSessionAvailable(ctx)){
-    const registry=contentRegistry(ctx);
-    const capacity=activeHearthLobbyDefinition(registry)?.stashCapacity;
-    if(capacity===undefined)throw new SenderError('stash_unavailable');
-    const rowsBySlot=new Map(loadHearthStashRows(ctx).map(row=>[row.slot,row]));
-    // Same authored frame rules the client applies (BUG-046); insertion only.
-    const restrictions=hearthStashFrameRestrictions(registry);
-    const container:ContainerSnapshot={id:'stash',capacity,
-      ...(Object.keys(restrictions).length===0?{}:{restrictions}),
-      slots:Array.from({length:capacity},(_,slot)=>{
-        const row=rowsBySlot.get(slot)!;
-        return storedStack(ctx,row.itemKind,row.quantity,row.durability,row.lit);
-      })};
-    containers.stash=container;stashResult={container,rowsBySlot};
+    const build=loadHearthStashBuild(ctx);
+    containers.stash=build.container;stashResult={container:build.container,build};
   }
   let chestResult: OpenMenuInventory['chest'];
   const activeChest = ctx.db.active_chest.identity.find(ctx.sender);
@@ -6479,20 +6650,12 @@ function loadOpenMenuInventory(ctx: WorldReducerContext): OpenMenuInventory {
     const capacity = placeable === null ? 0 : genericPlaceableCapacity(ctx, placeable);
     if (placeable !== null && position !== null && placeable.spaceId === position.spaceId
       && chestWithinReach(position.x, position.y, placeable) && capacity > 0) {
-      const rows = loadOpenPlaceableRows(ctx, placeable);
-      const rowsBySlot = new Map(rows.map((row) => [row.slot, row]));
       const restrictions = placeableFrameRestrictions(contentRegistry(ctx), placeable);
       const containerId = genericChest(ctx, placeable) ? 'chest' : 'placeable';
-      const container: ContainerSnapshot = {
-        id: containerId, capacity,
-        ...(Object.keys(restrictions).length === 0 ? {} : { restrictions }),
-        slots: Array.from({ length: capacity }, (_, index) => {
-          const row = rowsBySlot.get(index);
-          return row === undefined ? null : storedStack(ctx, row.itemKind, row.quantity, row.durability, row.lit);
-        }),
-      };
+      const build = loadPlaceableBuild(ctx, placeable, containerId, capacity, restrictions);
+      const container = build.container;
       containers[containerId] = container;
-      placeableResult = { placeable, container, rowsBySlot };
+      placeableResult = { placeable, container, build };
     }
   }
   return {
@@ -6554,20 +6717,19 @@ function writeOpenMenuInventory(
       (itemKind) => barrelInputKinds.has(itemKind),
       (itemKind) => barrelOutputKinds.has(itemKind),
     )) throw new SenderError('barrel_contents_restricted');
-  writePlayerInventory(ctx, menu.inventory.rowBySlot, menu.inventory.containers, containers);
+  writePlayerInventory(ctx, menu.inventory, menu.inventory.containers, containers);
   updateEquippedForIdentity(ctx, ctx.sender, containers);
   if(menu.stash!==undefined){
     const after=containers.stash;
     const capacity=activeHearthLobbyDefinition(contentRegistry(ctx))?.stashCapacity;
     if(after===undefined||capacity===undefined||after.capacity!==capacity)throw new SenderError('stash_invalid');
-    for(let slot=0;slot<after.capacity;slot++){
-      const next=after.slots[slot],previous=menu.stash.container.slots[slot];
-      if(sameStoredStack(previous,next))continue;
-      const row=menu.stash.rowsBySlot.get(slot);
-      if(row===undefined||!row.identity.isEqual(ctx.sender))throw new SenderError('stash_slot_missing');
-      ctx.db.hearth_stash_slot.id.update({...row,itemKind:next?.itemKind??'empty',quantity:next?.quantity??0,
-        durability:storedDurability(ctx,next?.itemKind??'empty',next?.durability),lit:storedLit(next?.itemKind??'empty',next?.lit)});
-    }
+    const build=menu.stash.build;
+    const writes=withSenderErrors(()=>diffDenseContainer(build,after,runtimeStoredStackCodec(contentRegistry(ctx))));
+    if(writes.deletes.some(row=>!row.identity.isEqual(ctx.sender))||writes.upserts.some(({existing})=>
+      existing!==null&&!existing.identity.isEqual(ctx.sender)))throw new SenderError('stash_slot_missing');
+    applyPlayerContainerWrites(ctx.db,ctx.sender,'stash',writes);
+    // Items stranded past a smaller stash move to the owner's overflow custody, checked as in writePlayerInventory.
+    spillPlayerCells(ctx.db,ctx.sender,build,itemKind=>runtimeMaxStack(contentRegistry(ctx),itemKind));
   }
   if (menu.chest !== undefined) {
     const after = containers.chest!;
@@ -6606,20 +6768,15 @@ function writeOpenMenuInventory(
     const nextCellarInput = nextCookingInput;
     const cellarInputChanged = cellarCapability !== null
       && previousCellarInput?.itemKind !== nextCellarInput?.itemKind;
-    for (let index = 0; index < after.capacity; index += 1) {
-      const previous = menu.placeable.container.slots[index];
-      const next = after.slots[index];
-      if (sameStoredStack(previous, next)) continue;
+    const placeableBuild = menu.placeable.build;
+    const writes = withSenderErrors(() => diffDenseContainer(
+      placeableBuild, after, runtimeStoredStackCodec(contentRegistry(ctx)),
+    ));
+    if (writes.upserts.length > 0 || writes.deletes.length > 0) {
       const position = ctx.db.player_position.identity.find(ctx.sender);
       if (position === null) throw new SenderError('player_not_ready');
       requireWorldModificationAuthorized(ctx, position);
-      const row = menu.placeable.rowsBySlot.get(index);
-      if (row === undefined) throw new SenderError('placeable_slot_missing');
-      ctx.db.world_placeable_slot.id.update({
-        ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0,
-        durability: storedDurability(ctx, next?.itemKind ?? 'empty', next?.durability),
-        lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
-      });
+      applyPlaceableContainerWrites(ctx.db, menu.placeable.placeable.id, writes);
     }
     if (cookingInputChanged) {
       const current = ctx.db.world_placeable.id.find(menu.placeable.placeable.id);
@@ -6684,54 +6841,117 @@ function stashOverflow(
   }
 }
 
-/** Recovery is deterministic and transactional: an overflow row is only
- * changed after its exact moved quantity has been written into player slots. */
-function drainPlayerOverflow(ctx: WorldReducerContext, identity: WorldReducerContext['sender']): void {
+/** An overflow row the drain cannot place (a retired item kind, or a move the content refuses). It stays stored,
+ * untouched, and the drain carries on with the owner's other rows. */
+interface OverflowDrainSkip { readonly rowId: bigint; readonly code: string }
+
+/**
+ * The read-only half of the overflow drain: every quick move is computed before anything is written, so a refusal here
+ * leaves the world untouched. Rows are taken oldest first; an item kind the active content no longer defines is
+ * skipped (kept), a stored stack above its kind's current maximum is offered in maximum-sized pieces (the rest stays
+ * on the row), and any refusal other than `container_full` skips that row instead of failing the drain.
+ */
+function planPlayerOverflowDrain(ctx: WorldReducerContext, identity: WorldReducerContext['sender']) {
   const overflowRows = [...ctx.db.inventory_overflow.by_identity.filter(identity)]
     .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
-  if (overflowRows.length === 0) {
+  if (overflowRows.length === 0) return null;
+  const registry = contentRegistry(ctx);
+  const inventory = loadPlayerInventory(ctx, identity);
+  let containers: Readonly<Record<string, ContainerSnapshot>> = inventory.containers;
+  const remaining = new Map<bigint, number>();
+  const skipped: OverflowDrainSkip[] = [];
+  rows: for (const row of overflowRows) {
+    const maximum = runtimeMaxStack(registry, row.itemKind);
+    if (maximum === null || maximum < 1 || row.quantity <= 0) {
+      skipped.push({ rowId: row.id, code: maximum === null ? 'overflow_item_retired' : 'overflow_row_invalid' });
+      continue;
+    }
+    let left = row.quantity;
+    while (left > 0) {
+      const piece = Math.min(left, maximum);
+      const sourceId = `overflow:${row.id}`;
+      const moved = quickMoveItemStack({
+        ...containers,
+        [sourceId]: { id: sourceId, capacity: 1, slots: [{
+          itemKind: row.itemKind, quantity: piece,
+          ...(runtimeDurabilityDefinition(registry, row.itemKind) === null ? {} : { durability: row.durability }),
+          lit: row.lit,
+        }] },
+      }, { fromContainer: sourceId, fromIndex: 0, toContainers: ['hotbar', 'backpack'] }, activeItemContainerContent(ctx));
+      if (!moved.ok) {
+        if (moved.code === 'container_full') break rows;
+        skipped.push({ rowId: row.id, code: moved.code });
+        continue rows;
+      }
+      containers = {
+        hotbar: moved.containers.hotbar!,
+        backpack: moved.containers.backpack!,
+        equipment: moved.containers.equipment!,
+        crafting: moved.containers.crafting!,
+      };
+      const rest = moved.containers[sourceId]!.slots[0]?.quantity ?? 0;
+      left -= piece - rest;
+      remaining.set(row.id, left);
+      if (rest > 0) break rows;
+    }
+  }
+  return { inventory, containers, overflowRows, remaining, skipped };
+}
+
+/** Recovery is deterministic and transactional: the whole drain is planned before any write, and an overflow row is
+ * only changed after its exact moved quantity has been written into player slots. The writes are only stacks the
+ * planned moves accepted. Returns the rows the plan kept. */
+function applyPlayerOverflowDrain(
+  ctx: WorldReducerContext, identity: WorldReducerContext['sender'], plan: ReturnType<typeof planPlayerOverflowDrain>,
+): readonly OverflowDrainSkip[] {
+  if (plan === null) {
     if (ctx.db.inventory_overflow_retry.identity.find(identity) !== null) {
       ctx.db.inventory_overflow_retry.identity.delete(identity);
     }
-    return;
+    return [];
   }
-  const inventory = loadPlayerInventory(ctx, identity);
-  let containers: Readonly<Record<string, ContainerSnapshot>> = inventory.containers;
+  const { inventory, containers, overflowRows, remaining } = plan;
+  writePlayerInventory(ctx, inventory, inventory.containers, containers);
   for (const row of overflowRows) {
-    const sourceId = `overflow:${row.id}`;
-    const moved = quickMoveItemStack({
-      ...containers,
-      [sourceId]: { id: sourceId, capacity: 1, slots: [{
-        itemKind: row.itemKind, quantity: row.quantity,
-        ...(runtimeDurabilityDefinition(contentRegistry(ctx), row.itemKind) === null
-          ? {} : { durability: row.durability }),
-        lit: row.lit,
-      }] },
-    }, { fromContainer: sourceId, fromIndex: 0, toContainers: ['hotbar', 'backpack'] }, activeItemContainerContent(ctx));
-    if (!moved.ok) {
-      if (moved.code === 'container_full') break;
-      throw new SenderError(moved.code);
-    }
-    containers = {
-      hotbar: moved.containers.hotbar!,
-      backpack: moved.containers.backpack!,
-      equipment: moved.containers.equipment!,
-      crafting: moved.containers.crafting!,
-    };
-    const remainder = moved.containers[sourceId]!.slots[0];
-    if (remainder == null) ctx.db.inventory_overflow.id.delete(row.id);
-    else ctx.db.inventory_overflow.id.update({
-      ...row, quantity: remainder.quantity,
-      durability: storedDurability(ctx, remainder.itemKind, remainder.durability),
-      lit: storedLit(remainder.itemKind, remainder.lit),
-    });
+    const left = remaining.get(row.id);
+    if (left === undefined || left === row.quantity) continue;
+    if (left === 0) ctx.db.inventory_overflow.id.delete(row.id);
+    else ctx.db.inventory_overflow.id.update({ ...row, quantity: left });
   }
-  writePlayerInventory(ctx, inventory.rowBySlot, inventory.containers, containers);
   updateEquippedForIdentity(ctx, identity, containers);
   const remainsBlocked = firstIndexRow(ctx.db.inventory_overflow.by_identity.filter(identity)) !== null;
   const retry = ctx.db.inventory_overflow_retry.identity.find(identity);
   if (remainsBlocked && retry === null) ctx.db.inventory_overflow_retry.insert({ identity });
   else if (!remainsBlocked && retry !== null) ctx.db.inventory_overflow_retry.identity.delete(identity);
+  return plan.skipped;
+}
+
+/**
+ * The overflow drain for callers that must not fail because of one owner: connect, the 1 Hz maintenance pass and the
+ * legacy farm recipients. Rows it cannot place are kept and skipped by the plan; a refusal of the whole plan (for
+ * example an unreadable stored cell) is caught here, and only the read-only planning is inside the catch, so a caught
+ * refusal has written nothing and loses or duplicates nothing. It is recorded in the module log and the owner gets the
+ * retry marker, so the maintenance pass does not retry it every second (the owner's next inventory write clears it).
+ * Kept rows are logged the same way. Returns whether the drain ran.
+ */
+function drainPlayerOverflowSafely(ctx: WorldReducerContext, identity: WorldReducerContext['sender']): boolean {
+  // A player still on the legacy layout has no cells to drain into, and every inventory write refuses them
+  // (`inventory_migration_pending`) outside this function's catch. Their overflow waits for the connect that moves
+  // them (which drains right after). The legacy farm recipients are not filtered by layout, so this guard is theirs.
+  if (!playerContainerCellsCurrent(ctx.db, identity)) return false;
+  let plan: ReturnType<typeof planPlayerOverflowDrain>;
+  try {
+    plan = planPlayerOverflowDrain(ctx, identity);
+  } catch (error) {
+    console.warn(`inventory overflow drain refused for ${identity.toHexString()}: ${error instanceof Error ? error.message : String(error)}`);
+    if (ctx.db.inventory_overflow_retry.identity.find(identity) === null) ctx.db.inventory_overflow_retry.insert({ identity });
+    return false;
+  }
+  const skipped = applyPlayerOverflowDrain(ctx, identity, plan);
+  for (const skip of skipped) {
+    console.warn(`inventory overflow row ${skip.rowId} kept for ${identity.toHexString()}: ${skip.code}`);
+  }
+  return true;
 }
 
 function writeAdminInventoryState(
@@ -6740,7 +6960,7 @@ function writeAdminInventoryState(
   loaded: ReturnType<typeof loadAdminInventoryState>,
   after: AdminInventoryState,
 ): void {
-  writePlayerInventory(ctx, loaded.inventory.rowBySlot, loaded.inventory.containers, after.containers);
+  writePlayerInventory(ctx, loaded.inventory, loaded.inventory.containers, after.containers);
   writePlayerInventoryCursor(ctx, identity, after.cursor);
   const previousOverflow = [...ctx.db.inventory_overflow.by_identity.filter(identity)]
     .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
@@ -7813,10 +8033,21 @@ export const ownPlayerStatisticMilestones = spacetimedb.view(
   (ctx) => [...ctx.db.player_statistic_milestone.by_identity.filter(ctx.sender)],
 );
 
+/** Legacy (frozen) projection: the `inventory_slot` rows as they stood when the player's rows moved to
+ * `player_container_cell`. Kept, unchanged, so the release lane's rejoin parity (run with the previous release's
+ * bindings) proves the legacy rows are untouched; live inventory is `own_player_container_cells`. */
 export const ownInventorySlots = spacetimedb.view(
   { name: 'own_inventory_slots', public: true },
   t.array(inventory_slot.rowType),
   (ctx) => [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)],
+);
+
+/** The sender's occupied cells in every player container (hotbar, backpack, equipment, crafting and stash), keyed
+ * `identity:container:index`. A missing index is an empty cell (Uncapped Storage step 4). */
+export const ownPlayerContainerCells = spacetimedb.view(
+  { name: 'own_player_container_cells', public: true },
+  t.array(player_container_cell.rowType),
+  (ctx) => [...ctx.db.player_container_cell.by_identity.filter(ctx.sender)],
 );
 
 export const ownKnownRecipes = spacetimedb.view(
@@ -7841,6 +8072,8 @@ export const ownActiveHearthStash=spacetimedb.view(
   {name:'own_active_hearth_stash',public:true},t.option(active_hearth_stash.rowType),
   ctx=>ctx.db.active_hearth_stash.identity.find(ctx.sender)??undefined,
 );
+/** Legacy (frozen) projection of `hearth_stash_slot`; live stash cells are `own_player_container_cells` rows with
+ * container `stash`. */
 export const ownHearthStashSlots=spacetimedb.view(
   {name:'own_hearth_stash_slots',public:true},t.array(hearth_stash_slot.rowType),
   ctx=>[...ctx.db.hearth_stash_slot.by_identity.filter(ctx.sender)],
@@ -7873,12 +8106,23 @@ export const ownActivePlaceable = spacetimedb.view(
   },
 );
 
+/** Legacy (frozen) projection of `world_placeable_slot`; live cells are `own_open_placeable_container_cells`. */
 export const ownOpenPlaceableSlots = spacetimedb.view(
   { name: 'own_open_placeable_slots', public: true },
   t.array(world_placeable_slot.rowType),
   (ctx) => {
     const active = ctx.db.active_placeable.identity.find(ctx.sender);
     return active === null ? [] : [...ctx.db.world_placeable_slot.by_placeable.filter(active.placeableId)];
+  },
+);
+
+/** The occupied cells of the placeable the sender has open, keyed `placeableId:index` (Uncapped Storage step 4). */
+export const ownOpenPlaceableContainerCells = spacetimedb.view(
+  { name: 'own_open_placeable_container_cells', public: true },
+  t.array(placeable_container_cell.rowType),
+  (ctx) => {
+    const active = ctx.db.active_placeable.identity.find(ctx.sender);
+    return active === null ? [] : [...ctx.db.placeable_container_cell.by_placeable.filter(active.placeableId)];
   },
 );
 
@@ -7892,6 +8136,20 @@ export const ownPlacedPlaceableSlots = spacetimedb.view(
     const rows = [];
     for (const placeable of ctx.db.world_placeable.by_placer.filter(ctx.sender)) {
       rows.push(...ctx.db.world_placeable_slot.by_placeable.filter(placeable.id));
+    }
+    return rows;
+  },
+);
+
+/** Durable container state of the sender's placed placeables as occupied cells: the reconnect and release parity
+ * projection of `placeable_container_cell` (the legacy one above is frozen at the copy). */
+export const ownPlacedPlaceableContainerCells = spacetimedb.view(
+  { name: 'own_placed_placeable_container_cells', public: true },
+  t.array(placeable_container_cell.rowType),
+  (ctx) => {
+    const rows = [];
+    for (const placeable of ctx.db.world_placeable.by_placer.filter(ctx.sender)) {
+      rows.push(...ctx.db.placeable_container_cell.by_placeable.filter(placeable.id));
     }
     return rows;
   },
@@ -8228,9 +8486,16 @@ export const adminPlayerInventory = spacetimedb.procedure(
     const target = parseAdminIdentity(identity);
     if (tx.db.player_public.identity.find(target) === null) throw new SenderError('admin_target_not_found');
     const adminInventory = loadAdminInventoryState(tx, target);
-    const slots: AdminInventoryStackRow[] = [...tx.db.inventory_slot.by_identity.filter(target)].map((row) => ({
-      ...adminInventoryArea(row.slot), itemKind: row.itemKind, quantity: row.quantity, durability: row.durability,
-    }));
+    // Every carried index is listed, empty ones as `empty`, as the dense legacy rows were.
+    const cells = carriedPlayerCellRows(tx.db, target);
+    const slots: AdminInventoryStackRow[] = CARRIED_CONTAINERS.flatMap((area) => {
+      const byIndex = new Map(cells.filter((cell) => cell.container === area).map((cell) => [cell.index, cell]));
+      const count = Math.max(inventoryContainerCapacity(area), ...[...byIndex.keys()].map((index) => index + 1));
+      return Array.from({ length: count }, (_, index) => {
+        const cell = byIndex.get(index);
+        return { area, index, itemKind: cell?.itemKind ?? 'empty', quantity: cell?.quantity ?? 0, durability: cell?.durability ?? 0 };
+      });
+    });
     const cursor = tx.db.inventory_cursor.identity.find(target);
     if (cursor !== null) slots.push({ area: 'cursor', index: 0, itemKind: cursor.itemKind, quantity: cursor.quantity, durability: cursor.durability });
     for (const [index, row] of [...tx.db.inventory_overflow.by_identity.filter(target)].entries()) {
@@ -8269,9 +8534,10 @@ export const adminContainerContents = spacetimedb.procedure(
     }
     const placeable = tx.db.world_placeable.id.find(id);
     if (placeable === null) throw new SenderError('admin_entity_not_found');
-    const rows = [...tx.db.world_placeable_slot.by_placeable.filter(id)].sort((left, right) => left.slot - right.slot);
+    ensurePlaceableContainerCells({ db: tx.db, timestamp: tx.timestamp }, id);
+    const rows = placeableCellRows(tx.db, id);
     const contents: readonly (AdminResolvedStack | null)[] = Array.from({ length: genericPlaceableCapacity(tx, placeable) }, (_, slot) => {
-      const row = rows.find((candidate) => candidate.slot === slot); return row === undefined ? null : adminResolvedStack(tx, row);
+      const row = rows.find((candidate) => candidate.index === slot); return row === undefined ? null : adminResolvedStack(tx, row);
     });
     return adminProcedureJson(buildAdminContainerContents({
       entityId, definitionId: placeable.definitionId || placeable.kind, ownerIdentity: placeable.placedBy.toHexString(),
@@ -8667,7 +8933,7 @@ function loadAdminWorldState(ctx: WorldReducerContext): AdminWorldState {
     targetExists: chestIds.has(row.chestId.toString()), repair: 'none',
   });
   const placeableIds = new Set(placeables.map(({ id }) => id.toString()));
-  for (const row of take(ctx.db.world_placeable_slot.iter())) rowReferences.push({
+  for (const row of take(ctx.db.placeable_container_cell.iter())) rowReferences.push({
     sourceKind: 'placeable_slot', sourceId: row.id, targetKind: 'placeable', targetId: row.placeableId.toString(),
     targetExists: placeableIds.has(row.placeableId.toString()), repair: 'none',
   });
@@ -8683,7 +8949,7 @@ function loadAdminWorldState(ctx: WorldReducerContext): AdminWorldState {
   for (const row of combatTargets) if (row.carriedBy !== undefined) custody.push({ entityKind: 'combat_target', entityId: row.id.toString(), holderIdentity: row.carriedBy.toHexString(), holderExists: knownPlayers.has(row.carriedBy.toHexString()), parentExists: true, claims: 1 });
   for (const row of placeables) if (row.carriedBy !== undefined) custody.push({ entityKind: 'placeable', entityId: row.id.toString(), holderIdentity: row.carriedBy.toHexString(), holderExists: knownPlayers.has(row.carriedBy.toHexString()), parentExists: true, claims: 1 });
   for (const row of tradeOffers) custody.push({ entityKind: 'trade_offer', entityId: row.id, holderIdentity: row.owner.toHexString(), holderExists: knownPlayers.has(row.owner.toHexString()), parentExists: tradeIds.has(row.tradeId), claims: 1 });
-  for (const row of take(ctx.db.hearth_stash_slot.iter())) custody.push({entityKind:'hearth_stash_slot',entityId:row.id,holderIdentity:row.identity.toHexString(),holderExists:knownPlayers.has(row.identity.toHexString()),parentExists:true,claims:1});
+  for (const row of take(ctx.db.player_container_cell.iter())) if (row.container === 'stash') custody.push({entityKind:'hearth_stash_slot',entityId:row.id,holderIdentity:row.identity.toHexString(),holderExists:knownPlayers.has(row.identity.toHexString()),parentExists:true,claims:1});
   for (const row of take(ctx.db.inventory_cursor.iter())) custody.push({ entityKind: 'cursor', entityId: row.identity.toHexString(), holderIdentity: row.identity.toHexString(), holderExists: knownPlayers.has(row.identity.toHexString()), parentExists: true, claims: 1 });
   for (const row of take(ctx.db.inventory_overflow.iter())) custody.push({ entityKind: 'overflow', entityId: row.id.toString(), holderIdentity: row.identity.toHexString(), holderExists: knownPlayers.has(row.identity.toHexString()), parentExists: true, claims: 1 });
   const contentReferences: AdminWorldState['contentReferences'][number][] = [];
@@ -8706,14 +8972,10 @@ function loadAdminWorldState(ctx: WorldReducerContext): AdminWorldState {
   for (const row of worldItems) {
     addDefinition('world_item', row.id.toString(), adminItemContentReference(registry, row.itemKind));
   }
-  for (const row of take(ctx.db.inventory_slot.iter())) {
+  for (const row of take(ctx.db.player_container_cell.iter())) {
     if (row.itemKind !== 'empty' && row.quantity > 0) {
-      addDefinition('inventory_slot', row.id, adminItemContentReference(registry, row.itemKind));
-    }
-  }
-  for (const row of take(ctx.db.hearth_stash_slot.iter())) {
-    if (row.itemKind !== 'empty' && row.quantity > 0) {
-      addDefinition('hearth_stash_slot', row.id, adminItemContentReference(registry, row.itemKind));
+      addDefinition(row.container === 'stash' ? 'hearth_stash_slot' : 'inventory_slot', row.id,
+        adminItemContentReference(registry, row.itemKind));
     }
   }
   for (const row of take(ctx.db.inventory_cursor.iter())) {
@@ -9464,6 +9726,31 @@ function migratedPlaceableMigrationRow(row: WorldPlaceableRow): MigratedPlaceabl
   };
 }
 
+/** A legacy chest slot for the chest verification: a vacant row compares as the canonical vacant value, because the
+ * sparse mirror stores no vacant cell and synthesizes that value. */
+function canonicalLegacyChestSlot(slot: WorldChestSlotRow): WorldChestSlotRow {
+  return slot.itemKind === 'empty' || slot.quantity === 0
+    ? { ...slot, itemKind: 'empty', quantity: 0, durability: 0, lit: true } : { ...slot };
+}
+
+function sourceSlotIndices(ctx: Pick<WorldReducerContext, 'db'>, chestId: bigint): number[] {
+  return [...ctx.db.world_chest_slot.by_chest.filter(chestId)].map(({ slot }) => slot);
+}
+
+/** A chest mirror's cells as legacy-shaped slot rows: one at every legacy chest slot index (vacant ones synthesized)
+ * plus any other stored cell, so the chest verification keeps comparing exact custody against sparse storage. */
+function mirroredPlaceableSlotRows(ctx: Pick<WorldReducerContext, 'db'>, placeableId: bigint, legacyIndices: readonly number[]) {
+  const cells = new Map(placeableCellRows(ctx.db, placeableId).map((cell) => [cell.index, cell]));
+  return [...new Set([...legacyIndices, ...cells.keys()])].sort((left, right) => left - right).map((slot) => {
+    const cell = cells.get(slot);
+    return {
+      id: `${placeableId}:${slot}`, placeableId, slot,
+      itemKind: cell?.itemKind ?? 'empty', quantity: cell?.quantity ?? 0,
+      durability: cell?.durability ?? 0, lit: cell?.lit ?? true,
+    };
+  });
+}
+
 function loadChestMigrationState(ctx: Pick<WorldReducerContext, 'db'>, maximumChests: number): ChestMigrationState {
   const count = ctx.db.world_chest.count();
   if (count > BigInt(maximumChests)) throw new SenderError('chest_migration_verification_truncated');
@@ -9479,7 +9766,7 @@ function loadChestMigrationState(ctx: Pick<WorldReducerContext, 'db'>, maximumCh
   for (const chest of legacyChests) {
     const sourceSlots = [...ctx.db.world_chest_slot.by_chest.filter(chest.id)];
     if (sourceSlots.length > 255) throw new SenderError('chest_migration_slot_overflow');
-    legacySlots.push(...sourceSlots.map((slot) => ({ ...slot })));
+    legacySlots.push(...sourceSlots.map(canonicalLegacyChestSlot));
     const damage = ctx.db.world_chest_damage.chestId.find(chest.id);
     if (damage !== null) legacyDamage.push({ ...damage });
     const mapping = ctx.db.chest_migration_mapping.chestId.find(chest.id);
@@ -9488,8 +9775,7 @@ function loadChestMigrationState(ctx: Pick<WorldReducerContext, 'db'>, maximumCh
     const placeable = ctx.db.world_placeable.id.find(mapping.placeableId);
     if (placeable === null || !genericChest(ctx, placeable)) continue;
     placeables.push(migratedPlaceableMigrationRow(placeable));
-    placeableSlots.push(...[...ctx.db.world_placeable_slot.by_placeable.filter(placeable.id)]
-      .map((slot) => ({ ...slot })));
+    placeableSlots.push(...mirroredPlaceableSlotRows(ctx, placeable.id, sourceSlotIndices(ctx, chest.id)));
     const targetDamage = ctx.db.world_placeable_damage.placeableId.find(placeable.id);
     if (targetDamage !== null) placeableDamage.push({ ...targetDamage });
   }
@@ -9512,7 +9798,7 @@ function loadMappedChestBatchState(
   const placeableSlots: ChestMigrationState['placeableSlots'][number][] = [];
   const placeableDamage: ChestMigrationState['placeableDamage'][number][] = [];
   for (const chest of chests) {
-    legacySlots.push(...[...ctx.db.world_chest_slot.by_chest.filter(chest.id)].map((slot) => ({ ...slot })));
+    legacySlots.push(...[...ctx.db.world_chest_slot.by_chest.filter(chest.id)].map(canonicalLegacyChestSlot));
     const damage = ctx.db.world_chest_damage.chestId.find(chest.id);
     if (damage !== null) legacyDamage.push({ ...damage });
     const mapping = ctx.db.chest_migration_mapping.chestId.find(chest.id);
@@ -9521,8 +9807,7 @@ function loadMappedChestBatchState(
     const placeable = ctx.db.world_placeable.id.find(mapping.placeableId);
     if (placeable === null || !genericChest(ctx, placeable)) continue;
     placeables.push(migratedPlaceableMigrationRow(placeable));
-    placeableSlots.push(...[...ctx.db.world_placeable_slot.by_placeable.filter(placeable.id)]
-      .map((slot) => ({ ...slot })));
+    placeableSlots.push(...mirroredPlaceableSlotRows(ctx, placeable.id, sourceSlotIndices(ctx, chest.id)));
     const targetDamage = ctx.db.world_placeable_damage.placeableId.find(placeable.id);
     if (targetDamage !== null) placeableDamage.push({ ...targetDamage });
   }
@@ -9581,12 +9866,11 @@ function syncGenericChestLegacyMirror(ctx: WorldReducerContext, placeable: World
       spaceId: placeable.spaceId,
     });
   }
-  const targetSlots = [...ctx.db.world_placeable_slot.by_placeable.filter(placeable.id)];
-  const legacySlots = [...ctx.db.world_chest_slot.by_chest.filter(mapping.chestId)];
-  const targetBySlot = new Map(targetSlots.map((slot) => [slot.slot, slot]));
-  for (const slot of legacySlots) {
-    if (!targetBySlot.has(slot.slot)) ctx.db.world_chest_slot.id.delete(slot.id);
-  }
+  ensurePlaceableContainerCells(ctx, placeable.id);
+  // The legacy mirror stays dense: every legacy index and every capacity index gets a row, vacant ones included.
+  const legacyIndices = sourceSlotIndices(ctx, mapping.chestId);
+  const capacityIndices = Array.from({ length: genericPlaceableCapacity(ctx, placeable) }, (_, index) => index);
+  const targetSlots = mirroredPlaceableSlotRows(ctx, placeable.id, [...legacyIndices, ...capacityIndices]);
   for (const slot of targetSlots) {
     const id = `${mapping.chestId}:${slot.slot}`;
     const next = { id, chestId: mapping.chestId, slot: slot.slot, itemKind: slot.itemKind,
@@ -9646,19 +9930,13 @@ function syncLegacyChestGenericMirror(ctx: WorldReducerContext, chest: WorldChes
     stateJson: JSON.stringify({ open }),
   };
   ctx.db.world_placeable.id.update(updated);
+  ensurePlaceableContainerCells(ctx, placeable.id);
   const legacySlots = [...ctx.db.world_chest_slot.by_chest.filter(chest.id)];
-  const targetSlots = [...ctx.db.world_placeable_slot.by_placeable.filter(placeable.id)];
   const legacyBySlot = new Map(legacySlots.map((slot) => [slot.slot, slot]));
-  for (const slot of targetSlots) {
-    if (!legacyBySlot.has(slot.slot)) ctx.db.world_placeable_slot.id.delete(slot.id);
+  for (const cell of placeableCellRows(ctx.db, placeable.id)) {
+    if (!legacyBySlot.has(cell.index)) ctx.db.placeable_container_cell.id.delete(cell.id);
   }
-  for (const slot of legacySlots) {
-    const id = `${placeable.id}:${slot.slot}`;
-    const next = { id, placeableId: placeable.id, slot: slot.slot, itemKind: slot.itemKind,
-      quantity: slot.quantity, durability: slot.durability, lit: slot.lit };
-    if (ctx.db.world_placeable_slot.id.find(id) === null) ctx.db.world_placeable_slot.insert(next);
-    else ctx.db.world_placeable_slot.id.update(next);
-  }
+  for (const slot of legacySlots) putPlaceableCell(ctx.db, placeable.id, slot.slot, slot);
   const legacyDamage = ctx.db.world_chest_damage.chestId.find(chest.id);
   const targetDamage = ctx.db.world_placeable_damage.placeableId.find(placeable.id);
   if (legacyDamage === null && targetDamage !== null) ctx.db.world_placeable_damage.placeableId.delete(placeable.id);
@@ -9740,16 +10018,9 @@ function insertMigratedChest(ctx: WorldReducerContext, chest: WorldChestRow): bi
     definitionId: 'object:chest',
     stateJson: JSON.stringify({ open }),
   });
+  ensurePlaceableContainerCells(ctx, placeable.id);
   for (const slot of ctx.db.world_chest_slot.by_chest.filter(chest.id)) {
-    ctx.db.world_placeable_slot.insert({
-      id: `${placeable.id}:${slot.slot}`,
-      placeableId: placeable.id,
-      slot: slot.slot,
-      itemKind: slot.itemKind,
-      quantity: slot.quantity,
-      durability: slot.durability,
-      lit: slot.lit,
-    });
+    putPlaceableCell(ctx.db, placeable.id, slot.slot, slot);
   }
   const damage = ctx.db.world_chest_damage.chestId.find(chest.id);
   if (damage !== null) ctx.db.world_placeable_damage.insert({ placeableId: placeable.id, hits: damage.hits });
@@ -10244,7 +10515,10 @@ function settleActiveObjectRegion(ctx: WorldReducerContext, player: PlayerPositi
   }
 }
 
-function behaviourItemSnapshot(ctx: WorldReducerContext, row: InventorySlotRow): BehaviourItemSnapshot {
+/** Behaviour item refs keep the frozen legacy slot numbering (`selectedSlot` values, equipment 30-39) authored
+ * behaviours compare against; the instance id is the cell's row key. */
+function behaviourItemSnapshot(ctx: WorldReducerContext, row: PlayerCellRow): BehaviourItemSnapshot {
+  const slot = legacySlotOfCell(row);
   const definition = runtimeItemDefinition(contentRegistry(ctx), row.itemKind);
   const durability = runtimeDurabilityDefinition(contentRegistry(ctx), row.itemKind);
   return {
@@ -10254,8 +10528,8 @@ function behaviourItemSnapshot(ctx: WorldReducerContext, row: InventorySlotRow):
     tags: definition?.tags ?? [],
     count: row.quantity,
     durability: row.durability,
-    containerId: row.slot < HOTBAR_SLOT_COUNT ? 'hotbar' : 'inventory',
-    slot: row.slot,
+    containerId: row.container === 'hotbar' ? 'hotbar' : 'inventory',
+    slot,
     state: {
       lit: row.lit,
       ...(runtimeFoodRestoreCenti(contentRegistry(ctx), row.itemKind) === null ? {} : {
@@ -10321,7 +10595,7 @@ function behaviourObjectSnapshot(
   const carry = runtimeObjectCarry(registry, row);
   const damage = damageable?.model === 'hits'
     ? ctx.db.world_placeable_damage.placeableId.find(row.id) : null;
-  const hasContents = [...ctx.db.world_placeable_slot.by_placeable.filter(row.id)]
+  const hasContents = loadPlaceableCells(ctx, row)
     .some((slot) => slot.itemKind !== 'empty' && slot.quantity > 0);
   return {
     entityType: 'object',
@@ -10757,7 +11031,7 @@ function playerBehaviourSnapshot(
       },
       bronze: wallet.balanceBronze,
       vitals: { hunger: survival.hungerCenti, vigour: stats.vigourCenti },
-      inventory: [...ctx.db.inventory_slot.by_identity.filter(identity)]
+      inventory: legacySlotRows(carriedPlayerCellRows(ctx.db, identity))
         .filter((row) => row.itemKind !== 'empty' && row.quantity > 0)
         .map((row) => behaviourItemSnapshot(ctx, row)),
       worldRoles: member === null ? [] : [member.role],
@@ -10854,11 +11128,11 @@ function selectedBehaviourItem(ctx: WorldReducerContext): {
   requireCombatActionReady(ctx, ctx.sender, ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n);
   const survival = ctx.db.player_survival.identity.find(ctx.sender);
   if (survival === null) return null;
-  const row = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+  const row = selectedInventorySlot(ctx, ctx.sender, survival.selectedSlot);
   if (row === null || row.itemKind === 'empty' || row.quantity === 0) return null;
   const snapshot = behaviourItemSnapshot(ctx, row);
   return {
-    ref: { kind: row.itemKind, instanceId: row.id, containerId: row.slot === MAIN_HAND_INVENTORY_SLOT ? 'equipment' : 'hotbar', slot: row.slot },
+    ref: { kind: row.itemKind, instanceId: row.id, containerId: row.container === 'equipment' ? 'equipment' : 'hotbar', slot: survival.selectedSlot },
     snapshot,
   };
 }
@@ -10870,11 +11144,11 @@ function equipmentBehaviourItem(
   requirePersistentInventoryAvailable(ctx, ctx.sender);
   if (!Number.isSafeInteger(slot) || slot < EQUIPMENT_SLOT_OFFSET
     || slot >= EQUIPMENT_SLOT_OFFSET + EQUIPMENT_SLOT_COUNT) return null;
-  const row = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${slot}`);
+  const row = equipmentInventorySlot(ctx, ctx.sender, slot - EQUIPMENT_SLOT_OFFSET);
   if (row === null || row.itemKind === 'empty' || row.quantity === 0
     || !activeEquipmentSlotAccepts(slot - EQUIPMENT_SLOT_OFFSET, row.itemKind, activeItemContainerContent(ctx))) return null;
   return {
-    ref: { kind: row.itemKind, instanceId: row.id, containerId: 'equipment', slot: row.slot },
+    ref: { kind: row.itemKind, instanceId: row.id, containerId: 'equipment', slot },
     snapshot: behaviourItemSnapshot(ctx, row),
   };
 }
@@ -10896,7 +11170,7 @@ function worldBehaviourEffectWriter(
     if (position === null) throw new SenderError('player_not_ready');
     return position;
   };
-  const selectedRow = (): InventorySlotRow => {
+  const selectedRow = (): PlayerCellRow => {
     requireActor();
     const survival = ctx.db.player_survival.identity.find(ctx.sender);
     if (survival === null) throw new SenderError('player_not_ready');
@@ -10906,9 +11180,7 @@ function worldBehaviourEffectWriter(
       throw new SenderError('behaviour_selected_item_required');
     }
     const slot = subjectItem?.slot ?? survival.selectedSlot;
-    const row = ctx.db.inventory_slot.id.find(
-      `${ctx.sender.toHexString()}:${slot}`,
-    );
+    const row = selectedInventorySlot(ctx, ctx.sender, slot);
     if (row === null || row.itemKind === 'empty' || row.quantity === 0
       || (subjectItem !== undefined
         && (row.id !== subjectItem.instanceId || row.itemKind !== subjectItem.kind))) {
@@ -10984,12 +11256,13 @@ function worldBehaviourEffectWriter(
       throw new SenderError('mounted_action_forbidden');
     }
   };
-  const equippedLifecycleLight = (): InventorySlotRow => {
+  const equippedLifecycleLight = (): PlayerCellRow => {
     requireActor();
     if (subjectItem?.containerId !== 'equipment' || subjectItem.slot === undefined) {
       throw new SenderError('equipment_light_required');
     }
-    const row = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${subjectItem.slot}`);
+    const row = subjectItem.slot < EQUIPMENT_SLOT_OFFSET || subjectItem.slot >= EQUIPMENT_SLOT_OFFSET + EQUIPMENT_SLOT_COUNT
+      ? null : equipmentInventorySlot(ctx, ctx.sender, subjectItem.slot - EQUIPMENT_SLOT_OFFSET);
     if (row === null || row.id !== subjectItem.instanceId || row.itemKind !== subjectItem.kind
       || row.quantity <= 0
       || !activeEquipmentSlotAccepts(subjectItem.slot - EQUIPMENT_SLOT_OFFSET, row.itemKind, activeItemContainerContent(ctx))
@@ -11005,7 +11278,7 @@ function worldBehaviourEffectWriter(
   let plannedPlaceableSpawns = 0;
   let plannedItemSpawns = 0;
   let plannedBoatId: bigint | undefined;
-  let effectSelected: InventorySlotRow | undefined;
+  let effectSelected: PlayerCellRow | undefined;
   let plannedHungerRestore: number | undefined;
   let plannedRepairEffect = false;
   let plannedRepairMaterial: string | undefined;
@@ -11417,10 +11690,8 @@ function worldBehaviourEffectWriter(
         || effect.consumeItem.count <= 0 || effect.consumeItem.kind === undefined
         || effect.consumeItem.tag !== undefined) throw new SenderError('invalid_item_quantity');
       let remaining = effect.consumeItem.count;
-      const rows = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)]
-        .filter((row) => row.slot < EQUIPMENT_SLOT_OFFSET
-          && row.itemKind === effect.consumeItem.kind && row.quantity > 0)
-        .sort((left, right) => left.slot - right.slot);
+      const rows = hotbarAndBackpackCells(ctx, ctx.sender)
+        .filter((row) => row.itemKind === effect.consumeItem.kind && row.quantity > 0);
       for (const row of rows) {
         const reserved = plannedInventoryConsumption.get(row.id) ?? 0;
         const consumed = Math.min(remaining, Math.max(0, row.quantity - reserved));
@@ -11549,7 +11820,7 @@ function worldBehaviourEffectWriter(
       }
       const occupied = target?.kind === 'chest'
         ? [...ctx.db.world_chest_slot.by_chest.filter(targetChest().id)]
-        : [...ctx.db.world_placeable_slot.by_placeable.filter(placeable!.id)];
+        : loadPlaceableCells(ctx, placeable!);
       if (occupied
         .some((slot) => slot.itemKind !== 'empty' && slot.quantity > 0)) {
         throw new SenderError('placeable_not_empty');
@@ -12050,15 +12321,13 @@ function worldBehaviourEffectWriter(
     consumeItem: (amount) => {
       const itemKind = amount.kind!;
       let remaining = amount.count;
-      const rows = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)]
-        .filter((row) => row.slot < EQUIPMENT_SLOT_OFFSET
-          && row.itemKind === itemKind && row.quantity > 0)
-        .sort((left, right) => left.slot - right.slot);
+      const rows = hotbarAndBackpackCells(ctx, ctx.sender)
+        .filter((row) => row.itemKind === itemKind && row.quantity > 0);
       for (const row of rows) {
         if (remaining === 0) break;
         const consumed = Math.min(remaining, row.quantity);
         const quantity = row.quantity - consumed;
-        ctx.db.inventory_slot.id.update({
+        putInventoryCell(ctx, {
           ...row,
           itemKind: quantity === 0 ? 'empty' : row.itemKind,
           quantity,
@@ -12084,7 +12353,7 @@ function worldBehaviourEffectWriter(
       const selected = effectSelected;
       if (selected === undefined) throw new SenderError('behaviour_selected_item_required');
       const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
-      const current = ctx.db.inventory_slot.id.find(selected.id);
+      const current = ctx.db.player_container_cell.id.find(selected.id);
       const definition = runtimeDurabilityDefinition(contentRegistry(ctx), selected.itemKind);
       if (current === null || definition === null) throw new SenderError('wrong_tool');
       writeInventorySlot(ctx, {
@@ -12277,7 +12546,7 @@ function worldBehaviourEffectWriter(
     toggleState: (state) => {
       if (target === undefined) {
         const row = equippedLifecycleLight();
-        ctx.db.inventory_slot.id.update({ ...row, lit: !row.lit });
+        putInventoryCell(ctx, { ...row, lit: !row.lit });
         return;
       }
       if (target?.kind === 'world_item') {
@@ -12596,7 +12865,7 @@ const processJobClaimDependencies: ProcessJobClaimDependencies = {
   prepareInventoryGrant: (ctx, plan) => {
     const inventory = loadPlayerInventory(ctx, ctx.sender);
     const after = planProcessJobInventoryGrant(inventory.containers, plan, activeItemContainerContent(ctx));
-    return () => writePlayerInventory(ctx, inventory.rowBySlot, inventory.containers, after);
+    return () => writePlayerInventory(ctx, inventory, inventory.containers, after);
   },
   experiencePerItem: (ctx, job) => {
     const policies = [...contentRegistry(ctx).processes.values()]
@@ -13379,14 +13648,7 @@ function ensureLandmarkPlaceables(ctx: WorldReducerContext): void {
         stateJson: '{}',
       });
     }
-    const current = ctx.db.world_placeable.id.find(plan.runtimeId);
-    const capacity = current === null ? 0 : genericPlaceableCapacity(ctx, current);
-    for (let slot = 0; slot < capacity; slot += 1) {
-      const id = `${plan.runtimeId}:${slot}`;
-      if (ctx.db.world_placeable_slot.id.find(id) === null) ctx.db.world_placeable_slot.insert({
-        id, placeableId: plan.runtimeId, slot, itemKind: 'empty', quantity: 0, durability: 0, lit: true,
-      });
-    }
+    // Container cells are sparse: an authored landmark's storage simply starts empty.
   }
 }
 export const init = spacetimedb.init((ctx) => {
@@ -13637,6 +13899,102 @@ function prepareConnection(ctx: WorldReducerContext): {
   };
 }
 
+/**
+ * Uncapped Storage step 4: the one-time storage move for an existing character still on the legacy layout. The legacy
+ * layout steps (older hotbar, older equipment layout, missing vacant rows, first-version durability) touch only that
+ * player's `inventory_slot` rows and complete first; then the move copies the inventory and stash rows into
+ * `player_container_cell`, reads them back, compares fingerprints and sets containerLayoutVersion, all in the caller's
+ * transaction. A refusal throws and rolls everything back, so no item is lost or doubled; once moved, the legacy rows
+ * are never written again and this returns null without reading them. The identity is explicit and nothing here needs
+ * a connection: onConnect runs it for the sender, and the release-lane batch (adminBackfillPlayerContainerCells) runs
+ * the same steps for offline characters.
+ */
+function migrateLegacyPlayerStorage(ctx: WorldReducerContext, identity: Identity) {
+  if ((ctx.db.inventory_migration.identity.find(identity)?.containerLayoutVersion ?? 0) >= CURRENT_CONTAINER_LAYOUT_VERSION) {
+    return null;
+  }
+  const inventoryMigration = ctx.db.inventory_migration.identity.find(identity);
+  const storedHotbarLayoutVersion = inventoryMigration?.hotbarLayoutVersion ?? 0;
+  if (storedHotbarLayoutVersion < CURRENT_HOTBAR_LAYOUT_VERSION) {
+    const previousHotbarSlotCount = hotbarSlotCountForLayoutVersion(storedHotbarLayoutVersion);
+    if (previousHotbarSlotCount > HOTBAR_SLOT_COUNT) throw new SenderError('hotbar_layout_shrink_unsupported');
+    const addedHotbarSlots = HOTBAR_SLOT_COUNT - previousHotbarSlotCount;
+    const shifted = [...ctx.db.inventory_slot.by_identity.filter(identity)]
+      .filter((row) => row.slot >= previousHotbarSlotCount)
+      .sort((left, right) => right.slot - left.slot);
+    for (const row of shifted) {
+      ctx.db.inventory_slot.id.delete(row.id);
+      ctx.db.inventory_slot.insert({
+        ...row,
+        id: `${identity.toHexString()}:${row.slot + addedHotbarSlots}`,
+        slot: row.slot + addedHotbarSlots,
+      });
+    }
+    for (let slot = previousHotbarSlotCount; slot < HOTBAR_SLOT_COUNT; slot += 1) {
+      ctx.db.inventory_slot.insert({
+        id: `${identity.toHexString()}:${slot}`, identity, slot,
+        itemKind: 'empty', quantity: 0, durability: 0, lit: true,
+      });
+    }
+    if (inventoryMigration !== null) {
+      ctx.db.inventory_migration.identity.update({
+        ...inventoryMigration,
+        hotbarLayoutVersion: CURRENT_HOTBAR_LAYOUT_VERSION,
+      });
+    }
+  }
+  // Hotbar relocation above completes first. This plan rejects unexpected old
+  // indices before any writes, then moves all nine crafting cells atomically.
+  const equipmentVersion = inventoryMigration?.equipmentLayoutVersion ?? 0;
+  const equipmentRows = [...ctx.db.inventory_slot.by_identity.filter(identity)];
+  const equipmentPlan = migrateEquipmentLayout(equipmentRows, equipmentVersion);
+  const byOldId = new Map(equipmentRows.map(row => [row.id, row]));
+  const relocated = equipmentPlan.slots.filter(row => row.slot !== byOldId.get(row.id)!.slot);
+  for (const row of relocated) ctx.db.inventory_slot.id.delete(row.id);
+  for (const row of relocated) ctx.db.inventory_slot.insert({
+    ...row, id: `${identity.toHexString()}:${row.slot}`,
+  });
+  for (const slot of equipmentPlan.insertedEmptySlots) ctx.db.inventory_slot.insert({
+    id: `${identity.toHexString()}:${slot}`, identity, slot,
+    itemKind: 'empty', quantity: 0, durability: 0, lit: true,
+  });
+  // The cursor and processing queues do not contain global inventory offsets;
+  // leave their exact item metadata untouched by this relocation.
+  const refreshedMigration = ctx.db.inventory_migration.identity.find(identity);
+  if (refreshedMigration !== null) ctx.db.inventory_migration.identity.update({
+    ...refreshedMigration, equipmentLayoutVersion: CURRENT_EQUIPMENT_LAYOUT_VERSION,
+  });
+  for (let slot = HOTBAR_SLOT_COUNT; slot < INVENTORY_SLOT_COUNT; slot += 1) {
+    const id = `${identity.toHexString()}:${slot}`;
+    if (ctx.db.inventory_slot.id.find(id) === null) ctx.db.inventory_slot.insert({
+      id,
+      identity,
+      slot,
+      itemKind: 'empty',
+      quantity: 0,
+      durability: 0,
+      lit: true,
+    });
+  }
+  if (ctx.db.inventory_migration.identity.find(identity) === null) {
+    for (const row of ctx.db.inventory_slot.by_identity.filter(identity)) {
+      if (runtimeDurabilityDefinition(contentRegistry(ctx), row.itemKind) === null) continue;
+      ctx.db.inventory_slot.id.update({
+        ...row,
+        durability: runtimeNormalizeDurability(contentRegistry(ctx), row.itemKind),
+      });
+    }
+    ctx.db.inventory_migration.insert({
+      identity,
+      durabilityVersion: 1,
+      hotbarLayoutVersion: CURRENT_HOTBAR_LAYOUT_VERSION,
+      equipmentLayoutVersion: CURRENT_EQUIPMENT_LAYOUT_VERSION,
+      containerLayoutVersion: 0,
+    });
+  }
+  return withSenderErrors(() => movePlayerToContainerCells(ctx.db, identity, CURRENT_HOTBAR_LAYOUT_VERSION));
+}
+
 export const onConnect = spacetimedb.clientConnected((ctx) => {
   if (ctx.connectionId === null) throw new SenderError('missing_connection_id');
   if (contentRecoveryConnection({
@@ -13658,6 +14016,12 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
     inventoryCapacity: INVENTORY_SLOT_COUNT,
   });
   if (!newPlayerLoadout.ok) throw new SenderError(newPlayerLoadout.code);
+  // Uncapped Storage step 4: storage still on the legacy layout completes the legacy layout steps and moves to
+  // `player_container_cell` in this transaction, before any inventory read or write (see migrateLegacyPlayerStorage).
+  // That is every existing character, and also legacy rows an identity holds with no character (orphan rows): the new
+  // character below keeps them, and its loadout never overwrites a moved item. A refused move refuses the connect and
+  // leaves the legacy rows as they were.
+  if (!enteringSurvivalWorld || hasUnmovedLegacyStorage(ctx.db, ctx.sender)) migrateLegacyPlayerStorage(ctx, ctx.sender);
   if (survival === null) {
     if (!newPlayerLoadout.apply) throw new SenderError('loadout_unavailable');
     const occupiedSpawnTiles = new Set<string>();
@@ -13705,17 +14069,37 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
       tileY: spawnTile.tileY,
       spaceId: TOPSIDE_SPACE_ID,
     });
+    // A new character starts on the container-cell layout: its loadout is written as cells, and durable tools start
+    // full, as the first-connect durability backfill always made the legacy rows. A loadout cell already holding a
+    // moved orphan item keeps it; that loadout stack goes to overflow custody and the connect drain places it.
+    const registry = contentRegistry(ctx);
     for (const slot of newPlayerLoadout.slots) {
-      ctx.db.inventory_slot.insert({
-        id: `${ctx.sender.toHexString()}:${slot.slot}`,
-        identity: ctx.sender,
-        slot: slot.slot,
+      const cell = legacyGlobalSlotToCell(slot.slot);
+      if (cell === null) throw new SenderError('loadout_unavailable');
+      const stack = {
         itemKind: slot.itemKind,
         quantity: slot.quantity,
-        durability: slot.durability,
+        durability: runtimeDurabilityDefinition(registry, slot.itemKind) === null
+          ? slot.durability : runtimeNormalizeDurability(registry, slot.itemKind),
         lit: slot.lit,
-      });
+      };
+      // A vacant loadout slot writes nothing (a vacant put would delete the cell, and with it a moved orphan item).
+      if (slot.itemKind === 'empty' || slot.quantity === 0) continue;
+      if (ctx.db.player_container_cell.id.find(playerCellId(ctx.sender, cell.container, cell.index)) === null) {
+        putPlayerCell(ctx.db, ctx.sender, cell.container, cell.index, stack);
+      } else {
+        stashOverflow(ctx, ctx.sender, stack);
+      }
     }
+    const currentMigration = {
+      identity: ctx.sender,
+      durabilityVersion: 1,
+      hotbarLayoutVersion: CURRENT_HOTBAR_LAYOUT_VERSION,
+      equipmentLayoutVersion: CURRENT_EQUIPMENT_LAYOUT_VERSION,
+      containerLayoutVersion: CURRENT_CONTAINER_LAYOUT_VERSION,
+    };
+    if (ctx.db.inventory_migration.identity.find(ctx.sender) === null) ctx.db.inventory_migration.insert(currentMigration);
+    else ctx.db.inventory_migration.identity.update(currentMigration);
   }
   const survivalMigration = ctx.db.player_survival_migration.identity.find(ctx.sender);
   if (survivalMigration === null || survivalMigration.hungerVersion < 1) {
@@ -13740,94 +14124,13 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
       spaceId: TOPSIDE_SPACE_ID,
     });
   }
-  const inventoryMigration = ctx.db.inventory_migration.identity.find(ctx.sender);
-  const storedHotbarLayoutVersion = inventoryMigration?.hotbarLayoutVersion ?? 0;
-  if (!enteringSurvivalWorld && storedHotbarLayoutVersion < CURRENT_HOTBAR_LAYOUT_VERSION) {
-    const previousHotbarSlotCount = hotbarSlotCountForLayoutVersion(storedHotbarLayoutVersion);
-    if (previousHotbarSlotCount > HOTBAR_SLOT_COUNT) throw new SenderError('hotbar_layout_shrink_unsupported');
-    const addedHotbarSlots = HOTBAR_SLOT_COUNT - previousHotbarSlotCount;
-    const shifted = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)]
-      .filter((row) => row.slot >= previousHotbarSlotCount)
-      .sort((left, right) => right.slot - left.slot);
-    for (const row of shifted) {
-      ctx.db.inventory_slot.id.delete(row.id);
-      ctx.db.inventory_slot.insert({
-        ...row,
-        id: `${ctx.sender.toHexString()}:${row.slot + addedHotbarSlots}`,
-        slot: row.slot + addedHotbarSlots,
-      });
-    }
-    for (let slot = previousHotbarSlotCount; slot < HOTBAR_SLOT_COUNT; slot += 1) {
-      ctx.db.inventory_slot.insert({
-        id: `${ctx.sender.toHexString()}:${slot}`, identity: ctx.sender, slot,
-        itemKind: 'empty', quantity: 0, durability: 0, lit: true,
-      });
-    }
-    if (inventoryMigration !== null) {
-      ctx.db.inventory_migration.identity.update({
-        ...inventoryMigration,
-        hotbarLayoutVersion: CURRENT_HOTBAR_LAYOUT_VERSION,
-      });
-    }
-  }
-  // Hotbar relocation above completes first. This plan rejects unexpected old
-  // indices before any writes, then moves all nine crafting cells atomically.
-  const equipmentVersion = enteringSurvivalWorld ? CURRENT_EQUIPMENT_LAYOUT_VERSION
-    : inventoryMigration?.equipmentLayoutVersion ?? 0;
-  const equipmentRows = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)];
-  const equipmentPlan = migrateEquipmentLayout(equipmentRows, equipmentVersion);
-  const byOldId = new Map(equipmentRows.map(row => [row.id, row]));
-  const relocated = equipmentPlan.slots.filter(row => row.slot !== byOldId.get(row.id)!.slot);
-  for (const row of relocated) ctx.db.inventory_slot.id.delete(row.id);
-  for (const row of relocated) ctx.db.inventory_slot.insert({
-    ...row, id: `${ctx.sender.toHexString()}:${row.slot}`,
-  });
-  for (const slot of equipmentPlan.insertedEmptySlots) ctx.db.inventory_slot.insert({
-    id: `${ctx.sender.toHexString()}:${slot}`, identity: ctx.sender, slot,
-    itemKind: 'empty', quantity: 0, durability: 0, lit: true,
-  });
-  // The cursor and processing queues do not contain global inventory offsets;
-  // leave their exact item metadata untouched by this relocation.
-  const refreshedMigration = ctx.db.inventory_migration.identity.find(ctx.sender);
-  if (refreshedMigration !== null) ctx.db.inventory_migration.identity.update({
-    ...refreshedMigration, equipmentLayoutVersion: CURRENT_EQUIPMENT_LAYOUT_VERSION,
-  });
-  for (let slot = HOTBAR_SLOT_COUNT; slot < INVENTORY_SLOT_COUNT; slot += 1) {
-    const id = `${ctx.sender.toHexString()}:${slot}`;
-    if (ctx.db.inventory_slot.id.find(id) === null) ctx.db.inventory_slot.insert({
-      id,
-      identity: ctx.sender,
-      slot,
-      itemKind: 'empty',
-      quantity: 0,
-      durability: 0,
-      lit: true,
-    });
-  }
-  if (ctx.db.inventory_migration.identity.find(ctx.sender) === null) {
-    for (const row of ctx.db.inventory_slot.by_identity.filter(ctx.sender)) {
-      if (runtimeDurabilityDefinition(contentRegistry(ctx), row.itemKind) === null) continue;
-      ctx.db.inventory_slot.id.update({
-        ...row,
-        durability: runtimeNormalizeDurability(contentRegistry(ctx), row.itemKind),
-      });
-    }
-    ctx.db.inventory_migration.insert({
-      identity: ctx.sender,
-      durabilityVersion: 1,
-      hotbarLayoutVersion: CURRENT_HOTBAR_LAYOUT_VERSION,
-      equipmentLayoutVersion: CURRENT_EQUIPMENT_LAYOUT_VERSION,
-    });
-  }
   ensurePlayerStats(ctx, ctx.sender, ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n);
   syncDelveCompletionKeepsake(ctx, ctx.sender, ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n);
   const spawn = {
     x: playerSpawn.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
     y: playerSpawn.tileY * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2,
   };
-  const selectedInventory = ctx.db.inventory_slot.id.find(
-    `${ctx.sender.toHexString()}:${survival.selectedSlot}`,
-  );
+  const selectedInventory = selectedInventorySlot(ctx, ctx.sender, survival.selectedSlot);
   const initialEquippedKind = selectedInventory === null || selectedInventory.quantity === 0
     ? 'empty'
     : selectedInventory.itemKind;
@@ -13980,7 +14283,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
     }
   }
   ensureLegacyFarmMigration(ctx);
-  drainPlayerOverflow(ctx, ctx.sender);
+  drainPlayerOverflowSafely(ctx, ctx.sender);
   updateEquippedForIdentity(ctx, ctx.sender);
   const connectedProfile = ctx.db.player_public.identity.find(ctx.sender);
   ctx.db.connection_audit.insert({
@@ -15862,10 +16165,10 @@ function adminManagedChest(ctx: Pick<WorldReducerContext, 'db'>, id: bigint): Ad
   };
 }
 
-function adminManagedPlaceable(ctx: Pick<WorldReducerContext, 'db'>, id: bigint): AdminManagedEntity | null {
+function adminManagedPlaceable(ctx: Pick<WorldReducerContext, 'db' | 'timestamp'>, id: bigint): AdminManagedEntity | null {
   const row = ctx.db.world_placeable.id.find(id);
   if (row === null) return null;
-  const slots = [...ctx.db.world_placeable_slot.by_placeable.filter(id)];
+  const slots = loadPlaceableCells(ctx, row).map((cell) => ({ ...cell, slot: cell.index }));
   const authoredState = adminObjectJson(row.stateJson);
   const rawProcessor: AdminJsonObject = {
     smeltStartTick: row.smeltStartTick?.toString() ?? null,
@@ -15954,7 +16257,7 @@ function missingContainerDefinitionCapacity(
 }
 
 function missingContainerAuthority(
-  ctx: Pick<WorldReducerContext, 'db'>,
+  ctx: Pick<WorldReducerContext, 'db' | 'timestamp'>,
   entity: AdminManagedEntity | null,
 ) {
   if (entity === null) return { current: null, ownerExists: false, carrierExists: false,
@@ -16116,10 +16419,8 @@ function writeAdminContainerSlot(ctx: WorldReducerContext, entity: AdminManagedE
     const row = { id: rowId, chestId: id, slot, ...values };
     if (current === null) ctx.db.world_chest_slot.insert(row); else ctx.db.world_chest_slot.id.update(row);
   } else {
-    const rowId = `${id}:${slot}`;
-    const current = ctx.db.world_placeable_slot.id.find(rowId);
-    const row = { id: rowId, placeableId: id, slot, ...values };
-    if (current === null) ctx.db.world_placeable_slot.insert(row); else ctx.db.world_placeable_slot.id.update(row);
+    ensurePlaceableContainerCells(ctx, id);
+    putPlaceableCell(ctx.db, id, slot, values);
   }
 }
 
@@ -16189,7 +16490,8 @@ function writeAdminObjectPlan(ctx: WorldReducerContext, mutation: AdminObjectMut
       ctx.db.world_chest.id.delete(id);
     } else {
       if (genericChest(ctx, ctx.db.world_placeable.id.find(id)!)) deleteGenericChestLegacyMirror(ctx, id);
-      for (const slot of ctx.db.world_placeable_slot.by_placeable.filter(id)) ctx.db.world_placeable_slot.id.delete(slot.id);
+      ensurePlaceableContainerCells(ctx, id);
+      deletePlaceableCells(ctx.db, id);
       if (ctx.db.world_placeable_damage.placeableId.find(id) !== null) ctx.db.world_placeable_damage.placeableId.delete(id);
       if (ctx.db.world_placeable_build.placeableId.find(id) !== null) ctx.db.world_placeable_build.placeableId.delete(id);
       { ctx.db.object_lifecycle_state.placeableId.delete(id); ctx.db.world_placeable.id.delete(id); }
@@ -17525,6 +17827,112 @@ export const adminDrainLegacyChests = spacetimedb.reducer(
   },
 );
 
+// --- Uncapped Storage step 4: container-cell migration (release lane) ---
+const CONTAINER_CELL_MIGRATION_CONTROL_ID = 0;
+const CONTAINER_CELL_BACKFILL_MAX = 100;
+const CONTAINER_CELL_STATUS_PLAN_MAX = 10_000;
+
+/**
+ * Release-lane report (owner or admin) for the container-cell migration (wiki Roadmap/Uncapped Storage): player layout versions with a
+ * dry-run plan of every legacy player's move (at most `maximumPlayerPlans`), whole-world player custody read from the
+ * legacy tables and from where each player's storage now lives, orphan legacy rows, and the placeable copy's counts,
+ * whole-table legacy fingerprint and receipt fingerprint. The lane compares `placeables.legacyFingerprint` and
+ * `players.legacyFingerprint` with the isolated restore rehearsal's, and requires `placeableCopyComplete`, no
+ * `issues` and `players.cellFingerprint` equal to `players.legacyFingerprint` before resuming traffic. Reads only.
+ */
+export const adminContainerCellMigrationStatus = spacetimedb.procedure(
+  { maximumPlayerPlans: t.u32() },
+  t.string(),
+  (ctx, { maximumPlayerPlans }) => ctx.withTx((tx) => {
+    requireWorldAdministrationRead(tx);
+    if (maximumPlayerPlans > CONTAINER_CELL_STATUS_PLAN_MAX) throw new SenderError('container_migration_limit_invalid');
+    return JSON.stringify(containerCellMigrationStatus(tx.db, maximumPlayerPlans));
+  }),
+);
+
+/** The read that pairs with the owner-or-admin release-lane reducers: the operate.world scope and the owner or admin
+ * role (canAdministerWorld), as requireWorldOwner requires of the batches, so an explicit scope grant alone does not
+ * open it. Missing, blocked and revoked members and every other role are refused. */
+function requireWorldAdministrationRead(tx: AdminProcedureTx): void {
+  requireAdminProcedure(tx, 'operate.world');
+  const member = tx.db.membership.identity.find(tx.sender);
+  if (member === null || member.blocked || member.revokedAt !== undefined || !canAdministerWorld(member.role)) {
+    throw new SenderError('owner_required');
+  }
+}
+
+function ensureContainerCellMigrationControl(ctx: WorldReducerContext) {
+  return ctx.db.container_cell_migration.id.find(CONTAINER_CELL_MIGRATION_CONTROL_ID)
+    ?? ctx.db.container_cell_migration.insert({
+      id: CONTAINER_CELL_MIGRATION_CONTROL_ID, placeableCursor: undefined, placeableBackfillComplete: false,
+      updatedAt: ctx.timestamp, updatedBy: ctx.sender,
+    });
+}
+
+/**
+ * Release-lane batch (owner or admin) of the one-time placeable copy: the next `limit` placeables (by id) that have legacy
+ * `world_placeable_slot` rows are copied exactly as the lazy on-access copy does (plan, write, read back, compare
+ * fingerprints, receipt), each at most once. Idempotent: a copied placeable is skipped, so re-running a batch or
+ * racing the lazy copy never duplicates an item. Call until `placeableBackfillComplete`, then check the status.
+ */
+export const adminBackfillPlaceableContainerCells = spacetimedb.reducer(
+  { limit: t.u16() },
+  (ctx, { limit }) => {
+    requireStudioScope(ctx, 'operate.world');
+    requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    if (limit < 1 || limit > CONTAINER_CELL_BACKFILL_MAX) throw new SenderError('container_migration_limit_invalid');
+    const control = ensureContainerCellMigrationControl(ctx);
+    const range = control.placeableCursor === undefined
+      ? new Range<bigint>()
+      : new Range<bigint>({ tag: 'excluded', value: control.placeableCursor });
+    const placeableIds: bigint[] = [];
+    for (const row of ctx.db.world_placeable_slot.by_placeable.filter(range)) {
+      if (placeableIds[placeableIds.length - 1] === row.placeableId) continue;
+      placeableIds.push(row.placeableId);
+      if (placeableIds.length > limit) break;
+    }
+    const batch = placeableIds.slice(0, limit);
+    for (const placeableId of batch) ensurePlaceableContainerCells(ctx, placeableId);
+    const complete = placeableIds.length <= limit;
+    ctx.db.container_cell_migration.id.update({
+      ...control,
+      placeableCursor: complete ? undefined : batch[batch.length - 1],
+      placeableBackfillComplete: complete,
+      updatedAt: ctx.timestamp,
+      updatedBy: ctx.sender,
+    });
+  },
+);
+
+/**
+ * Release-lane batch (owner or admin) of the one-time player move for characters who have not connected since the
+ * publish (connecting moves a player too). Moves up to `limit` legacy characters, including those on an older hotbar or
+ * equipment layout or with no `inventory_migration` row: each runs exactly the connect path's steps
+ * (migrateLegacyPlayerStorage) in this transaction, after a read-only dry run of the same plan. A character whose dry
+ * run is refused is skipped (the status lists it as `player_plan_refused`) and keeps the legacy layout, so one bad row
+ * cannot block the rest and nothing is written for that player. A migration row with no character is left for connect.
+ */
+export const adminBackfillPlayerContainerCells = spacetimedb.reducer(
+  { limit: t.u16() },
+  (ctx, { limit }) => {
+    requireStudioScope(ctx, 'operate.world');
+    requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    if (limit < 1 || limit > CONTAINER_CELL_BACKFILL_MAX) throw new SenderError('container_migration_limit_invalid');
+    let moved = 0;
+    for (const player of legacyPlayerStorage(ctx.db)) {
+      if (moved >= limit) break;
+      if (!player.character) continue;
+      try {
+        planLegacyPlayerContainerMove(ctx.db, player.identity, player);
+      } catch {
+        continue;
+      }
+      migrateLegacyPlayerStorage(ctx, player.identity);
+      moved += 1;
+    }
+  },
+);
+
 export const adminLegacyFarmRetirementStatus = spacetimedb.procedure(
   {},
   t.string(),
@@ -18261,8 +18669,8 @@ function combatRecovery(ctx: WorldReducerContext, identity: WorldReducerContext[
 
 function hasActiveShield(ctx: WorldReducerContext, identity: WorldReducerContext['sender']): boolean {
   if (ctx.db.bow_charge.identity.find(identity) !== null || handsOccupiedFor(ctx, identity)) return false;
-  const shield = ctx.db.inventory_slot.id.find(`${identity.toHexString()}:${EQUIPMENT_SLOT_OFFSET + 5}`);
-  return shield !== null && shield.quantity === 1
+  const shield = equipmentInventorySlot(ctx, identity, 5);
+  return shield.quantity === 1
     && runtimeItemHasTag(contentRegistry(ctx), shield.itemKind, 'item.shield')
     && activeEquipmentSlotAccepts(5, shield.itemKind, activeItemContainerContent(ctx));
 }
@@ -18437,7 +18845,7 @@ export const selectHotbar = spacetimedb.reducer(
     requireInventoryProtocol(ctx);
     if (!isHotbarSlot(slot) && slot !== MAIN_HAND_INVENTORY_SLOT) throw new SenderError('invalid_hotbar_slot');
     if (slot === MAIN_HAND_INVENTORY_SLOT) {
-      const weapon = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${slot}`);
+      const weapon = selectedInventorySlot(ctx, ctx.sender, slot);
       if (weapon === null || weapon.quantity !== 1
         || !activeEquipmentSlotAccepts(3,weapon.itemKind,activeItemContainerContent(ctx))) throw new SenderError('weapon_not_equipped');
     }
@@ -18453,7 +18861,7 @@ export const selectHotbar = spacetimedb.reducer(
 );
 
 export const inventoryCursorClick = spacetimedb.reducer(
-  { container: t.string(), index: t.u8(), button: t.string() },
+  { container: t.string(), index: t.u32(), button: t.string() },
   (ctx, request) => {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     if (request.button !== 'left' && request.button !== 'right') throw new SenderError('invalid_click_button');
@@ -18487,7 +18895,7 @@ export const sortMenuContainer = spacetimedb.reducer(
 
 export const inventoryCursorQuickCraft = spacetimedb.reducer(
   {
-    targetContainers: t.array(t.string()), targetIndexes: t.array(t.u8()), mode: t.string(),
+    targetContainers: t.array(t.string()), targetIndexes: t.array(t.u32()), mode: t.string(),
   },
   (ctx, request) => {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
@@ -18524,7 +18932,7 @@ export const inventoryCursorPickupAll = spacetimedb.reducer(
 );
 
 export const inventoryCursorSwapHotbar = spacetimedb.reducer(
-  { container: t.string(), index: t.u8(), hotbarIndex: t.u8() },
+  { container: t.string(), index: t.u32(), hotbarIndex: t.u32() },
   (ctx, request) => {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     if (!isHotbarSlot(request.hotbarIndex)) throw new SenderError('index_out_of_capacity');
@@ -18550,7 +18958,7 @@ export const inventoryCursorSwapHotbar = spacetimedb.reducer(
 // SpacetimeDB plan T7: the four uncalled inventory/chest quick-move reducers had no
 // compatibility window; this menu-aware pair is their sole supported surface.
 export const quickMoveMenuItem = spacetimedb.reducer(
-  { fromContainer: t.string(), fromIndex: t.u8(), toContainers: t.array(t.string()) },
+  { fromContainer: t.string(), fromIndex: t.u32(), toContainers: t.array(t.string()) },
   (ctx, request) => {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     requirePersistentInventoryAvailable(ctx, ctx.sender);
@@ -18620,7 +19028,7 @@ function distributeOpenMenuItem(ctx: WorldReducerContext, request: MenuDistribut
 }
 
 export const throwMenuItem = spacetimedb.reducer(
-  { container: t.string(), index: t.u8(), wholeStack: t.bool() },
+  { container: t.string(), index: t.u32(), wholeStack: t.bool() },
   (ctx, request) => {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     requirePersistentInventoryAvailable(ctx, ctx.sender);
@@ -18686,13 +19094,19 @@ export const dropInventoryCursor = spacetimedb.reducer(
 function returnInventoryCursorToStorage(ctx: WorldReducerContext, identity: WorldReducerContext['sender']): void {
   const cursor = playerInventoryCursor(ctx, identity);
   if (cursor === null) return;
+  if (!playerContainerCellsCurrent(ctx.db, identity)) {
+    // Legacy-layout player (a disconnect across the publish): the carried stack becomes overflow custody.
+    stashOverflow(ctx, identity, cursor);
+    writePlayerInventoryCursor(ctx, identity, null);
+    return;
+  }
   const inventory = loadPlayerInventory(ctx, identity);
   const moved = quickMoveItemStack({
     ...inventory.containers,
     cursor: { id: 'cursor', capacity: 1, slots: [cursor] },
   }, { fromContainer: 'cursor', fromIndex: 0, toContainers: ['hotbar', 'backpack'] }, activeItemContainerContent(ctx));
   if (moved.ok) {
-    writePlayerInventory(ctx, inventory.rowBySlot, inventory.containers, moved.containers);
+    writePlayerInventory(ctx, inventory, inventory.containers, moved.containers);
     const remainder = moved.containers.cursor!.slots[0];
     if (remainder != null) stashOverflow(ctx, identity, remainder);
   } else if (moved.code === 'container_full') {
@@ -18712,9 +19126,9 @@ export const returnInventoryCursor = spacetimedb.reducer({}, (ctx) => {
 export const moveInventoryItem = spacetimedb.reducer(
   {
     fromContainer: t.string(),
-    fromIndex: t.u8(),
+    fromIndex: t.u32(),
     toContainer: t.string(),
-    toIndex: t.u8(),
+    toIndex: t.u32(),
     quantity: t.u16(),
   },
   (ctx, request) => {
@@ -18743,15 +19157,15 @@ export const fillCraftingRecipe = spacetimedb.reducer(
       runtimeRecipeDefinition(contentRegistry(ctx), recipeId),
     );
     if (!filled.ok) throw new SenderError(filled.code);
-    writePlayerInventory(ctx, inventory.rowBySlot, inventory.containers, filled.containers);
+    writePlayerInventory(ctx, inventory, inventory.containers, filled.containers);
     refreshSenderQuestsFromInventory(ctx);
   },
 );
 
 export const distributeInventoryItem = spacetimedb.reducer(
   {
-    fromContainer: t.string(), fromIndex: t.u8(),
-    targetContainers: t.array(t.string()), targetIndexes: t.array(t.u8()), quantity: t.u16(),
+    fromContainer: t.string(), fromIndex: t.u32(),
+    targetContainers: t.array(t.string()), targetIndexes: t.array(t.u32()), quantity: t.u16(),
   },
   (ctx, request) => {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
@@ -18764,17 +19178,10 @@ export const craftInventoryRecipe = spacetimedb.reducer(
   (ctx, { recipeId, craftAll }) => {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     requirePersistentInventoryAvailable(ctx, ctx.sender);
-    const rows = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)];
-    const rowBySlot = new Map(rows.map((row) => [row.slot, row]));
-    const carriedCapacity = equippedInventoryCapacity(ctx, rows);
-    const make = (id: InventoryContainerId): ContainerSnapshot => {
-      const capacity = accessibleInventoryContainerCapacity(id, carriedCapacity, playerDebugBackpackSlots(ctx, ctx.sender)); const offset = inventorySlotOffset(id);
-      return { id, capacity, slots: Array.from({ length: capacity }, (_, index) => {
-        const row = rowBySlot.get(offset + index);
-        return row === undefined ? null : storedStack(ctx, row.itemKind, row.quantity, row.durability, row.lit);
-      }) };
+    const inventory = loadPlayerInventory(ctx, ctx.sender);
+    const original = {
+      crafting: inventory.containers.crafting, hotbar: inventory.containers.hotbar, backpack: inventory.containers.backpack,
     };
-    const original = { crafting: make('crafting'), hotbar: make('hotbar'), backpack: make('backpack') };
     const registry = contentRegistry(ctx);
     // Selection disambiguates recipes sharing ingredients. Ordinary recipes
     // remain manually craftable; explicit progression recipes require learning.
@@ -18848,20 +19255,7 @@ export const craftInventoryRecipe = spacetimedb.reducer(
     if (!craftedAtLeastOnce) {
       throw new SenderError('recipe_output_blocked');
     }
-    for (const containerId of ['crafting', 'hotbar', 'backpack'] as const) {
-      const before = original[containerId];
-      const after = results[containerId]; const offset = inventorySlotOffset(containerId);
-      for (let index = 0; index < after.capacity; index += 1) {
-        const previous = before.slots[index]; const next = after.slots[index];
-        if (sameStoredStack(previous, next)) continue;
-        const row = rowBySlot.get(offset + index); if (row === undefined) throw new SenderError('inventory_slot_missing');
-        ctx.db.inventory_slot.id.update({
-          ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0,
-        durability: storedDurability(ctx, next?.itemKind ?? 'empty', next?.durability),
-        lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
-      });
-      }
-    }
+    writePlayerInventory(ctx, inventory, original, results);
     updateEquippedForIdentity(ctx, ctx.sender);
     if (craftedItemKind !== null) {
       const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
@@ -18881,20 +19275,10 @@ export const closeCrafting = spacetimedb.reducer({}, (ctx) => {
   requirePersistentInventoryAvailable(ctx, ctx.sender);
   const position = ctx.db.player_position.identity.find(ctx.sender);
   if (position === null) throw new SenderError('player_not_ready');
-  const rows = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)];
-  const rowBySlot = new Map(rows.map((row) => [row.slot, row]));
-  const carriedCapacity = equippedInventoryCapacity(ctx, rows);
-  const make = (id: 'hotbar' | 'backpack' | 'crafting'): ContainerSnapshot => {
-    const capacity = accessibleInventoryContainerCapacity(id, carriedCapacity, playerDebugBackpackSlots(ctx, ctx.sender));
-    const offset = inventorySlotOffset(id);
-    return { id, capacity, slots: Array.from({ length: capacity }, (_, index) => {
-      const row = rowBySlot.get(offset + index);
-      return row === undefined || row.itemKind === 'empty' || row.quantity === 0
-        ? null
-        : storedStack(ctx, row.itemKind, row.quantity, row.durability, row.lit);
-    }) };
+  const inventory = loadPlayerInventory(ctx, ctx.sender);
+  const original = {
+    hotbar: inventory.containers.hotbar, backpack: inventory.containers.backpack, crafting: inventory.containers.crafting,
   };
-  const original = { hotbar: make('hotbar'), backpack: make('backpack'), crafting: make('crafting') };
   let containers: Readonly<Record<string, ContainerSnapshot>> = original;
   const overflow: { readonly itemKind: string; readonly quantity: number }[] = [];
   for (let index = 0; index < CRAFTING_SLOT_COUNT; index += 1) {
@@ -18911,23 +19295,7 @@ export const closeCrafting = spacetimedb.reducer({}, (ctx) => {
     slots[index] = null;
     containers = { ...containers, crafting: { ...crafting, slots } };
   }
-  for (const id of ['hotbar', 'backpack', 'crafting'] as const) {
-    const before = original[id];
-    const after = containers[id]!;
-    const offset = inventorySlotOffset(id);
-    for (let index = 0; index < after.capacity; index += 1) {
-      const previous = before.slots[index];
-      const next = after.slots[index];
-      if (sameStoredStack(previous, next)) continue;
-      const row = rowBySlot.get(offset + index);
-      if (row === undefined) throw new SenderError('inventory_slot_missing');
-      ctx.db.inventory_slot.id.update({
-        ...row, itemKind: next?.itemKind ?? 'empty', quantity: next?.quantity ?? 0,
-        durability: storedDurability(ctx, next?.itemKind ?? 'empty', next?.durability),
-        lit: storedLit(next?.itemKind ?? 'empty', next?.lit),
-      });
-    }
-  }
+  writePlayerInventory(ctx, inventory, original, containers);
   overflow.forEach((stack) => stashOverflow(ctx, ctx.sender, stack));
   updateEquippedForIdentity(ctx, ctx.sender, containers);
 });
@@ -19043,7 +19411,7 @@ function insertPlayerCarriedItem(
     [sourceId]: { id: sourceId, capacity: 1, slots: [{ itemKind, quantity, ...metadata }] },
   }, { fromContainer: sourceId, fromIndex: 0, toContainers: ['hotbar', 'backpack'] }, activeItemContainerContent(ctx));
   if (!moved.ok || moved.movedQuantity !== quantity) return false;
-  writePlayerInventory(ctx, inventory.rowBySlot, inventory.containers, {
+  writePlayerInventory(ctx, inventory, inventory.containers, {
     ...inventory.containers,
     hotbar: moved.containers.hotbar!,
     backpack: moved.containers.backpack!,
@@ -19055,13 +19423,11 @@ function removePlayerBuildItem(
   ctx: WorldReducerContext,
   itemKind: string,
 ) {
-  const row = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)]
-    .filter((candidate) => candidate.slot < EQUIPMENT_SLOT_OFFSET
-      && candidate.itemKind === itemKind && candidate.quantity > 0)
-    .sort((left, right) => left.slot - right.slot)[0];
+  const row = hotbarAndBackpackCells(ctx, ctx.sender)
+    .filter((candidate) => candidate.itemKind === itemKind && candidate.quantity > 0)[0];
   if (row === undefined) throw new SenderError('build_item_missing');
   const quantity = row.quantity - 1;
-  ctx.db.inventory_slot.id.update({
+  putInventoryCell(ctx, {
     ...row,
     itemKind: quantity === 0 ? 'empty' : row.itemKind,
     quantity,
@@ -19112,18 +19478,7 @@ function insertWorldPlaceable(
     definitionId,
     stateJson: JSON.stringify(initialState),
   });
-  const capacity = definition.components.container?.slotCount ?? 0;
-  for (let slot = 0; slot < capacity; slot += 1) {
-    ctx.db.world_placeable_slot.insert({
-      id: `${placed.id}:${slot}`,
-      placeableId: placed.id,
-      slot,
-      itemKind: 'empty',
-      quantity: 0,
-      durability: 0,
-      lit: true,
-    });
-  }
+  // Container cells are sparse: a new placeable's storage simply starts empty.
   const isChest = genericChest(ctx, placed);
   if (!isChest) {
     const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
@@ -19145,9 +19500,8 @@ function removePlayerCarriedItem(
   quantity: number,
 ): void {
   if (!Number.isSafeInteger(quantity) || quantity <= 0) throw new SenderError('invalid_item_quantity');
-  const rows = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)]
-    .filter((row) => row.itemKind === itemKind && row.quantity > 0)
-    .sort((left, right) => left.slot - right.slot);
+  const rows = carriedCellsInSlotOrder(ctx, ctx.sender)
+    .filter((row) => row.itemKind === itemKind && row.quantity > 0);
   const cursor = ctx.db.inventory_cursor.identity.find(ctx.sender);
   const available = rows.reduce((sum, row) => sum + row.quantity, 0)
     + (cursor?.itemKind === itemKind ? cursor.quantity : 0);
@@ -19630,7 +19984,7 @@ export const editResidenceArchitecture = spacetimedb.reducer(
     const plan=planHearthConstructionTransaction(registry,editInput,inventory.containers,activeItemContainerContent(ctx));
     if(plan.failure!==null)throw new SenderError(plan.failure);
     const json=serializeHearthArchitectureState(plan.state);
-    writePlayerInventory(ctx,inventory.rowBySlot,inventory.containers,plan.containers);
+    writePlayerInventory(ctx, inventory,inventory.containers,plan.containers);
     ctx.db.homestead.spaceId.update({...home,residenceArchitectureJson:json});
   },
 );
@@ -19678,7 +20032,7 @@ export const moveHearthFurniture = spacetimedb.reducer(
 
 export const pickupHearthFurniture = spacetimedb.reducer({ placeableId: t.u64() }, (ctx, { placeableId }) => {
   const position = requireFurnitureBuilder(ctx), row = requireFurnitureRow(ctx, position, placeableId);
-  const slots = [...ctx.db.world_placeable_slot.by_placeable.filter(row.id)];
+  const slots = loadPlaceableCells(ctx, row);
   if (slots.some(slot => slot.itemKind !== 'empty' && slot.quantity > 0)
     || row.smeltStartTick !== undefined || row.barrelSealedTick !== undefined
     || row.cookStartTick !== undefined || row.processStartTick !== undefined) throw new SenderError('furniture_not_empty');
@@ -19692,7 +20046,7 @@ export const pickupHearthFurniture = spacetimedb.reducer({ placeableId: t.u64() 
     throw new SenderError('furniture_definition_unavailable');
   }
   if (!insertPlayerCarriedItem(ctx, itemKind, 1, { lit: row.lit })) throw new SenderError('inventory_full');
-  for (const slot of slots) ctx.db.world_placeable_slot.id.delete(slot.id);
+  deletePlaceableCells(ctx.db, row.id);
   if (ctx.db.world_placeable_build.placeableId.find(row.id) !== null) ctx.db.world_placeable_build.placeableId.delete(row.id);
   if (ctx.db.world_placeable_damage.placeableId.find(row.id) !== null) ctx.db.world_placeable_damage.placeableId.delete(row.id);
   { ctx.db.object_lifecycle_state.placeableId.delete(row.id); ctx.db.world_placeable.id.delete(row.id); }
@@ -19849,7 +20203,7 @@ export const removeHomesteadBuildable = spacetimedb.reducer(
       false,
     );
     if (reach === 'out_of_range') throw new SenderError('placeable_out_of_range');
-    const slots = [...ctx.db.world_placeable_slot.by_placeable.filter(placeable.id)];
+    const slots = loadPlaceableCells(ctx, placeable);
     if (slots.some((slot) => slot.itemKind !== 'empty' && slot.quantity > 0)
       || placeable.smeltStartTick !== undefined
       || placeable.barrelSealedTick !== undefined
@@ -19869,7 +20223,7 @@ export const removeHomesteadBuildable = spacetimedb.reducer(
     for (const active of ctx.db.active_placeable.by_placeable.filter(placeable.id)) {
       ctx.db.active_placeable.identity.delete(active.identity);
     }
-    for (const slot of slots) ctx.db.world_placeable_slot.id.delete(slot.id);
+    deletePlaceableCells(ctx.db, placeable.id);
     if (record !== null) ctx.db.world_placeable_build.placeableId.delete(placeable.id);
     if (ctx.db.world_placeable_damage.placeableId.find(placeable.id) !== null) {
       ctx.db.world_placeable_damage.placeableId.delete(placeable.id);
@@ -19921,7 +20275,7 @@ export const closePlaceable = spacetimedb.reducer({}, (ctx) => {
 });
 
 export const movePlaceableItem = spacetimedb.reducer(
-  { fromContainer: t.string(), fromIndex: t.u8(), toContainer: t.string(), toIndex: t.u8(), quantity: t.u16() },
+  { fromContainer: t.string(), fromIndex: t.u32(), toContainer: t.string(), toIndex: t.u32(), quantity: t.u16() },
   (ctx, request) => {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     moveOpenMenuItem(ctx, request);
@@ -20174,6 +20528,13 @@ function insertEscrowStacksIntoInventory(
   fullErrorCode = 'trade_inventory_full',
 ): void {
   if (offers.length === 0) return;
+  if (!playerContainerCellsCurrent(ctx.db, identity)) {
+    // A participant still on the legacy layout (not connected since the publish; a cancel on disconnect or expiry)
+    // receives the escrow as overflow custody, which drains after their connect-time move.
+    if (!overflowAllowed) throw new SenderError(fullErrorCode);
+    for (const offer of offers) stashOverflow(ctx, identity, tradeStack(ctx, offer));
+    return;
+  }
   const inventory = loadPlayerInventory(ctx, identity);
   let containers: Readonly<Record<string, ContainerSnapshot>> = inventory.containers;
   const overflow: ItemStack[] = [];
@@ -20199,7 +20560,7 @@ function insertEscrowStacksIntoInventory(
       overflow.push(remainder);
     }
   }
-  writePlayerInventory(ctx, inventory.rowBySlot, inventory.containers, containers);
+  writePlayerInventory(ctx, inventory, inventory.containers, containers);
   updateEquippedForIdentity(ctx, identity, containers);
   for (const stack of overflow) stashOverflow(ctx, identity, stack);
 }
@@ -20268,7 +20629,7 @@ function ensureLegacyFarmMigration(ctx: WorldReducerContext): void {
     migrateItem(survival.identity, 'wood', BigInt(survival.wood));
     migrateItem(survival.identity, 'stone', BigInt(survival.stone));
   }
-  for (const identity of inventoryRecipients.values()) drainPlayerOverflow(ctx, identity);
+  for (const identity of inventoryRecipients.values()) drainPlayerOverflowSafely(ctx, identity);
 
   for (const parcel of ctx.db.farm_parcel.iter()) {
     for (let tileY = parcel.originY; tileY < parcel.originY + parcel.height; tileY += 1) {
@@ -20550,20 +20911,19 @@ export const declineTrade = spacetimedb.reducer(
   },
 );
 
+/** Container-scoped (inventory protocol 2): the offered cell is a hotbar or accessible backpack cell by index. */
 export const setTradeOfferItem = spacetimedb.reducer(
-  { tradeId: t.string(), inventorySlot: t.u8(), tradeSlot: t.u8(), quantity: t.u16() },
-  (ctx, { tradeId, inventorySlot, tradeSlot, quantity }) => {
+  { tradeId: t.string(), inventoryContainer: t.string(), inventoryIndex: t.u32(), tradeSlot: t.u32(), quantity: t.u16() },
+  (ctx, { tradeId, inventoryContainer, inventoryIndex, tradeSlot, quantity }) => {
     const trade = requireActiveTrade(ctx, tradeId);
     if (tradeSlot >= PLAYER_TRADE_OFFER_SLOTS || quantity <= 0) throw new SenderError('invalid_trade_offer');
     const inventory = loadPlayerInventory(ctx, ctx.sender);
-    const hotbarEnd = HOTBAR_SLOT_COUNT;
-    const backpackEnd = BACKPACK_SLOT_OFFSET + inventory.containers.backpack!.capacity;
-    if (!(inventorySlot < hotbarEnd
-      || (inventorySlot >= BACKPACK_SLOT_OFFSET && inventorySlot < backpackEnd))) {
+    if ((inventoryContainer !== 'hotbar' && inventoryContainer !== 'backpack')
+      || inventoryIndex >= inventory.containers[inventoryContainer].capacity) {
       throw new SenderError('trade_slot_inaccessible');
     }
-    const source = inventory.rowBySlot.get(inventorySlot);
-    if (source === undefined || source.itemKind === 'empty' || source.quantity < quantity) {
+    const source = playerCellOrVacant(ctx.db, ctx.sender, inventoryContainer, inventoryIndex);
+    if (source.itemKind === 'empty' || source.quantity < quantity) {
       throw new SenderError('trade_item_unavailable');
     }
     const definition = runtimeItemDefinition(contentRegistry(ctx), source.itemKind);
@@ -20573,7 +20933,7 @@ export const setTradeOfferItem = spacetimedb.reducer(
       || definition.tags.includes('container.backpack')) throw new SenderError('item_not_tradeable');
     const id = tradeOfferId(trade.id, ctx.sender.toHexString(), tradeSlot);
     if (ctx.db.player_trade_offer.id.find(id) !== null) throw new SenderError('trade_offer_slot_occupied');
-    ctx.db.inventory_slot.id.update({
+    putInventoryCell(ctx, {
       ...source,
       itemKind: source.quantity === quantity ? 'empty' : source.itemKind,
       quantity: source.quantity - quantity,
@@ -20593,7 +20953,7 @@ export const setTradeOfferItem = spacetimedb.reducer(
 );
 
 export const removeTradeOfferItem = spacetimedb.reducer(
-  { tradeId: t.string(), tradeSlot: t.u8() },
+  { tradeId: t.string(), tradeSlot: t.u32() },
   (ctx, { tradeId, tradeSlot }) => {
     const trade = requireActiveTrade(ctx, tradeId);
     const id = tradeOfferId(trade.id, ctx.sender.toHexString(), tradeSlot);
@@ -20776,7 +21136,7 @@ function purchaseMerchantCart(ctx: WorldReducerContext, lines: readonly Merchant
   const wallet = ctx.db.player_wallet.identity.find(ctx.sender);
   if (wallet === null) throw new SenderError('wallet_not_ready');
   if (wallet.balanceBronze < planned.totalBronze) throw new SenderError('insufficient_funds');
-  writePlayerInventory(ctx, inventory.rowBySlot, inventory.containers, planned.containers);
+  writePlayerInventory(ctx, inventory, inventory.containers, planned.containers);
   ctx.db.player_wallet.identity.update({
     ...wallet,
     balanceBronze: wallet.balanceBronze - planned.totalBronze,
@@ -20831,7 +21191,7 @@ function sellMerchantCartTransaction(ctx: WorldReducerContext, lines: readonly M
   const saleTotal = planned.totalBronze + vintagePremium;
   const nextBalance = wallet.balanceBronze + saleTotal;
   if (nextBalance > (1n << 64n) - 1n) throw new SenderError('wallet_full');
-  writePlayerInventory(ctx, inventory.rowBySlot, inventory.containers, planned.containers);
+  writePlayerInventory(ctx, inventory, inventory.containers, planned.containers);
   ctx.db.player_wallet.identity.update({ ...wallet, balanceBronze: nextBalance });
   updateEquippedFromInventory(ctx, planned.containers);
   refreshSenderQuestsFromInventory(ctx);
@@ -20869,7 +21229,7 @@ export const fulfillVillageOrder=spacetimedb.reducer({orderId:t.string(),expecte
     const nextProgress=advanceVillageOrderProgress(registry,previousProgress??EMPTY_VILLAGE_ORDER_PROGRESS,plan.quote.itemKind);
     const known=['pantry_lunch','cellar_supper'].filter(id=>ctx.db.player_known_recipe.id.find(`${ctx.sender.toHexString()}:${id}`)!==null);
     const rewards=villageOrderRewards(registry,nextProgress,known);
-    writePlayerInventory(ctx,inventory.rowBySlot,inventory.containers,plan.containers);
+    writePlayerInventory(ctx, inventory,inventory.containers,plan.containers);
     ctx.db.player_wallet.identity.update({...wallet,balanceBronze:plan.nextBalanceBronze});
     const nextReceipt={identity:ctx.sender,revision:plan.nextRevision,lastOrderId:orderId,completedTick:tick};
     if(receipt===null)ctx.db.player_village_order_receipt.insert(nextReceipt);
@@ -20909,16 +21269,15 @@ export const unlockHearthLegendaryRecipe = spacetimedb.reducer(
     // Nondurable stacks are normalized by loadPlayerInventory. Validate the
     // source rows too, before accepting seals whose raw metadata was discarded.
     for (const containerId of ['hotbar', 'backpack'] as const) {
-      const offset = inventorySlotOffset(containerId);
       for (let slot = 0; slot < inventory.containers[containerId].capacity; slot++) {
-        const row = inventory.rowBySlot.get(offset + slot);
+        const row = inventory.builds[containerId].cellsByIndex.get(slot);
         if (row?.itemKind === plan.offer.paymentItemKind && (row.durability !== 0
           || !Number.isSafeInteger(row.quantity) || row.quantity <= 0)) {
           throw new SenderError('seal_inventory_invalid');
         }
       }
     }
-    writePlayerInventory(ctx, inventory.rowBySlot, inventory.containers, plan.containers);
+    writePlayerInventory(ctx, inventory, inventory.containers, plan.containers);
     ctx.db.player_known_recipe.insert({ id, identity: ctx.sender, recipeId,
       learnedAtTick: tick, sourceKind: plan.offer.paymentItemKind });
     updateEquippedFromInventory(ctx, plan.containers);
@@ -20975,7 +21334,7 @@ function validatePlaceableChestHarvestEffect(ctx: WorldReducerContext, placeable
   }
   requireWorldModificationAuthorized(ctx, position);
   if (mountedNpcFor(ctx, ctx.sender) !== null) throw new SenderError('mounted_action_forbidden');
-  const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+  const selected = selectedInventorySlot(ctx, ctx.sender, survival.selectedSlot);
   if (selected === null
     || runtimeToolSpecialization(contentRegistry(ctx), selected.itemKind) !== damageable.toolSpecialization) {
     throw new SenderError('wrong_tool');
@@ -20996,9 +21355,8 @@ function deletePlaceableChestRows(ctx: WorldReducerContext, chest: WorldPlaceabl
   for (const active of [...ctx.db.active_placeable.by_placeable.filter(chest.id)]) {
     ctx.db.active_placeable.identity.delete(active.identity);
   }
-  for (const slot of [...ctx.db.world_placeable_slot.by_placeable.filter(chest.id)]) {
-    ctx.db.world_placeable_slot.id.delete(slot.id);
-  }
+  ensurePlaceableContainerCells(ctx, chest.id);
+  deletePlaceableCells(ctx.db, chest.id);
   if (ctx.db.world_placeable_damage.placeableId.find(chest.id) !== null) {
     ctx.db.world_placeable_damage.placeableId.delete(chest.id);
   }
@@ -21016,7 +21374,7 @@ function harvestPlaceableChestTransaction(ctx: WorldReducerContext, placeableId:
   const clock = ctx.db.world_clock.id.find(0)!;
   const chest = ctx.db.world_placeable.id.find(placeableId)!;
   const damageable = authoredHitsDamageable(ctx, chest)!;
-  const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`)!;
+  const selected = selectedInventorySlot(ctx, ctx.sender, survival.selectedSlot)!;
   const avatarAction = runtimeItemAvatarAction(contentRegistry(ctx), selected.itemKind);
   if (avatarAction === null) throw new SenderError('tool_avatar_action_not_authored');
   if (swing === undefined) spendToolVigour(ctx, ctx.sender, selected.itemKind, clock.authorityTick, false);
@@ -21040,9 +21398,9 @@ function harvestPlaceableChestTransaction(ctx: WorldReducerContext, placeableId:
     syncGenericChestLegacyMirror(ctx, chest);
     return;
   }
-  const stacks = [...ctx.db.world_placeable_slot.by_placeable.filter(chest.id)]
+  const stacks = loadPlaceableCells(ctx, chest)
     .filter((slot) => slot.itemKind !== 'empty' && slot.quantity > 0)
-    .sort((left, right) => left.slot - right.slot)
+    .sort((left, right) => left.index - right.index)
     .map((slot) => ({ itemKind: slot.itemKind, quantity: slot.quantity,
       durability: slot.durability, lit: slot.lit }));
   const chestRecipe = authoredSalvageRecipe(ctx, damageable.salvageRecipe);
@@ -21082,9 +21440,7 @@ function validateChestHarvestEffect(ctx: WorldReducerContext, chestId: bigint, s
   }
   requireWorldModificationAuthorized(ctx, position);
   if (mountedNpcFor(ctx, ctx.sender) !== null) throw new SenderError('mounted_action_forbidden');
-  const selected = ctx.db.inventory_slot.id.find(
-    `${ctx.sender.toHexString()}:${survival.selectedSlot}`,
-  );
+  const selected = selectedInventorySlot(ctx, ctx.sender, survival.selectedSlot);
   if (selected === null
     || runtimeToolSpecialization(contentRegistry(ctx), selected.itemKind) !== damageable.toolSpecialization) {
     throw new SenderError('wrong_tool');
@@ -21117,7 +21473,7 @@ function harvestChestTransaction(ctx: WorldReducerContext, chestId: bigint, swin
     if (mountedNpcFor(ctx, ctx.sender) !== null) {
       throw new SenderError('mounted_action_forbidden');
     }
-    const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+    const selected = selectedInventorySlot(ctx, ctx.sender, survival.selectedSlot);
     if (selected === null
       || runtimeToolSpecialization(contentRegistry(ctx), selected.itemKind) !== damageable.toolSpecialization) {
       throw new SenderError('wrong_tool');
@@ -21220,7 +21576,7 @@ function applyHarvestPlaceableLifecycle(
     if (activeCookingJob) throw new SenderError('campfire_in_use');
     requireWorldModificationAuthorized(ctx, position);
     if (mountedNpcFor(ctx, ctx.sender) !== null) throw new SenderError('mounted_action_forbidden');
-    const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+    const selected = selectedInventorySlot(ctx, ctx.sender, survival.selectedSlot);
     if (selected === null
       || runtimeToolSpecialization(contentRegistry(ctx), selected.itemKind) !== damageable.toolSpecialization) {
       throw new SenderError('wrong_tool');
@@ -21258,10 +21614,10 @@ function applyHarvestPlaceableLifecycle(
     if (processorAdapterForPlaceableBehaviour(contentRegistry(ctx), fire) === 'campfire_cooking') {
       fire = settleProcessorPlaceable(ctx, fire);
     }
-    const slots = [...ctx.db.world_placeable_slot.by_placeable.filter(fire.id)];
+    const slots = loadPlaceableCells(ctx, fire);
     const stacks: Array<{ itemKind: string; quantity: number; durability: number; lit: boolean }> = slots
       .filter((slot) => slot.itemKind !== 'empty' && slot.quantity > 0)
-      .sort((left, right) => left.slot - right.slot)
+      .sort((left, right) => left.index - right.index)
       .map((slot) => ({
         itemKind: slot.itemKind,
         quantity: slot.quantity,
@@ -21289,7 +21645,7 @@ function applyHarvestPlaceableLifecycle(
     for (const active of ctx.db.active_placeable.by_placeable.filter(fire.id)) {
       ctx.db.active_placeable.identity.delete(active.identity);
     }
-    for (const slot of slots) ctx.db.world_placeable_slot.id.delete(slot.id);
+    deletePlaceableCells(ctx.db, fire.id);
     if (ctx.db.world_placeable_build.placeableId.find(fire.id) !== null) {
       ctx.db.world_placeable_build.placeableId.delete(fire.id);
     }
@@ -21299,7 +21655,7 @@ function applyHarvestPlaceableLifecycle(
 }
 
 export const moveChestItem = spacetimedb.reducer(
-  { fromContainer: t.string(), fromIndex: t.u8(), toContainer: t.string(), toIndex: t.u8(), quantity: t.u16() },
+  { fromContainer: t.string(), fromIndex: t.u32(), toContainer: t.string(), toIndex: t.u32(), quantity: t.u16() },
   (ctx, request) => {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     moveOpenMenuItem(ctx, request);
@@ -21307,7 +21663,7 @@ export const moveChestItem = spacetimedb.reducer(
 );
 
 export const distributeChestItem = spacetimedb.reducer(
-  { fromContainer: t.string(), fromIndex: t.u8(), targetContainers: t.array(t.string()), targetIndexes: t.array(t.u8()), quantity: t.u16() },
+  { fromContainer: t.string(), fromIndex: t.u32(), targetContainers: t.array(t.string()), targetIndexes: t.array(t.u32()), quantity: t.u16() },
   (ctx, request) => {
     requireAuthorizedSender(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     distributeOpenMenuItem(ctx, request);
@@ -21498,7 +21854,7 @@ export const dropSelected = spacetimedb.reducer((ctx) => {
   if (mountedNpcFor(ctx, ctx.sender) !== null) {
     throw new SenderError('mounted_action_forbidden');
   }
-  const slot = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+  const slot = selectedInventorySlot(ctx, ctx.sender, survival.selectedSlot);
   if (slot === null || slot.itemKind === 'empty' || slot.quantity === 0) throw new SenderError('selected_slot_empty');
   if (!runtimeItemIsDroppable(contentRegistry(ctx), slot.itemKind)
     || runtimeItemHasTag(contentRegistry(ctx), slot.itemKind, UNIQUE_QUEST_ITEM_TAG)) {
@@ -21507,7 +21863,7 @@ export const dropSelected = spacetimedb.reducer((ctx) => {
   const facing = parseDirection(position.facing) ?? 'down';
   const drop = itemDropPosition(position.x, position.y, facing);
   advancePlayerStats(ctx, ctx.sender, clock.authorityTick);
-  ctx.db.inventory_slot.id.update({ ...slot, itemKind: 'empty', quantity: 0, durability: 0, lit: true });
+  putInventoryCell(ctx, { ...slot, itemKind: 'empty', quantity: 0, durability: 0, lit: true });
   ctx.db.player_position.identity.update({
     ...position,
     actionKind: 'drop',
@@ -21547,21 +21903,8 @@ export const pickupWorldItem = spacetimedb.reducer(
     if (!itemWithinPickupReach(position.x, position.y, item.x, item.y)) throw new SenderError('item_out_of_range');
     const maximum = runtimeMaxStack(contentRegistry(ctx), item.itemKind);
     if (maximum === null) throw new SenderError('unknown_item_kind');
-    const slots = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)].sort((left, right) => left.slot - right.slot);
-    const carriedCapacity = equippedInventoryCapacity(ctx, slots);
-    const capacity = BACKPACK_SLOT_OFFSET + accessibleInventoryContainerCapacity(
-      'backpack', carriedCapacity, playerDebugBackpackSlots(ctx, ctx.sender),
-    );
-    const carried: ContainerSnapshot = {
-      id: 'carried',
-      capacity,
-      slots: Array.from({ length: capacity }, (_, index) => {
-        const row = slots.find((slot) => slot.slot === index);
-        return row === undefined || row.itemKind === 'empty' || row.quantity === 0
-          ? null
-          : storedStack(ctx, row.itemKind, row.quantity, row.durability, row.lit);
-      }),
-    };
+    const inventory = loadPlayerInventory(ctx, ctx.sender);
+    const carried = carriedPickupContainer(inventory);
     const candidates: WorldItemRow[] = maximum === 1
       ? [item]
       : worldItemsInChunkNeighborhood(ctx, position.spaceId, position.x, position.y)
@@ -21603,22 +21946,7 @@ export const pickupWorldItem = spacetimedb.reducer(
       if (inserted.remainderQuantity > 0) break;
     }
     if (totalInserted === 0) throw new SenderError('inventory_full');
-    let destinationSlot: number | null = null;
-    for (let slot = 0; slot < nextCarried.capacity; slot += 1) {
-      const before = carried.slots[slot];
-      const after = nextCarried.slots[slot];
-      if (sameStoredStack(before, after)) continue;
-      const row = slots.find((candidate) => candidate.slot === slot);
-      if (row === undefined) throw new SenderError('inventory_slot_missing');
-      ctx.db.inventory_slot.id.update({
-        ...row,
-        itemKind: after?.itemKind ?? 'empty',
-        quantity: after?.quantity ?? 0,
-        durability: storedDurability(ctx, after?.itemKind ?? 'empty', after?.durability),
-        lit: storedLit(after?.itemKind ?? 'empty', after?.lit),
-      });
-      if (destinationSlot === null) destinationSlot = slot;
-    }
+    const destinationSlot = writeCarriedPickupContainer(ctx, inventory, carried, nextCarried);
     const survival = ctx.db.player_survival.identity.find(ctx.sender);
     ctx.db.player_position.identity.update({
       ...position,
@@ -21776,43 +22104,15 @@ export const gatherWorldResource = spacetimedb.reducer(
     );
     const found = { ...drop, quantity: drop.quantity + forageBonus };
 
-    const slots = [...ctx.db.inventory_slot.by_identity.filter(ctx.sender)].sort((left, right) => left.slot - right.slot);
-    const carriedCapacity = equippedInventoryCapacity(ctx, slots);
-    const capacity = BACKPACK_SLOT_OFFSET + accessibleInventoryContainerCapacity(
-      'backpack', carriedCapacity, playerDebugBackpackSlots(ctx, ctx.sender),
-    );
-    const carried: ContainerSnapshot = {
-      id: 'carried',
-      capacity,
-      slots: Array.from({ length: capacity }, (_, index) => {
-        const row = slots.find((slot) => slot.slot === index);
-        return row === undefined || row.itemKind === 'empty' || row.quantity === 0
-          ? null
-          : storedStack(ctx, row.itemKind, row.quantity, row.durability, row.lit);
-      }),
-    };
+    const inventory = loadPlayerInventory(ctx, ctx.sender);
+    const carried = carriedPickupContainer(inventory);
     const inserted = insertItemStackPartial(carried, found, activeItemContainerContent(ctx));
     if (!inserted.ok || inserted.remainderQuantity > 0) {
       throw new SenderError(!inserted.ok && inserted.code !== 'container_full'
         ? inserted.code
         : 'inventory_full');
     }
-    let destinationSlot: number | null = null;
-    for (let slot = 0; slot < inserted.container.capacity; slot += 1) {
-      const before = carried.slots[slot];
-      const after = inserted.container.slots[slot];
-      if (sameStoredStack(before, after)) continue;
-      const row = slots.find((candidate) => candidate.slot === slot);
-      if (row === undefined) throw new SenderError('inventory_slot_missing');
-      ctx.db.inventory_slot.id.update({
-        ...row,
-        itemKind: after?.itemKind ?? 'empty',
-        quantity: after?.quantity ?? 0,
-        durability: storedDurability(ctx, after?.itemKind ?? 'empty', after?.durability),
-        lit: storedLit(after?.itemKind ?? 'empty', after?.lit),
-      });
-      if (destinationSlot === null) destinationSlot = slot;
-    }
+    const destinationSlot = writeCarriedPickupContainer(ctx, inventory, carried, inserted.container);
     const survival = ctx.db.player_survival.identity.find(ctx.sender);
     const resourceFacing = directionFromAim(
       resource.tileX * TILE_SIZE_FIXED + TILE_SIZE_FIXED / 2 - position.x,
@@ -21888,7 +22188,7 @@ function applyDigCellarTileLifecycle(
       cellarTileIsDug(ctx, position.spaceId, tileX + offsetX, tileY + offsetY)
     ))) throw new SenderError('cellar_wall_not_exposed');
 
-    const slot = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+    const slot = selectedInventorySlot(ctx, ctx.sender, survival.selectedSlot);
     requireUsableTool(ctx, slot);
     const registry = contentRegistry(ctx);
     if (runtimeToolSpecialization(registry, slot.itemKind) !== 'mining') {
@@ -23143,7 +23443,7 @@ function applyToolSwingLifecycle(ctx: WorldReducerContext, mutate = true): void 
   if (position === null || survival === null || clock === null) throw new SenderError('player_not_ready');
   if (handsOccupiedFor(ctx, ctx.sender)) throw new SenderError('hands_occupied');
   if (mountedNpcFor(ctx, ctx.sender) !== null) throw new SenderError('mounted_action_forbidden');
-  const slot = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+  const slot = selectedInventorySlot(ctx, ctx.sender, survival.selectedSlot);
   requireUsableTool(ctx, slot);
   const registry = contentRegistry(ctx);
   const tool = runtimeToolDefinition(registry, slot.itemKind);
@@ -23270,7 +23570,7 @@ function applySwordMeleeLifecycle(
     if (position === null || survival === null || clock === null) throw new SenderError('player_not_ready');
     if (handsOccupiedFor(ctx, ctx.sender)) throw new SenderError('hands_occupied');
     if (mountedNpcFor(ctx, ctx.sender) !== null) throw new SenderError('mounted_action_forbidden');
-    const slot = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+    const slot = selectedInventorySlot(ctx, ctx.sender, survival.selectedSlot);
     if (slot === null) throw new SenderError('wrong_tool');
     const registry = contentRegistry(ctx);
     const actionKind = runtimeItemAvatarAction(registry, slot.itemKind);
@@ -23409,7 +23709,7 @@ function applyHarvestResourceLifecycle(
     if (mountedNpcFor(ctx, ctx.sender) !== null) {
       throw new SenderError('mounted_action_forbidden');
     }
-    const slot = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+    const slot = selectedInventorySlot(ctx, ctx.sender, survival.selectedSlot);
     const registry = contentRegistry(ctx);
     const actionKind = runtimeItemAvatarAction(registry, slot?.itemKind ?? 'empty');
     if (actionKind === null) throw new SenderError('selected_tool_has_no_action');
@@ -23740,7 +24040,7 @@ function applyFishingCastLifecycle(
     if (position === null || survival === null || clock === null) throw new SenderError('player_not_ready');
     if (handsOccupiedFor(ctx, ctx.sender)) throw new SenderError('hands_occupied');
     if (mountedNpcFor(ctx, ctx.sender) !== null) throw new SenderError('mounted_action_forbidden');
-    const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+    const selected = selectedInventorySlot(ctx, ctx.sender, survival.selectedSlot);
     const registry = contentRegistry(ctx);
     if (selected === null || selected.quantity < 1
       || runtimeToolSpecialization(registry, selected.itemKind) !== 'fishing') {
@@ -23826,7 +24126,7 @@ function applyFishingReelLifecycle(ctx: WorldReducerContext, mutate = true): voi
   const survival = ctx.db.player_survival.identity.find(ctx.sender);
   const clock = ctx.db.world_clock.id.find(0);
   if (position === null || survival === null || clock === null) throw new SenderError('player_not_ready');
-  const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+  const selected = selectedInventorySlot(ctx, ctx.sender, survival.selectedSlot);
   const registry = contentRegistry(ctx);
   if (selected === null || selected.quantity < 1
     || runtimeToolSpecialization(registry, selected.itemKind) !== 'fishing') {
@@ -23993,7 +24293,7 @@ function applyBowBeginLifecycle(ctx: WorldReducerContext, mutate = true): void {
   if (handsOccupiedFor(ctx, ctx.sender)) {
     throw new SenderError('hands_occupied');
   }
-  const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+  const selected = selectedInventorySlot(ctx, ctx.sender, survival.selectedSlot);
   const registry = contentRegistry(ctx);
   const ranged = selected === null
     ? null
@@ -24068,7 +24368,7 @@ function applyBowCancelLifecycle(
     if (position === null || survival === null || clock === null) throw new SenderError('player_not_ready');
     const charge = ctx.db.bow_charge.identity.find(ctx.sender);
     if (charge === null) throw new SenderError('bow_not_charged');
-    const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+    const selected = selectedInventorySlot(ctx, ctx.sender, survival.selectedSlot);
     if (selected === null || selected.itemKind !== charge.itemKind
       || runtimeRangedWeaponDefinition(contentRegistry(ctx), selected.itemKind) === null) {
       throw new SenderError('wrong_tool');
@@ -24103,7 +24403,7 @@ function applyBowFireLifecycle(
       throw new SenderError('hands_occupied');
     }
     const mount = mountedNpcFor(ctx, ctx.sender);
-    const selected = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+    const selected = selectedInventorySlot(ctx, ctx.sender, survival.selectedSlot);
     const registry = contentRegistry(ctx);
     const ranged = selected === null
       ? null
@@ -24154,7 +24454,7 @@ function applyBowFireLifecycle(
     clearBowCharge(ctx, ctx.sender, true);
     if (rogueRun === null) {
       wearInventoryTool(ctx, selected);
-      ctx.db.inventory_slot.id.update({
+      putInventoryCell(ctx, {
         ...arrow!,
         itemKind: arrow!.quantity === 1 ? 'empty' : ranged.ammunitionItemKind,
         quantity: arrow!.quantity - 1,
@@ -24256,7 +24556,7 @@ function validateFarmToolLifecycleAction(
     throw new SenderError('homestead_owner_required');
   }
   if (mountedNpcFor(ctx, ctx.sender) !== null) throw new SenderError('mounted_action_forbidden');
-  const slot = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+  const slot = selectedInventorySlot(ctx, ctx.sender, survival.selectedSlot);
   const selectedItem = slot?.itemKind ?? 'empty';
   const registry = contentRegistry(ctx);
   const farmToolDefinition = runtimeToolDefinition(registry, selectedItem);
@@ -24348,7 +24648,7 @@ function applyFarmToolUse(
     if (mountedNpcFor(ctx, ctx.sender) !== null) {
       throw new SenderError('mounted_action_forbidden');
     }
-    const slot = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+    const slot = selectedInventorySlot(ctx, ctx.sender, survival.selectedSlot);
     const selectedItem = slot?.itemKind ?? 'empty';
     const registry = contentRegistry(ctx);
     const farmToolDefinition = runtimeToolDefinition(registry, selectedItem);
@@ -24536,7 +24836,7 @@ function applyFarmTileRestore(
     if (mountedNpcFor(ctx, ctx.sender) !== null) {
       throw new SenderError('mounted_action_forbidden');
     }
-    const slot = ctx.db.inventory_slot.id.find(`${ctx.sender.toHexString()}:${survival.selectedSlot}`);
+    const slot = selectedInventorySlot(ctx, ctx.sender, survival.selectedSlot);
     const selectedItem = slot?.itemKind ?? 'empty';
     const registry = contentRegistry(ctx);
     const farmToolDefinition = runtimeToolDefinition(registry, selectedItem);
@@ -24770,9 +25070,12 @@ function runOneHertzTickMaintenance(
   for (const row of ctx.db.inventory_overflow.iter()) {
     recordTickRowScan(updateCounters, 'overflowRowsScanned');
     if (ctx.db.inventory_overflow_retry.identity.find(row.identity) !== null) continue;
+    // A player still on the legacy layout drains after the connect-time move, never into cells the move would refuse.
+    if (!playerContainerCellsCurrent(ctx.db, row.identity)) continue;
     overflowOwners.set(row.identity.toHexString(), row.identity);
   }
-  for (const identity of overflowOwners.values()) drainPlayerOverflow(ctx, identity);
+  // One owner's refusal is caught per owner (drainPlayerOverflowSafely), so it never aborts the pass for the rest.
+  for (const identity of overflowOwners.values()) drainPlayerOverflowSafely(ctx, identity);
 }
 
 function activePresenceLeases(ctx: WorldReducerContext): ConnectionPresenceRow[] {

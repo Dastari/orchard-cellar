@@ -13,6 +13,7 @@
     "world-rejoin-credentials.ts",
     "world-release-routine.ts",
     "chest-migration-runner.ts",
+    "container-cell-migration-runner.ts",
     "legacy-farm-retirement-runner.ts",
     "legacy-farm-retirement-schema.ts",
     "legacy-farm-retirement-source.ts",

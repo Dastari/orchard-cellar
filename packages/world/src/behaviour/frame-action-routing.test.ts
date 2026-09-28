@@ -121,10 +121,10 @@ describe('authored frame action routing', () => {
     expect(processors).toContain('settled.completed > 0');
     expect(processors).toContain('startTick: startTickFor(placeable, adapter)');
     expect(processors).toContain('}, authorityTick, processorOptions(');
-    expect(processors).toContain('writeSettledSlots(ctx, rows, before, settled.slots, dependencies)');
+    expect(processors).toContain('writeSettledSlots(ctx, placeable.id, before, settled.slots, dependencies)');
     expect(processors).toContain('const cookStartedBy = settled.startTick === undefined ? undefined : placeable.cookStartedBy');
     expect(processors).toContain('cookStartTick: settled.startTick');
     expect(processors.indexOf('settleProcess(definitions, adapter'))
-      .toBeLessThan(processors.indexOf('writeSettledSlots(ctx, rows, before, settled.slots, dependencies)'));
+      .toBeLessThan(processors.indexOf('writeSettledSlots(ctx, placeable.id, before, settled.slots, dependencies)'));
   });
 });

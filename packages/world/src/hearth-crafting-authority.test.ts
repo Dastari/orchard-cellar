@@ -2,38 +2,47 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import * as sim from '@orchard/sim';
+import { PLAYER_CELL_HELPER_NAMES, currentContainerLayout, legacySlotCellTable, playerCellDependencies, type LegacySlotRow } from './player-cells.fixture.js';
 const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
 const statement = source.statements.filter(ts.isVariableStatement).flatMap(node => node.declarationList.declarations)
   .find(node => node.name.getText(source) === 'craftInventoryRecipe')!;
 if (!statement.initializer || !ts.isCallExpression(statement.initializer)) throw new Error('missing reducer');
 const callback = statement.initializer.arguments.find(ts.isArrowFunction)!;
-const code = ts.transpileModule(`return (${callback.getText(source)});`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+// The reducer reads and writes through the actual sparse-cell inventory adapters.
+const helpers = ['loadPlayerInventory', 'writePlayerInventory', ...PLAYER_CELL_HELPER_NAMES].map(name => source.statements
+  .find(node => ts.isFunctionDeclaration(node) && node.name?.text === name)!.getText(source)).join('\n');
+const code = ts.transpileModule(`${helpers}\nreturn (${callback.getText(source)});`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
 function fixture(wood: number, blocked = false, requiresKnowledge = false) {
   // Pins the craft reducer's authority (knowledge, station, batching, output room),
   // not content: the table is a synthetic shapeless 28-wood recipe here, whatever
   // the live shaped pattern is.
   const registry=sim.buildContentRegistry([...sim.bootstrapContentRegistry().definitions.values()].map(def=>def.id==='recipe:furniture_rustic_dining_table'?{id:def.id,kind:def.kind,schemaVersion:1,output:(def as sim.RecipeContentDefinition).output,stationRequirement:{objectTag:'station.workbench'},recipeKind:'shapeless',inputs:[{item:'item:wood',count:28}],...(requiresKnowledge?{requiresKnowledge}:{})}:def).map(def=>({id:def.id,kind:def.kind,json:JSON.stringify(def)}))).registry;
   let learned=false;
-  type Row = { id: number; slot: number; itemKind: string; quantity: number; durability: number; lit: boolean };
+  type Row = LegacySlotRow;
   const rows = new Map<number, Row>();
   for (const slot of [0, 1, 10, 11, ...Array.from({ length: 9 }, (_, i) => 40 + i)]) rows.set(slot, {
-    id: slot, slot, itemKind: slot === 40 ? 'wood' : blocked && slot < 40 ? 'stone' : 'empty',
+    slot, itemKind: slot === 40 ? 'wood' : blocked && slot < 40 ? 'stone' : 'empty',
     quantity: slot === 40 ? wood : blocked && slot < 40 ? 999 : 0, durability: 0, lit: false,
   });
   let cursor: sim.ItemStack | null = null, station = true;
-  const updates: Row[] = [];
+  const updates: unknown[] = [];
+  // Every cell write (insert, update or delete of the sparse rows) is recorded.
+  const cells = legacySlotCellTable(rows, 'alice');
+  const { update, delete: remove } = cells.id, insert = cells.insert;
+  cells.id.update = row => { updates.push(row); return update(row); };
+  cells.id.delete = id => { updates.push(id); return remove(id); };
+  cells.insert = row => { updates.push(row); return insert(row); };
   const empty = { find: () => null };
   const ctx = { sender: {toHexString:()=> 'alice'}, senderAuth: { jwt: null }, db: {
     player_known_recipe:{id:{find:(id:string)=>learned&&id==='alice:furniture_rustic_dining_table'?{id}:null}},
     membership: { identity: empty }, world_clock: { id: empty },
-    inventory_slot: { by_identity: { filter: () => [...rows.values()] }, id: { update: (row: Row) => { rows.set(row.id, row); updates.push(row); } } },
+    player_container_cell: cells, inventory_migration: currentContainerLayout('alice'), inventory_overflow_retry: { identity: empty },
     player_position: { identity: { find: () => ({ spaceId: 1, x: 5 * sim.TILE_SIZE_FIXED, y: 5 * sim.TILE_SIZE_FIXED }) } },
     world_placeable: { by_chunk: { filter: () => station ? [{ spaceId: 1, tileX: 5, tileY: 5, kind: 'workbench' }] : [] } },
   } };
-  const dependencies = { ...sim, SenderError: Error, requireAuthorizedSender: () => {}, requirePersistentInventoryAvailable: () => {},
+  const dependencies = { ...sim, ...playerCellDependencies, SenderError: Error, DEFAULT_BACKPACK_CAPACITY: sim.BASE_BACKPACK_CAPACITY, advancePlayerStats: () => {}, requireAuthorizedSender: () => {}, requirePersistentInventoryAvailable: () => {},
     contentRegistry: () => registry, activeWorldPolicyBalance: () => sim.runtimeWorldPolicyBalance(registry), equippedInventoryCapacity: () => 2,
     accessibleInventoryContainerCapacity: (id: string) => id === 'crafting' ? 9 : 2,
-    inventorySlotOffset: (id: string) => id === 'crafting' ? 40 : id === 'backpack' ? 10 : 0,
     playerDebugBackpackSlots: () => 0, playerSkillRanks: () => ({}),
     storedStack: (_ctx: unknown, itemKind: string, quantity: number) => itemKind === 'empty' ? null : { itemKind, quantity },
     storedDurability: () => 0, storedLit: () => false,

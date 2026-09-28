@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import * as sim from '@orchard/sim';
 import { decodeDirection } from '../world-rules.js';
 import { executeToolSwing } from './tool-swing.js';
+import { playerCellDependencies } from '../player-cells.fixture.js';
 
 const source = ts.createSourceFile('index.ts', readFileSync(new URL('../index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
 function production(name: string, dependencies: Record<string, unknown>) {
@@ -27,7 +28,7 @@ function fixture(kind = 'axe') {
     player_position: { identity: { find: () => position, update: (row: typeof position) => { position = row; } } },
     player_survival: { identity: { find: () => ({ selectedSlot: 0 }) } },
     world_clock: { id: { find: () => ({ authorityTick: 20n }) } },
-    inventory_slot: { id: { find: () => slot } },
+    player_container_cell: { id: { find: () => slot } },
     world_npc: { by_chunk: { filter: () => npcs } },
     world_resource: empty, world_chest: empty, world_combat_target: empty, world_placeable: empty,
   } };
@@ -39,6 +40,7 @@ function fixture(kind = 'axe') {
   });
   const dependencies = {
     ...sim, parseDirection: decodeDirection, executeToolSwing, SenderError: Error,
+    selectedInventorySlot: production('selectedInventorySlot', { ...sim, ...playerCellDependencies }),
     TOOL_SWING_RESISTANCE: new Set(['target_not_ready']),
     requireAuthorizedSender: vi.fn(), requireUsableTool: vi.fn(), handsOccupiedFor: () => false,
     mountedNpcFor: () => null, contentRegistry: () => registry,

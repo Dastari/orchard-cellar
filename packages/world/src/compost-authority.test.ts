@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import * as sim from '@orchard/sim';
+import { PLAYER_CELL_HELPER_NAMES, legacySlotCellTable, playerCellDependencies, type LegacySlotRow } from './player-cells.fixture.js';
 import { applyBehaviourEffects, createBehaviourEffectWriter, rejectingBehaviourEffectAdapters } from './behaviour/applier.js';
 
 const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
@@ -14,7 +15,10 @@ function fixture() {
   const crop = { id: 'crop', owner, cropKind: 'strawberry', tileX: 1, tileY: 1, spaceId: 0,
     plantedAtTick: 1n, growthTicks: 100n, growthUpdatedAtTick: 1n, composted: false };
   const definition = sim.runtimeCropDefinitionForSeed(registry, 'strawberry_seeds')!;
-  const state = { crop: { ...crop }, item: { id: 'owner:0', itemKind: 'compost', quantity: 2, slot: 0, durability: 0, lit: true },
+  // The selected hotbar cell 0 is served through the sparse cell table; `state.item` reads it back by legacy slot.
+  const slots = new Map<number, LegacySlotRow>([[0, { itemKind: 'compost', quantity: 2, slot: 0, durability: 0, lit: true }]]);
+  const cells = legacySlotCellTable(slots, owner);
+  const state = { crop: { ...crop }, get item() { return slots.get(0)!; },
     soil: true, watered: true, present: true, authorized: true, mounted: false, hands: false, home: false, writes: 0, statistics: [] as unknown[] };
   const ctx = { sender: owner, db: {
     player_position: { identity: { find: () => position } },
@@ -23,21 +27,24 @@ function fixture() {
     world_soil: { id: { find: () => state.soil ? { watered: state.watered, wateredAtTick: 1n } : null } },
     world_crop: { id: { find: () => state.present ? state.crop : null,
       update: (row: typeof crop) => { state.crop = row; state.writes++; } } },
-    inventory_slot: { id: { find: () => state.item } },
+    player_container_cell: cells,
   } };
-  const dependencies = { ...sim, createBehaviourEffectWriter, rejectingBehaviourEffectAdapters, SenderError: Error,
+  const dependencies = { ...sim, ...playerCellDependencies, createBehaviourEffectWriter, rejectingBehaviourEffectAdapters, SenderError: Error,
     ANVIL_REPAIR_COST_BRONZE: 20, contentRegistry: () => registry,
     handsOccupiedFor: () => state.hands, mountedNpcFor: () => state.mounted ? {} : null,
     mutableFarmTileAuthorized: () => state.authorized, worldSoilId: () => 'crop',
     homesteadForSpace: () => state.home ? { owner } : null,
     cropDefinitionForHomestead: () => definition, cropAutomaticallyWatered: () => false,
     cropCalendarOffset: () => 0n, cropGreenhouseProtected: () => false,
-    writeInventorySlot: (_ctx: unknown, item: typeof state.item) => { state.item = item; state.writes++; },
+    writeInventorySlot: (_ctx: unknown, item: Parameters<typeof cells.id.update>[0]) => {
+      if (item.itemKind === 'empty' || item.quantity === 0) cells.id.delete(item.id); else cells.id.update(item);
+      state.writes++;
+    },
     updateEquippedForIdentity: () => {}, U64_MAX: (1n << 64n) - 1n,
     authoredReferenceSlug: (value: string) => value.replace(/^statistic:/, ''),
     recordPlayerStatistic: (_ctx: unknown, _identity: unknown, kind: string, delta: bigint) => { state.statistics.push({ kind, delta }); },
   };
-  const names = ['compostCropPlan', 'worldBehaviourEffectWriter'];
+  const names = ['compostCropPlan', 'worldBehaviourEffectWriter', ...PLAYER_CELL_HELPER_NAMES];
   const declarations = names.map(name => source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name)!.getText(source));
   const code = ts.transpileModule(declarations.join('\n') + '\nreturn worldBehaviourEffectWriter;', { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
   const writer = new Function(...Object.keys(dependencies), code)(...Object.values(dependencies));

@@ -4,6 +4,7 @@ import { expect, it, vi } from 'vitest';
 import * as sim from '@orchard/sim';
 import { tilePlacementResult } from './world-rules.js';
 import { placeableTargetMatchesFacingTile } from './behaviour/interact-entity.js';
+import { copiedPlaceableTables, placeableCellTable, playerCellDependencies } from './player-cells.fixture.js';
 
 const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
 function production(name: string, dependencies: Record<string, unknown>) {
@@ -45,24 +46,28 @@ it('dismantles the workbench after three axe hits and drops four planks exactly 
   let present = true;
   const dropped = vi.fn();
   const position = { x: 11.5 * sim.TILE_SIZE_FIXED, y: 12 * sim.TILE_SIZE_FIXED, spaceId: 10 };
-  const ctx = { sender: {}, senderAuth: { jwt: null }, db: {
+  const ctx = { sender: {}, senderAuth: { jwt: null }, timestamp: { microsSinceUnixEpoch: 0n }, db: {
     membership: { identity: { find: () => null } },
     player_position: { identity: { find: () => position } },
     player_survival: { identity: { find: () => ({ selectedSlot: 0 }) } },
     world_clock: { id: { find: () => ({ authorityTick: 10n }) } },
     object_lifecycle_state: { placeableId: { delete: vi.fn() } },
     world_placeable: { id: { find: () => present ? bench : null, delete: () => { present = false; } } },
-    inventory_slot: { id: { find: () => ({ itemKind: 'axe' }) } },
+    player_container_cell: { id: { find: () => ({ itemKind: 'axe' }) } },
     player_cooking_job: { by_target: { filter: () => [] } },
     world_placeable_damage: { placeableId: { find: () => damage,
       update: (row: typeof damage) => { damage = row; }, delete: () => { damage = null; } },
     insert: (row: typeof damage) => { damage = row; } },
-    world_placeable_slot: { by_placeable: { filter: () => [] } },
+    ...copiedPlaceableTables(), placeable_container_cell: placeableCellTable(),
     active_placeable: { by_placeable: { filter: () => [] } },
     world_placeable_build: { placeableId: { find: () => null } },
   } };
   ctx.sender = { toHexString: () => 'player' };
-  const harvest = production('applyHarvestPlaceableLifecycle', { ...sim, SenderError: Error,
+  const withSenderErrors = production('withSenderErrors', { SenderError: Error });
+  const ensurePlaceableContainerCells = production('ensurePlaceableContainerCells', { ...playerCellDependencies, withSenderErrors });
+  const harvest = production('applyHarvestPlaceableLifecycle', { ...sim, ...playerCellDependencies, SenderError: Error,
+    selectedInventorySlot: production('selectedInventorySlot', { ...sim, ...playerCellDependencies }),
+    loadPlaceableCells: production('loadPlaceableCells', { ...playerCellDependencies, ensurePlaceableContainerCells }),
     requireAuthorizedSender: vi.fn(), contentRegistry: () => registry,
     authoredHitsDamageable: () => sim.runtimeObjectDamageable(registry, bench),
     authoredSalvageRecipe: () => sim.runtimeRecipeDefinition(registry, 'workbench'),

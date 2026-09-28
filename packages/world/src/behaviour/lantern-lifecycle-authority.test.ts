@@ -30,7 +30,7 @@ describe('authored portable-light authority', () => {
     expect(worldSource).toContain("runtimeItemHasTag(contentRegistry(ctx), row.itemKind, 'emits.light')");
     expect(worldSource).toContain("runtimeItemHasTag(contentRegistry(ctx), row.itemKind, 'gear.off_hand')");
     expect(worldSource).toContain("throw new SenderError('equipment_light_required')");
-    expect(worldSource).toContain('ctx.db.inventory_slot.id.update({ ...row, lit: !row.lit })');
+    expect(worldSource).toContain('putInventoryCell(ctx, { ...row, lit: !row.lit })');
     expect(worldSource).toContain('equippedKind: lightItem.itemKind');
     expect(worldSource).toContain('equippedLit: light.enabled');
   });

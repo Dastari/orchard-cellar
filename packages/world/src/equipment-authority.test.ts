@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import * as sim from '@orchard/sim';
+import {CURRENT_PROTOCOL,PLAYER_CELL_HELPER_NAMES,currentContainerLayout,legacySlotCellTable,playerCellDependencies} from './player-cells.fixture.js';
 import {toolSpendResult,sprintIntentSuppressesVigourRegen,nextActionStartedTick,itemDropPosition,settleMovementRun,queueMovementAcknowledgement} from './world-rules.js';
 
 const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
@@ -50,7 +51,7 @@ function fixture() {
   const bow=table();
   const stats=table({...sim.BASE_ATTRIBUTES,...sim.createFullVitalState(sim.resolveStats(sim.BASE_ATTRIBUTES),100n),lastSwingTick:0n});
   const position=table({identity:sender,x:sim.TILE_SIZE_FIXED*3,y:sim.TILE_SIZE_FIXED*3,facing:'down',spaceId:0,equippedKind:'hearth_rare_shield',equippedLit:true,actionKind:'none',actionStartedTick:0n});
-  const protocol=table({identity:sender,version:sim.CURRENT_INVENTORY_PROTOCOL_VERSION});
+  const protocol=table({identity:sender,version:CURRENT_PROTOCOL});
   const state={run:false,mounted:false,stale:false,projectiles:[] as Record<string,unknown>[],drops:[] as Record<string,unknown>[]};
   const defenseInputs=new Map<string,{connectionId:{toHexString:()=>string};sequence:bigint}>();
   const defenseInputIndex={find:(id:{toHexString:()=>string})=>defenseInputs.get(id.toHexString())??null,
@@ -58,9 +59,7 @@ function fixture() {
   const ctx={sender,connectionId:{toHexString:()=> 'connection'},senderAuth:{jwt:{}},timestamp:{microsSinceUnixEpoch:0n},db:{
     membership:table({}),player_seat:table(),player_defense_input:{connectionId:defenseInputIndex,insert:defenseInputIndex.update},player_combat_state:table(),player_jump_state:table(),inventory_protocol:protocol,player_survival:survival,player_position:position,
     player_stats:stats,player_input:input,bow_charge:bow,world_clock:table(clock),world_seed:table({seed:123}),
-    inventory_slot:{id:{find:(id:string)=>inventory.get(Number(id.split(':')[1]))??null,
-      update:(row:FixtureInventory)=>{inventory.set(row.slot,row);return row;}},
-      by_identity:{filter:()=>inventory.values()}},
+    player_container_cell:legacySlotCellTable(inventory,sender),inventory_migration:currentContainerLayout(sender),
     world_projectile:{insert:(row:Record<string,unknown>)=>{const next={...row,id:1n};state.projectiles.push(next);return next;}},
     projectile_charge:table(),enemy_attack:table<FixtureAttack>(),
     rogue_run_member:{by_run:{filter:()=>[{identity:sender}]}},
@@ -77,9 +76,9 @@ function fixture() {
     'requireInventoryProtocol','requirePersistentInventoryAvailable','loadOpenMenuInventory','inventoryCursorClick','inventoryCursorQuickCraft',
     'inventoryCursorPickupAll','inventoryCursorSwapHotbar','sortMenuContainer','closeCrafting',
     'inventoryContainerCapacity','accessibleInventoryContainerCapacity','equippedInventoryCapacity','carriedInventoryFor',
-    'carriedAmmunitionRows','expeditionPreparationFor'];
+    'carriedAmmunitionRows','expeditionPreparationFor',...PLAYER_CELL_HELPER_NAMES];
   const api=authority(names,{
-    ...sim,settleMovementRun,queueMovementAcknowledgement,toolSpendResult,sprintIntentSuppressesVigourRegen,nextActionStartedTick,itemDropPosition,SenderError:Error,requireAuthorizedSender:()=>{},ensurePlayerStats:()=>stats.identity.find(),
+    ...sim,...playerCellDependencies,settleMovementRun,queueMovementAcknowledgement,toolSpendResult,sprintIntentSuppressesVigourRegen,nextActionStartedTick,itemDropPosition,SenderError:Error,requireAuthorizedSender:()=>{},ensurePlayerStats:()=>stats.identity.find(),
     activePlayerModifiers:modifiers,contentRegistry:sim.bootstrapContentRegistry,
     activeCharacterCombatBalance:()=>sim.runtimeCharacterCombatBalance(sim.bootstrapContentRegistry()),playerSkillRanks:()=>({}),
     collisionForSpace:()=>({width:32,height:32,blocked:new Uint8Array(1024),elevations:Array(1024).fill(0)}),

@@ -26,6 +26,9 @@ content_candidate=${WORLD_RESTORE_CONTENT_CANDIDATE:-}
 content_candidate_sha256=${WORLD_RESTORE_CONTENT_CANDIDATE_SHA256:-}
 content_owner_label=${WORLD_RESTORE_CONTENT_OWNER_LABEL:-}
 content_release_confirm=${WORLD_RESTORE_CONTENT_CONFIRM:-}
+# Uncapped Storage step 4: run the container-cell migration on the restored schema-only candidate (opt-in).
+container_cell_migration=${WORLD_RESTORE_CONTAINER_CELL_MIGRATION:-skip}
+container_cell_log=${WORLD_RESTORE_CONTAINER_CELL_LOG:-$backup_directory/container-cell-migration-rehearsal.jsonl}
 
 [[ "$backup_directory" = /* && -d "$backup_directory" ]] || usage
 [[ "$pre_drain_snapshot" = /* && ! -e "$pre_drain_snapshot" ]] || usage
@@ -47,6 +50,16 @@ content_release_confirm=${WORLD_RESTORE_CONTENT_CONFIRM:-}
 [[ "$dry_run" = true || "$dry_run" = false ]] || usage
 [[ "$transition_already_deployed" = true || "$transition_already_deployed" = false ]] || usage
 [[ "$maintenance_nice" =~ ^([0-9]|1[0-9])$ ]] || usage
+[[ "$container_cell_migration" = run || "$container_cell_migration" = skip ]] || usage
+if [[ "$container_cell_migration" = run ]]; then
+  [[ "$migration_kind" = schema-only && "$transition_already_deployed" = false ]] || {
+    printf 'The container-cell migration runs only in a schema-only rehearsal that publishes the candidate.\n' >&2
+    exit 64
+  }
+  [[ "$container_cell_log" = /* && ! -e "$container_cell_log"
+    && "$container_cell_log" != "$pre_drain_snapshot"
+    && "$container_cell_log" != "$post_drain_snapshot" ]] || usage
+fi
 if [[ "$dry_run" = false && "$transition_already_deployed" = false ]]; then
   [[ "$content_candidate" = /* && -f "$content_candidate" && ! -L "$content_candidate" ]] || usage
   [[ "$content_candidate_sha256" =~ ^[a-f0-9]{64}$ ]] || usage
@@ -273,6 +286,29 @@ if [[ "$transition_already_deployed" = false ]]; then
 fi
 
 if [[ "$migration_kind" = schema-only ]]; then
+  if [[ "$container_cell_migration" = run ]]; then
+    # Same order as production: publish, content head, container-cell migration, then the reconnect capture.
+    printf 'Running the container-cell migration on the isolated restore...\n'
+    if [[ -n "$module_source_manifest" ]]; then
+      "$repository/scripts/world-module-source-manifest.sh" verify \
+        "$module_source_manifest" "$repository" >/dev/null
+    fi
+    (umask 077
+      WORLD_REJOIN_TOKENS_FILE="$token_file" \
+      SPACETIMEDB_HOST="http://127.0.0.1:$port" \
+      SPACETIMEDB_DATABASE="$database" \
+      CONTAINER_CELL_MIGRATION_TARGET=rehearsal \
+      CONTAINER_CELL_MIGRATION_CONFIRM="migrate:$database" \
+      CONTAINER_CELL_MIGRATION_CREDENTIAL_LABEL="$content_owner_label" \
+      node --import tsx "$repository/scripts/container-cell-migration-runner.ts" | tee "$container_cell_log")
+    container_cell_fingerprint=$(node --import tsx "$repository/scripts/container-cell-migration-runner.ts" \
+      final-fingerprint "$container_cell_log")
+    # Also fails closed unless the final report's player cell custody equals its legacy player custody.
+    container_cell_player_fingerprint=$(node --import tsx "$repository/scripts/container-cell-migration-runner.ts" \
+      final-player-fingerprint "$container_cell_log")
+    printf 'Isolated container-cell migration complete: legacy placeable fingerprint %s, legacy player fingerprint %s, final status in %s.\n' \
+      "$container_cell_fingerprint" "$container_cell_player_fingerprint" "$container_cell_log"
+  fi
   printf 'Capturing and reconnect-verifying the restored schema-only update; no chest migration runs.\n'
   WORLD_REJOIN_TOKENS_FILE="$token_file" \
   SPACETIMEDB_HOST="http://127.0.0.1:$port" \
@@ -282,7 +318,8 @@ if [[ "$migration_kind" = schema-only ]]; then
   SPACETIMEDB_HOST="http://127.0.0.1:$port" \
   SPACETIMEDB_DATABASE="$database" \
     npm --prefix "$repository" run world:rejoin-smoke -- verify "$pre_drain_snapshot" "$post_drain_snapshot"
-  printf 'Isolated schema-only restore and reconnect passed on loopback port %s.\n' "$port"
+  printf 'Isolated schema-only restore and reconnect passed on loopback port %s (container cells: %s).\n' \
+    "$port" "$container_cell_migration"
   exit 0
 fi
 

@@ -2,10 +2,11 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import * as sim from '@orchard/sim';
+import { playerCellDependencies } from './player-cells.fixture.js';
 
 const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
 const names = ['applyHarvestResourceLifecycle', 'grantSkillExperience', 'requireUsableTool',
-  'miningClassForResource', 'miningRespawnDelayTicks'];
+  'miningClassForResource', 'miningRespawnDelayTicks', 'selectedInventorySlot'];
 const declarations = source.statements.filter(node => ts.isVariableStatement(node)
   && node.declarationList.declarations.some(declaration =>
     ['MINING_CLAIM_TICKS', 'MINING_DROP_RESERVATION_TICKS'].includes(declaration.name.getText(source))));
@@ -32,7 +33,7 @@ function fixture(nodeClass: sim.MiningNodeClass, producedOre = true, depleted = 
     player_survival: { identity: { find: () => ({ selectedSlot: 0 }) } },
     world_clock: { id: { find: () => ({ authorityTick: 100n }) } },
     world_seed: { id: { find: () => ({ seed: 42 }) } },
-    inventory_slot: { id: { find: () => ({ itemKind: 'iron_pickaxe', durability: 750 }) } },
+    player_container_cell: { id: { find: () => ({ itemKind: 'iron_pickaxe', durability: 750 }) } },
     world_resource: { id: { find: () => resource, update: (row: typeof resource) => { resource = row; } } },
     world_resource_mining_claim: { resourceId: { find: () => ({ claimedBy: sender, claimUntilTick: 700n }), update: () => {}, delete: () => {} } },
     player_skill_track: { id: { update: (row: { id: sim.SkillTrack; track: sim.SkillTrack; experience: bigint }) => {
@@ -40,7 +41,7 @@ function fixture(nodeClass: sim.MiningNodeClass, producedOre = true, depleted = 
     } } },
   } };
   const noop = () => {};
-  const deps = { ...sim, SenderError: Error, contentRegistry: () => registry,
+  const deps = { ...sim, ...playerCellDependencies, SenderError: Error, contentRegistry: () => registry,
     requireAuthorizedSender: noop, handsOccupiedFor: () => false, mountedNpcFor: () => null,
     requireWorldModificationAuthorized: noop, requireHearthResourceHarvestAccess: noop,
     liveMapGeneratedResourceSuppressed: () => false, isVitalsToolKind: () => true,

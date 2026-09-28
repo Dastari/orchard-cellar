@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BACKPACK_SLOT_OFFSET, BASE_BACKPACK_CAPACITY, EQUIPMENT_SLOT_OFFSET } from '@orchard/sim';
+import { BACKPACK_SLOT_OFFSET, BASE_BACKPACK_CAPACITY, EQUIPMENT_SLOT_OFFSET, legacyGlobalSlotToCell } from '@orchard/sim';
 import type { Identity } from 'spacetimedb';
 import { TradeUi, type TradeUiModel } from '../packages/ui/src/trade-ui.js';
 import type { UiKitArt } from '../packages/ui/src/kit/components/art.js';
@@ -8,7 +8,16 @@ import { tradeHarness } from './player-trade-test-harness.js';
 
 /** Real retained gestures -> current production reducers under two distinct
  * authorized identities. The existing in-memory table adapter supplies rollback;
- * no server transport, JWT verification, subscription delivery or live writes. */
+ * no server transport, JWT verification, subscription delivery or live writes.
+ * Transitional (until the trade panel speaks container cells, Uncapped Storage step 4c): the panel still names a
+ * legacy global slot, so this adapter translates it to the reducer's container cell and serves the panel the
+ * player's cells with their legacy slots. */
+function offeredCell(inventorySlot: number) {
+  const cell = legacyGlobalSlotToCell(inventorySlot);
+  return cell === null ? { inventoryContainer: 'invalid', inventoryIndex: inventorySlot }
+    : { inventoryContainer: cell.container, inventoryIndex: cell.index };
+}
+
 function client(h: ReturnType<typeof tradeHarness>, identity: Identity) {
   const errors: string[] = [], commands: string[] = [];
   const run = (name: Parameters<typeof h.run>[0], args: Record<string, unknown>) => {
@@ -18,7 +27,8 @@ function client(h: ReturnType<typeof tradeHarness>, identity: Identity) {
   const ui = new TradeUi({} as UiKitArt, {} as OverworldUiItemArt, {
     acceptRequest: tradeId => run('acceptTradeRequest', { tradeId }),
     declineRequest: tradeId => run('declineTrade', { tradeId }), cancel: tradeId => run('cancelTrade', { tradeId }),
-    offerItem: (tradeId, inventorySlot, tradeSlot, quantity) => run('setTradeOfferItem', { tradeId, inventorySlot, tradeSlot, quantity }),
+    offerItem: (tradeId, inventorySlot, tradeSlot, quantity) =>
+      run('setTradeOfferItem', { tradeId, ...offeredCell(inventorySlot), tradeSlot, quantity }),
     removeItem: (tradeId, tradeSlot) => run('removeTradeOfferItem', { tradeId, tradeSlot }),
     offerBronze: (tradeId, amount) => run('setTradeOfferBronze', { tradeId, amount }),
     setAccepted: (tradeId, accepted, revision) => run('setTradeAccepted', { tradeId, accepted, revision }),
@@ -29,7 +39,7 @@ function client(h: ReturnType<typeof tradeHarness>, identity: Identity) {
       session, contentRegistry: h.registry, identityHex: identity.toHexString(), requesterName: 'Alice', recipientName: 'Bob',
       walletBronze: h.wallets.identity.find(identity)!.balanceBronze,
       offers: h.api.ownTradeOffers(h.context(identity)), backpackSlotCapacity: BASE_BACKPACK_CAPACITY,
-      inventorySlots: [...h.inventory.iter()].filter(row => row.identity.isEqual(identity)),
+      inventorySlots: h.inventorySlots(identity),
     };
     ui.update(model); ui.root.arrange();
   };
@@ -89,7 +99,7 @@ describe('production TradeUi with two-identity reducer authority', () => {
     const h = tradeHarness(); h.put(h.alice, EQUIPMENT_SLOT_OFFSET, 'axe', 1); h.put(h.alice, 0, 'wood', 5);
     const tradeId = h.start(); const alice = client(h, h.alice);
     expect(alice.ui.root.entries().some(entry => entry.element.id === `trade.backpack.slot.${EQUIPMENT_SLOT_OFFSET - BACKPACK_SLOT_OFFSET}`)).toBe(false);
-    expect(() => h.run('setTradeOfferItem', h.alice, { tradeId, inventorySlot: EQUIPMENT_SLOT_OFFSET, tradeSlot: 0, quantity: 1 })).toThrow('trade_slot_inaccessible');
+    expect(() => h.run('setTradeOfferItem', h.alice, { tradeId, ...offeredCell(EQUIPMENT_SLOT_OFFSET), tradeSlot: 0, quantity: 1 })).toThrow('trade_slot_inaccessible');
     alice.activate('trade.hotbar.slot.0'); alice.sync();
     h.run('onDisconnect', h.alice); alice.sync(); expect(alice.ui.active).toBe(false);
     expect(h.owned(h.alice).find(row => row.itemKind === 'wood')?.quantity).toBe(5);

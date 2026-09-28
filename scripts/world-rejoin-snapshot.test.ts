@@ -9,7 +9,9 @@ import {
   assertGenericOnlyRejoinContract,
   assertRejoinTableCoverage,
   compareWorldRejoinSnapshots,
+  derivedCustodyTables,
   normalizeRejoinTables,
+  parseWorldRejoinSnapshot,
   normalizeRejoinValue,
   type WorldRejoinSnapshot,
 } from './world-rejoin-snapshot.js';
@@ -118,6 +120,60 @@ describe('world rejoin snapshot normalization', () => {
       timestamp: { $timestampMicros: '99' },
       z: { $bigint: '4' },
     });
+  });
+
+  it('compares inventory custody across the container-cell move (Uncapped Storage step 4)', () => {
+    const legacy = {
+      ownInventorySlots: [
+        { identity: 'identity-a', id: 'identity-a:0', slot: 0, itemKind: 'axe', quantity: 1, durability: 71, lit: true },
+        { identity: 'identity-a', id: 'identity-a:1', slot: 1, itemKind: 'empty', quantity: 0, durability: 0, lit: true },
+        { identity: 'identity-a', id: 'identity-a:12', slot: 12, itemKind: 'wood', quantity: 9, durability: 0, lit: true },
+        { identity: 'identity-a', id: 'identity-a:33', slot: 33, itemKind: 'hearth_rare_bow', quantity: 1, durability: 90, lit: true },
+        { identity: 'identity-a', id: 'identity-a:40', slot: 40, itemKind: 'stone', quantity: 2, durability: 0, lit: true },
+      ],
+      ownHearthStashSlots: [
+        { identity: 'identity-a', id: 'identity-a:2', slot: 2, itemKind: 'torch', quantity: 1, durability: 0, lit: false },
+        { identity: 'identity-a', id: 'identity-a:3', slot: 3, itemKind: 'empty', quantity: 0, durability: 0, lit: true },
+      ],
+      ownPlacedPlaceableSlots: [
+        { id: '7:0', placeableId: 7n, slot: 0, itemKind: 'apple', quantity: 4, durability: 0, lit: true },
+        { id: '7:1', placeableId: 7n, slot: 1, itemKind: 'empty', quantity: 0, durability: 0, lit: true },
+      ],
+    };
+    const cell = (container: string, index: number, itemKind: string, quantity: number, durability: number, lit: boolean) => ({
+      identity: 'identity-a', id: `identity-a:${container}:${index}`, container, index, itemKind, quantity, durability, lit,
+    });
+    const cells = {
+      ownPlayerContainerCells: [
+        cell('hotbar', 0, 'axe', 1, 71, true), cell('backpack', 2, 'wood', 9, 0, true),
+        cell('equipment', 3, 'hearth_rare_bow', 1, 90, true), cell('crafting', 0, 'stone', 2, 0, true),
+        cell('stash', 2, 'torch', 1, 0, false),
+      ],
+      ownPlacedPlaceableContainerCells: [{ id: '7:0', placeableId: 7n, index: 0, itemKind: 'apple', quantity: 4, durability: 0, lit: true }],
+    };
+    const normalized = normalizeRejoinTables({ ...rawTables(), ...legacy, ...cells }, 'identity-a');
+    // The previous release's capture has no container-cell views at all.
+    const beforeTables = Object.fromEntries(Object.entries(normalized)
+      .filter(([accessor]) => !['ownPlayerContainerCells', 'ownPlacedPlaceableContainerCells'].includes(accessor)));
+    const base = snapshot();
+    const withTables = (tables: Readonly<Record<string, readonly unknown[]>>): WorldRejoinSnapshot => (
+      { ...base, identities: [{ label: 'owner', identity: 'identity-a', tables }] });
+    const before = parseWorldRejoinSnapshot(JSON.parse(JSON.stringify(withTables(beforeTables))));
+    expect(derivedCustodyTables(beforeTables)).toEqual(derivedCustodyTables(normalized));
+    expect(compareWorldRejoinSnapshots(before, withTables(normalized))).toEqual([]);
+    expect(compareWorldRejoinSnapshots(withTables(normalized), withTables(normalized))).toEqual([]);
+    const moved = normalizeRejoinTables({ ...rawTables(), ...legacy, ...cells,
+      ownPlayerContainerCells: [...cells.ownPlayerContainerCells.slice(0, 4), cell('stash', 3, 'torch', 1, 0, false)] }, 'identity-a');
+    expect(compareWorldRejoinSnapshots(before, withTables(moved)))
+      .toEqual([expect.objectContaining({ table: 'owner:derived:playerContainerCustody' })]);
+    const lost = normalizeRejoinTables({ ...rawTables(), ...legacy, ...cells, ownPlacedPlaceableContainerCells: [] }, 'identity-a');
+    expect(compareWorldRejoinSnapshots(before, withTables(lost)).map(({ table }) => table))
+      .toContain('owner:derived:placedPlaceableCustody');
+    // The frozen legacy views must still match exactly after the move.
+    const touched = normalizeRejoinTables({ ...rawTables(), ...legacy, ...cells,
+      ownInventorySlots: legacy.ownInventorySlots.slice(1) }, 'identity-a');
+    expect(compareWorldRejoinSnapshots(before, withTables(touched)).map(({ table }) => table))
+      .toContain('owner:ownInventorySlots');
   });
 
   it('excludes only enumerated session surfaces and observer-effect statistics', () => {
