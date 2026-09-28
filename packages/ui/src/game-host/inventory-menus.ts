@@ -76,7 +76,7 @@ export class InventoryMenus {
   private rules: { readonly definition: FrameContentDefinition; readonly registry: InventoryMenuSnapshot['registry'];
     readonly contentRegistry: ContentRegistry | undefined; readonly backpackCapacity: number } | null = null;
 
-  constructor(art: UiKitArt, private readonly authority: InventoryMenuAuthority) {
+  constructor(art: UiKitArt | undefined, private readonly authority: InventoryMenuAuthority) {
     this.root = new UiRoot({ art, scale: 1, label: 'Inventory menu' });
     this.controller = new UiSlotController(authority.gestures, {
       displayedCursor: () => authority.displayedCursor(), contains: point => this.contains(point),
@@ -87,6 +87,9 @@ export class InventoryMenus {
       art: uiSlotArt({ artwork: () => authority.artwork?.() ?? this.snapshot?.artwork, iconAnimation: item => authority.iconAnimation(item), contentRegistry: () => authority.contentRegistry?.() }) }));
   }
   private get cursor(): ItemStack | null { return this.authority.gestures.source.cursor(); }
+
+  /** The kit art, once the host has loaded it (the menus exist before, so the host never draws inventory itself). */
+  setArt(art: UiKitArt): void { this.root.art = art; this.heldRoot.art = art; this.root.invalidate(); }
 
   get active(): boolean { return this.snapshot !== null && this.frame !== null && !this.root.disposed; }
   contains(point: UiPoint): boolean { return this.frame !== null && containsPoint(this.frame.rect, point); }
@@ -113,7 +116,9 @@ export class InventoryMenus {
 
   tooltipAt(point: UiPoint): string | null {
     const hits = this.root.input.hits(point);
-    if (hits.some(node => node.label === 'Craft result') && this.snapshot?.crafting?.requirement) return this.snapshot.crafting.requirement;
+    // A locked result is an empty slot that takes no input, so find it by where it is, not by hit-testing.
+    const result = this.root.entries().find(entry => entry.element.label === 'Craft result')?.element;
+    if (result && containsPoint(result.clip, point) && this.snapshot?.crafting?.requirement) return this.snapshot.crafting.requirement;
     if (hits.some(node => node.label === 'Sort inventory')) return 'SORT & STACK';
     const item = this.itemAt(point);
     return item ? this.authority.label(item).toUpperCase() : null;
@@ -178,6 +183,8 @@ export class InventoryMenus {
       contentRegistry: () => this.authority.contentRegistry?.(),
       inventoryControls: { backpack: controls('backpack', true),
         ...(chest ? { chest: controls('chest', true) } : {}),
+        // The hearth stash has the same filter and sort header as a chest (BUG-067).
+        ...(snapshot.aliases.entity === 'stash' ? { stash: controls('stash', true) } : {}),
         ...(snapshot.aliases.entity === 'placeable' && snapshot.definition.id === 'frame:barrel' ? { placeable: { onSort: () => this.authority.sort('placeable'),
           showFilter: false, sortEnabled: () => this.cursor === null } } : {}),
       },

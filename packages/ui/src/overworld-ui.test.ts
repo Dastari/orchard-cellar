@@ -38,7 +38,19 @@ import type { UiSkin } from './skin.js';
 import { RIBBON_TEXT_TOP_OFFSET, ribbonWidth } from './ribbon.js';
 import { uiSlotIconRect } from './kit/components/inventory.js';
 import type { UiKitArt } from './kit/components/art.js';
+import type { ItemSlotTable } from './item-slot.js';
 import type { SkillTreeModel } from './skill-tree-ui.js';
+
+
+/** The kit crafting window's result slot (every inventory window is the kit's, BUG-067 / item slot S9). */
+function kitCraftResult(ui: OverworldUi) {
+  const root = ui.retainedInventoryRoot!; root.arrange();
+  const node = root.entries().find(entry => entry.element.label === 'Craft result')!.element;
+  const point = { x: node.rect.x + node.rect.width / 2, y: node.rect.y + node.rect.height / 2 };
+  const press = (shiftKey = false) => { root.pointer({ type: 'down', point, pointerId: 1, button: 0, shiftKey }); root.pointer({ type: 'up', point, pointerId: 1, button: 0, shiftKey }); };
+  const hover = () => { root.pointer({ type: 'move', point, pointerId: 1, button: 0 }); return ui.tooltipText(); };
+  return { root, node, point, press, hover };
+}
 
 describe('homestead member role controls', () => {
   it('cycles invite roles before returning to revoked', () => {
@@ -327,9 +339,7 @@ describe('overworld retained UI layout', () => {
       dateLabel: 'SPRING 1', timeLabel: '06:00', timeFraction: 0,
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
     });
-    const equipment = (ui as unknown as {
-      equipmentItemSlots: readonly { accepts: (itemKind: string) => boolean }[];
-    }).equipmentItemSlots;
+    const equipment = [(ui as unknown as { itemSlots: ItemSlotTable }).itemSlots.slot('equipment', 0)];
 
     updateWith(buildContentRegistry([
       { id: moonAmulet.id, kind: moonAmulet.kind, json: moonAmulet },
@@ -437,13 +447,12 @@ describe('overworld retained UI layout', () => {
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
     });
     const internal = ui as unknown as {
-      furnaceItemSlots: readonly { readonly item: { readonly itemKind: string } | null; readonly visible: boolean }[];
-      backpackItemSlots: readonly { readonly visible: boolean }[];
+      itemSlots: ItemSlotTable;
     };
-    expect(internal.furnaceItemSlots.map((slot) => slot.item?.itemKind ?? null))
+    expect(internal.itemSlots.range('placeable', 3).map((slot) => slot.item?.itemKind ?? null))
       .toEqual(['iron_ore', 'wood', null]);
-    expect(internal.furnaceItemSlots.every((slot) => slot.visible)).toBe(true);
-    expect(internal.backpackItemSlots.some((slot) => slot.visible)).toBe(true);
+    expect(internal.itemSlots.range('placeable', 3).every((slot) => slot.visible)).toBe(true);
+    expect(internal.itemSlots.made('backpack').some((slot) => slot.visible)).toBe(true);
   });
 
   it('stacks cooking slots beside a three-slot vertical meter without entering the backpack pane', () => {
@@ -1209,17 +1218,10 @@ describe('overworld inventory and system menu', () => {
     }
   });
 
-  it('keeps authored crafting draw and pointer nodes on the composed grid after resize and reopen', () => {
+  it('keeps the kit crafting grid, backpack pane and slot presses across resize and reopen (item slot S9)', () => {
     const contentRegistry = buildContentRegistry(bootstrapContentRows()).registry;
     const handlers = callbacks();
     const ui = new OverworldUi({} as UiSkin, {} as PixelUi, {} as OverworldUiItemArt, handlers);
-    const internal = ui as unknown as {
-      layout: OverworldUiLayout;
-      craftingItemSlots: readonly { bounds: { x: number; y: number; width: number; height: number };
-        visible: boolean; node: { contains(point: { x: number; y: number }): boolean } }[];
-      backpackItemSlots: readonly { bounds: { x: number; y: number; width: number; height: number }; visible: boolean }[];
-      inventoryHotbarSlots: readonly { bounds: { x: number; y: number; width: number; height: number }; visible: boolean }[];
-    };
     for (const width of [360, 480, 600, 480]) {
       ui.update({
         width, height: 300, connected: true, playerCount: 1, selectedSlot: 0,
@@ -1230,30 +1232,19 @@ describe('overworld inventory and system menu', () => {
       });
       ui.openWindow = 'inventory';
       ui.openWindow = 'crafting';
-      const layout = internal.layout;
-      const recipeRight = layout.craftingRecipeScroll.x + layout.craftingRecipeScroll.width;
-      expect(internal.craftingItemSlots).toHaveLength(9);
-      internal.craftingItemSlots.forEach((slot, index) => {
-        expect(slot.visible).toBe(true);
-        expect(slot.bounds).toEqual(layout.craftingSlots[index]);
-        expect(slot.bounds.x).toBeGreaterThan(recipeRight);
-        expect(slot.bounds.x + slot.bounds.width).toBeLessThan(layout.craftingResult.x);
-        expect(slot.node.contains({ x: slot.bounds.x + 2, y: slot.bounds.y + 2 })).toBe(true);
-        expect(slot.node.contains({ x: layout.craftingRecipeRows[0]!.x + 2,
-          y: layout.craftingRecipeRows[0]!.y + 2 })).toBe(false);
-      });
-      internal.backpackItemSlots.filter((slot) => slot.visible).forEach((slot, index) => {
-        expect(slot.bounds).toEqual(layout.craftingInventorySlots[index]);
-        expect(slot.bounds.x).toBeGreaterThanOrEqual(layout.craftingInventoryFilter.x);
-      });
-      const frame = [...layout.contentFrames.values()].find(({ definition }) => definition.presentation?.surface === 'crafting')!;
-      internal.inventoryHotbarSlots.forEach((slot, index) => {
-        expect(slot.bounds).toEqual(frame.storage.hotbar!.slots[index]);
-      });
-      const first = layout.craftingSlots[0]!;
-      ui.pointerDown({ x: first.x + 2, y: first.y + 2 }, 0);
-      ui.pointerUp({ x: first.x + 2, y: first.y + 2 }, 0);
+      expect(ui.retainedInventoryActive).toBe(true);
+      const root = ui.retainedInventoryRoot!; root.arrange();
+      const bindings = root.entries().map(entry => entry.element.props['binding'] as { container: string; index: number } | undefined).filter(Boolean);
+      expect(bindings.filter(binding => binding!.container === 'crafting').map(binding => binding!.index)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+      expect(root.entries().some(entry => entry.element.label === 'Filter items')).toBe(true);
+      const cell = root.entries().find(entry => (entry.element.props['binding'] as { container?: string; index?: number } | undefined)?.container === 'crafting'
+        && (entry.element.props['binding'] as { index: number }).index === 0)!.element;
+      expect(cell.rect.x + cell.rect.width).toBeLessThanOrEqual(width);
+      const point = { x: cell.rect.x + cell.rect.width / 2, y: cell.rect.y + cell.rect.height / 2 };
+      root.pointer({ type: 'down', point, pointerId: 1, button: 0 }); root.pointer({ type: 'up', point, pointerId: 1, button: 0 });
       expect(handlers.inventoryCursorClick).toHaveBeenLastCalledWith('crafting', 0, 'left');
+      ui.update({ ...(ui as unknown as { model: Parameters<OverworldUi['update']>[0] }).model, cursorStack: null });
+      ui.openWindow = null;
     }
   });
 
@@ -1385,10 +1376,10 @@ describe('overworld inventory and system menu', () => {
       ui.pointerUp(destination, 0);
       expect(handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith('hotbar', 0, 'left');
       const prediction = ui as unknown as {
-        inventoryHotbarSlots: readonly { item: { itemKind: string; quantity: number } | null }[];
+        itemSlots: ItemSlotTable;
         optimisticMenuCursor: unknown;
       };
-      expect(prediction.inventoryHotbarSlots[0]!.item).toMatchObject({ itemKind: 'wood', quantity: 7 });
+      expect(prediction.itemSlots.slot('hotbar', 0).item).toMatchObject({ itemKind: 'wood', quantity: 7 });
       expect(prediction.optimisticMenuCursor).toBeNull();
     });
 
@@ -2121,19 +2112,18 @@ describe('overworld inventory and system menu', () => {
     ui.pointerMove({ x: sourcePoint.x + 4, y: sourcePoint.y });
     const internal = ui as unknown as {
       optimisticMenuCursor: { readonly itemKind: string; readonly quantity: number } | null | undefined;
-      inventoryHotbarSlots: readonly { readonly item: { readonly quantity: number } | null }[];
-      craftingItemSlots: readonly { readonly item: { readonly quantity: number } | null }[];
+      itemSlots: ItemSlotTable;
     };
     expect(handlers.inventoryCursorClick).toHaveBeenCalledTimes(1);
     expect(handlers.inventoryCursorClick).toHaveBeenCalledWith('hotbar', 0, 'left');
     expect(internal.optimisticMenuCursor).toMatchObject({ itemKind: 'wood', quantity: 8 });
-    expect(internal.inventoryHotbarSlots[0]?.item).toBeNull();
+    expect(internal.itemSlots.slot('hotbar', 0).item).toBeNull();
 
     ui.pointerMove(targetPoint);
     ui.pointerUp(targetPoint, 0);
     expect(handlers.inventoryCursorClick).toHaveBeenCalledTimes(1);
     expect(internal.optimisticMenuCursor).toMatchObject({ itemKind: 'wood', quantity: 8 });
-    expect(internal.craftingItemSlots[0]?.item).toBeNull();
+    expect(internal.itemSlots.slot('crafting', 0).item).toBeNull();
   });
 
   it('cancels when a dragged stack is held before returning to its source slot', () => {
@@ -2216,9 +2206,9 @@ describe('overworld inventory and system menu', () => {
     const initial = ui as unknown as {
       quickCraftOriginalCursor: { readonly quantity: number } | null;
       quickCraftPreviewCursor: { readonly quantity: number } | null | undefined;
-      craftingItemSlots: readonly { readonly item: { readonly quantity: number } | null }[];
+      itemSlots: ItemSlotTable;
     };
-    expect(initial.craftingItemSlots[0]?.item?.quantity).toBe(10);
+    expect(initial.itemSlots.slot('crafting', 0).item?.quantity).toBe(10);
     expect(initial.quickCraftOriginalCursor?.quantity).toBe(10);
     expect(initial.quickCraftPreviewCursor).toBeNull();
     for (const slot of targets.slice(1)) {
@@ -2227,12 +2217,12 @@ describe('overworld inventory and system menu', () => {
     const internal = ui as unknown as {
       cursorPress: { readonly targets: readonly { readonly containerId: string; readonly index: number }[] } | null;
       quickCraftPreviewCursor: { readonly quantity: number } | null | undefined;
-      craftingItemSlots: readonly { readonly item: { readonly quantity: number } | null }[];
+      itemSlots: ItemSlotTable;
     };
     expect(internal.cursorPress?.targets.map((slot) => [slot.containerId, slot.index])).toEqual([
       ['crafting', 0], ['crafting', 1], ['crafting', 2],
     ]);
-    expect(internal.craftingItemSlots.slice(0, 3).map((slot) => slot.item?.quantity)).toEqual([3, 3, 3]);
+    expect(internal.itemSlots.range('crafting', 3).map((slot) => slot.item?.quantity)).toEqual([3, 3, 3]);
     expect(internal.quickCraftPreviewCursor?.quantity).toBe(1);
   });
 
@@ -2254,14 +2244,14 @@ describe('overworld inventory and system menu', () => {
     ui.pointerUp(point, 0);
     const internal = ui as unknown as {
       optimisticMenuCursor: { readonly itemKind: string; readonly quantity: number } | null | undefined;
-      inventoryHotbarSlots: readonly { readonly item: { readonly quantity: number } | null }[];
+      itemSlots: ItemSlotTable;
     };
     expect(internal.optimisticMenuCursor).toMatchObject({ itemKind: 'wood', quantity: 8 });
-    expect(internal.inventoryHotbarSlots[0]?.item).toBeNull();
+    expect(internal.itemSlots.slot('hotbar', 0).item).toBeNull();
     await Promise.resolve();
     await Promise.resolve();
     expect(internal.optimisticMenuCursor).toBeUndefined();
-    expect(internal.inventoryHotbarSlots[0]?.item?.quantity).toBe(8);
+    expect(internal.itemSlots.slot('hotbar', 0).item?.quantity).toBe(8);
 
     rejectedClick.mockClear();
     ui.update({
@@ -2370,9 +2360,9 @@ describe('overworld inventory and system menu', () => {
     );
     expect(handlers.inventoryCursorPickupAll).not.toHaveBeenCalled();
     const internal = ui as unknown as {
-      chestItemSlots: readonly { readonly item: { readonly itemKind: string; readonly quantity: number } | null }[];
+      itemSlots: ItemSlotTable;
     };
-    expect(internal.chestItemSlots[0]?.item).toMatchObject({ itemKind: 'wood', quantity: 22 });
+    expect(internal.itemSlots.slot('chest', 0).item).toMatchObject({ itemKind: 'wood', quantity: 22 });
     now.mockRestore();
   });
 
@@ -2410,8 +2400,8 @@ describe('overworld inventory and system menu', () => {
       raining: false, weatherMode: 'auto', prompt: null, toast: null,
     });
     (ui as unknown as { selectedCraftingRecipeId: string }).selectedCraftingRecipeId = 'furniture_rustic_dining_table';
-    const result = overworldUiLayout(480, 270).craftingResult;
-    ui.pointerDown({ x: result.x + 4, y: result.y + 4 }, 0, { shift: true });
+    ui.update((ui as unknown as { model: Parameters<OverworldUi['update']>[0] }).model);
+    kitCraftResult(ui).press(true);
     expect(handlers.craftInventoryRecipe).toHaveBeenCalledWith('furniture_rustic_dining_table', true);
   });
 
@@ -2433,14 +2423,11 @@ describe('overworld inventory and system menu', () => {
       raining: false, weatherMode: 'auto' as const, prompt: null, toast: null,
     };
     ui.update(model);
-    const result = overworldUiLayout(480, 270).craftingResult;
-    const point = { x: result.x + 4, y: result.y + 4 };
-    ui.pointerMove(point);
-    expect(ui.tooltipText()).toBe('LEARN THIS RECIPE FIRST');
-    ui.pointerDown(point, 0, {});
+    expect(kitCraftResult(ui).hover()).toBe('LEARN THIS RECIPE FIRST');
+    kitCraftResult(ui).press();
     expect(handlers.craftInventoryRecipe).not.toHaveBeenCalled();
     ui.update({ ...model, knownRecipeIds:['planks'] });
-    ui.pointerDown(point, 0, {});
+    kitCraftResult(ui).press();
     expect(handlers.craftInventoryRecipe).toHaveBeenCalledWith('planks', false);
   });
 
@@ -2462,18 +2449,15 @@ describe('overworld inventory and system menu', () => {
       raining: false, weatherMode: 'auto' as const, prompt: null, toast: null,
     };
     ui.update(model);
-    const result = overworldUiLayout(480, 270).craftingResult;
-    const point = { x: result.x + 4, y: result.y + 4 };
-    ui.pointerMove(point);
     const skillName = registry.compiled.skillNodes.find(({ id }) => id === 'greenhouse_charter')!.name;
-    expect(ui.tooltipText()).toBe(`REQUIRES ${skillName.toUpperCase()} RANK 1`);
-    ui.pointerDown(point, 0, {});
+    expect(kitCraftResult(ui).hover()).toBe(`REQUIRES ${skillName.toUpperCase()} RANK 1`);
+    kitCraftResult(ui).press();
     expect(handlers.craftInventoryRecipe).not.toHaveBeenCalled();
     ui.update({ ...model, skills: { nodes: [], tracks: [], ranks: [{ nodeId: 'greenhouse_charter', rank: 1 }], balanceBronze: 0n } });
-    ui.pointerDown(point, 0, {});
+    kitCraftResult(ui).press();
     expect(handlers.craftInventoryRecipe).not.toHaveBeenCalled();
     ui.update({ ...model, skills: { nodes: [], tracks: [], ranks: ['farmcraft', 'barreling', 'greenhouse_charter'].map(nodeId => ({ nodeId, rank: 1 })), balanceBronze: 0n } });
-    ui.pointerDown(point, 0, {});
+    kitCraftResult(ui).press();
     expect(handlers.craftInventoryRecipe).toHaveBeenCalledWith('planks', false);
   });
 

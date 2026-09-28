@@ -14,7 +14,10 @@ import type { UiSurfaceStyle } from '../tokens.js';
 import { uiTooltip } from './tooltip.js';
 import { uiPurseLabel } from './purse.js';
 import { uiCurrency, uiCurrencyLabel } from './currency.js';
-import { uiItemFrame } from './inventory.js';
+import { uiItemFrame, uiSetSlotState } from './inventory.js';
+import { UiInventoryFilter, uiPlayerHotbar, uiPlayerInventoryPane } from './inventory-panel.js';
+import { BACKPACK_SLOT_COUNT, BACKPACK_SLOT_OFFSET } from '@orchard/sim/inventory-layout';
+import type { ContentRegistry, ItemStack } from '@orchard/sim';
 import { paintUiSkin, uiElementUpperCase } from './art.js';
 import { uiFolderTabs } from './social.js';
 import { uiGlyph, uiWindow } from './window.js';
@@ -39,6 +42,18 @@ export interface UiMerchantModel {
     readonly compact?: boolean;
     readonly sealsAvailable?: boolean;
     readonly notice?: string;
+    /** The Sell tab picks from the player's inventory with the shared pane (BUG-067): what the player carries, by
+     * inventory slot, the bag's open cells, and which items this merchant buys. */
+    readonly sell?: UiMerchantSellInventory;
+}
+export interface UiMerchantSellInventory {
+    readonly slots: ReadonlyMap<number, ItemStack>;
+    readonly capacity: number;
+    readonly sellable: (itemKind: string) => boolean;
+    /** The live content registry, so authored (Studio) items show their art, wear and names, and filter by name. */
+    readonly contentRegistry?: ContentRegistry;
+    /** The player's selected hotbar slot, marked on the footer hotbar as on the HUD. */
+    readonly selectedSlot?: number;
 }
 export interface UiMerchantOptions {
     readonly model: UiMerchantModel;
@@ -50,6 +65,10 @@ export interface UiMerchantOptions {
     readonly onTab: (tab: 'buy' | 'sell') => void;
     readonly onFilter: (query: string) => void;
     readonly onQuantity: (itemKind: string, quantity: number) => void;
+    /** A press on a carried item in the Sell tab: add its stack (or one) to the sale. */
+    readonly onSellSlot?: (slot: number, one: boolean) => void;
+    /** Sort the backpack from the Sell tab's pane (the sale is by item, so sorting never breaks it). */
+    readonly onSortBackpack?: () => void;
     readonly onCommit: () => void;
     readonly onBack: () => void;
     readonly onClose: () => void;
@@ -59,7 +78,7 @@ export interface UiMerchantElement extends UiElement {
     updateMerchant(model: UiMerchantModel): void;
     readonly filterEditor: CanvasTextEditor;
 }
-const INK = '#3f2832', MUTED = '#9e5f45', LIST_WIDTH = 300, ROW_HEIGHT = 22, VISIBLE_ROWS = 7;
+const INK = '#3f2832', MUTED = '#9e5f45', LIST_WIDTH = 300, SELL_LIST_WIDTH = 210, SELL_VISIBLE_ROWS = 4, ROW_HEIGHT = 22, VISIBLE_ROWS = 7;
 /** A bare glyph stepper button: minus or plus ink, faded when it cannot step; keeps shift/ctrl modifiers. */
 function stepButton(id: string, glyph: string, label: string, onPress: (event: UiButtonModifiers) => void): UiElement {
     return uiButton({ id, label: '', ariaLabel: label, onPress, layout: { width: uiFixed(16), height: uiFixed(16), padding: 0, shrink: 0 },
@@ -108,10 +127,51 @@ export function uiMerchant(options: UiMerchantOptions): UiMerchantElement {
     const seals = uiButton({ id: 'merchant.seals', label: 'Seals', tone: 'primary', onPress: () => { if (model.sealsAvailable)
             options.onSeals?.(); } });
     const back = uiButton({ id: 'merchant.back', label: 'Back', tone: 'primary', onPress: options.onBack });
-    const frame = uiWindow({ id: 'game.merchant', title: (model.title ?? `${model.speaker}'s wares`).toUpperCase(), onClose: options.onClose, layout: { direction: 'column', gap: 4, ...options.layout }, children: [
-            uiStack({}, [uiFlex({ direction: 'column', padding: { top: 16 } }, [panel]), header]), notice,
-            uiFlex({ direction: 'row', align: 'center', gap: 6, width: uiFixed(LIST_WIDTH), maxWidth: fit }, [totalLabel, total, uiFlex({ grow: 1 }, []), uiText('PURSE', { role: 'label' }), purse]),
-            uiFlex({ direction: 'row', gap: 4, justify: 'end', wrap: true, width: uiFixed(LIST_WIDTH), maxWidth: fit }, [back, seals, commit]),
+    // The Sell tab picks what to sell from the shared player inventory pane and hotbar row, beside the sale ledger.
+    const sellFilter = new UiInventoryFilter();
+    const sellHost = uiFlex({ id: 'merchant.sell-inventory', direction: 'column', gap: 4, shrink: 0 });
+    // Selling, the hotbar is the window's footer, a carved divider and a centred row, as in every inventory window.
+    const footerHost = uiFlex({ shrink: 0 });
+    let sellStructure = '', sellCells: { readonly wrapper: UiElement; readonly slot: number; disabled: boolean }[] = [];
+    const carried = (slot: number) => model.sell?.slots.get(slot) ?? null;
+    const sellFrom = (slot: number, one: boolean) => { const item = carried(slot);
+        if (!item || model.pending || !model.sell?.sellable(item.itemKind)) return; options.onSellSlot?.(slot, one); };
+    const buildSellInventory = () => {
+        for (const child of [...sellHost.children, ...footerHost.children]) child.dispose();
+        const registry = () => model.sell?.contentRegistry;
+        const common = { artwork: options.artwork, allowSecondary: true, activateOn: 'up' as const, contentRegistry: registry,
+            iconAnimation: (item: ItemStack) => registry()?.items.get(`item:${item.itemKind}`)?.icon.animation ?? itemDefinition(item.itemKind)?.iconAnimation ?? 'base' };
+        const pane = uiPlayerInventoryPane({ ...common, id: 'merchant.backpack', label: 'BACKPACK', container: 'backpack',
+            cells: Array.from({ length: BACKPACK_SLOT_COUNT }, (_, index) => ({ id: String(index), index })), columns: 5, rows: 4,
+            filterModel: sellFilter, capacity: () => model.sell?.capacity ?? 0, itemLabel: item => registry()?.items.get(`item:${item.itemKind}`)?.displayName ?? itemDefinition(item.itemKind)?.displayName ?? item.itemKind,
+            stack: index => carried(BACKPACK_SLOT_OFFSET + index), onActivate: (index, event) => sellFrom(BACKPACK_SLOT_OFFSET + index, event.button === 2),
+            // The same header as every pane. The sale counts items, not slots, so sorting is safe; it waits for a sale in flight.
+            onSort: () => { if (!model.pending) options.onSortBackpack?.(); },
+            sortDisabledReason: () => !options.onSortBackpack ? 'Sorting is not available here.' : model.pending ? 'Wait for the sale to finish.' : null });
+        const hotbar = uiPlayerHotbar({ ...common, id: 'merchant.hotbar', container: 'hotbar', selected: () => model.sell?.selectedSlot ?? -1,
+            stack: index => carried(index), onActivate: (index, event) => sellFrom(index, event.button === 2) });
+        const grids = pane.children.flatMap(function find(node: UiElement): UiElement[] { return node.kind === 'inventory-grid' ? [node] : node.children.flatMap(find); });
+        sellCells = [...grids[0]!.children.map((wrapper, index) => ({ wrapper, slot: BACKPACK_SLOT_OFFSET + index, disabled: false })),
+            ...hotbar.children.map((wrapper, index) => ({ wrapper, slot: index, disabled: false }))];
+        sellHost.append(pane); footerHost.append(hotbar);
+    };
+    // Items this merchant won't buy show the approved disabled face and take no input, as unofferable trade items do.
+    const refreshSellable = () => {
+        for (const entry of sellCells) {
+            const item = carried(entry.slot), disabled = item !== null && !model.sell!.sellable(item.itemKind);
+            if (disabled === entry.disabled) continue;
+            entry.disabled = disabled; uiSetSlotState(entry.wrapper, disabled ? { enabled: false } : undefined);
+        }
+        sellFilter.refresh();
+    };
+    const totals = uiFlex({ direction: 'row', align: 'center', gap: 6, width: uiFixed(LIST_WIDTH), maxWidth: fit }, [totalLabel, total, uiFlex({ grow: 1 }, []), uiText('PURSE', { role: 'label' }), purse]);
+    const buttons = uiFlex({ direction: 'row', gap: 4, justify: 'end', wrap: true, width: uiFixed(LIST_WIDTH), maxWidth: fit }, [back, seals, commit]);
+    const frame = uiWindow({ id: 'game.merchant', title: (model.title ?? `${model.speaker}'s wares`).toUpperCase(), onClose: options.onClose, footer: footerHost, layout: { direction: 'column', gap: 4, ...options.layout }, children: [
+            // Selling, the ledger (with its totals and buttons) and the pane sit side by side like a chest window's two
+            // panes, 16 apart with their tops aligned, so the window keeps the inventory window's height.
+            uiFlex({ direction: 'row', gap: 16, align: 'start' }, [
+                uiFlex({ direction: 'column', gap: 4, shrink: 0 }, [uiStack({ shrink: 0 }, [uiFlex({ direction: 'column', padding: { top: 16 } }, [panel]), header]), notice, totals, buttons]),
+                sellHost]),
         ] });
     const shopRow = (row: UiMerchantRow): UiElement => {
         const art = new UiElement({ kind: 'item-image', label: row.name, style: { width: uiFixed(20), height: uiFixed(20), shrink: 0 },
@@ -167,6 +227,19 @@ export function uiMerchant(options: UiMerchantOptions): UiMerchantElement {
             if (focused) tabs.children.find(tab => tab.props['selected'])?.requestFocus();
         }
         notice.setProps({ text: next.notice ?? '' }).setStyle({ visible: !!next.notice });
+        const selling = next.tab === 'sell' && next.sell !== undefined;
+        // Selling filters with the pane's own filter; the search field stays with the Buy tab's wares.
+        input.setStyle({ visible: !selling }); sellHost.setStyle({ visible: selling, display: selling ? 'flex' : 'none' });
+        footerHost.parent?.setStyle({ display: selling ? 'flex' : 'none' });
+        // Selling, the ledger narrows so it and the pane fit side by side.
+        panel.setStyle({ width: uiFixed(selling ? SELL_LIST_WIDTH : LIST_WIDTH), maxWidth: selling ? undefined : fit });
+        list.setStyle({ height: uiFixed((selling ? SELL_VISIBLE_ROWS : VISIBLE_ROWS) * ROW_HEIGHT) });
+        for (const row of [totals, buttons]) row.setStyle({ width: uiFixed(selling ? SELL_LIST_WIDTH : LIST_WIDTH), maxWidth: selling ? undefined : fit });
+        if (selling) {
+            const structure = String(next.sell!.capacity);
+            if (structure !== sellStructure || !sellHost.children.length) { sellStructure = structure; buildSellInventory(); }
+            refreshSellable(); for (const child of footerHost.children) child.invalidate();
+        }
         seals.setStyle({ visible: next.sealsAvailable === true });
         for (const [node, bronze] of [[total, next.totalBronze], [purse, next.balanceBronze]] as const) { node.setProps({ bronze }); node.label = uiCurrencyLabel(bronze); }
         const items = next.rows.reduce((sum, row) => sum + row.quantity, 0), verb = next.tab === 'buy' ? 'Buy' : 'Sell';
@@ -180,7 +253,8 @@ export function uiMerchant(options: UiMerchantOptions): UiMerchantElement {
                 child.dispose();
             controls.clear();
             list.replaceChildren(next.rows.length ? next.rows.map(shopRow)
-                : [uiText(next.filter ? `Nothing matches "${next.filter}".` : next.tab === 'buy' ? 'Nothing for sale.' : 'Nothing to sell.', { align: 'center', layout: { width: 'grow' } })]);
+                : [uiText(next.filter ? `Nothing matches "${next.filter}".` : next.tab === 'buy' ? 'Nothing for sale.'
+                    : next.sell ? 'Pick items from your bag to sell.' : 'Nothing to sell.', { align: 'center', wrap: true, layout: { width: 'grow' } })]);
         }
         for (const row of next.rows) {
             const control = controls.get(row.itemKind);

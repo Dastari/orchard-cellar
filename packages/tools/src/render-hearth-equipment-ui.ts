@@ -57,6 +57,8 @@ try {
  const loadout=compileEquipmentLoadout({registry,inventory,selectedSlot:MAIN_HAND_INVENTORY_SLOT,trainedRanks,skillPriority});
  const callbacks=new Proxy({}, {get:(_target,key)=>key==='claimOutdoorReward'?()=>Promise.reject(new Error('reward_inventory_full')):()=>{}});
  const ui=new OverworldUi(art.uiSkin,art.ui,{missing:art.missingItem,avatar:art.avatar,...art.itemIcons},callbacks);
+ // Inventory windows are the kit's (item slot S9): hand the retained inventory its art.
+ ui.enableRetainedInventory(await loadUiKitArt());
  const model={width:settings.uiWidth,height:settings.uiHeight,connected:true,playerCount:1,selectedSlot:MAIN_HAND_INVENTORY_SLOT,
  inventory,hasBackpack:true,contentRegistry:registry,balanceBronze:10000n,audioVolumes:{master:1,music:1,sfx:1},canAdministerWorld:false,
  dateLabel:'SPRING 1',timeLabel:'12:00',timeFraction:.5,moonPhase:'full_moon',raining:false,weatherMode:'auto',prompt:null,toast:null,

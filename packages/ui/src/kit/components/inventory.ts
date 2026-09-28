@@ -7,7 +7,7 @@ import type { LoadedAsset } from '../../assets.js';
 import { drawOutlinedPixelText } from '../../pixel-ui.js';
 import { uiInventorySlotTone } from '../../design-system/inventory.js';
 import { UiInventoryController, type UiInventorySlotRef } from '../runtime/inventory.js';
-import { UiElement } from '../runtime/element.js';
+import { UiElement, type UiElementKey } from '../runtime/element.js';
 import { uiFixed, type UiStyle } from '../layout/box.js';
 import type { UiTone, UiControlSize } from '../tokens.js';
 import { paintUiSkin, paintUiMissingArt, type UiKitArt } from './art.js';
@@ -82,6 +82,10 @@ export interface UiSlotOptions {
    * such as the build palette while a placement waits for the server. `state.enabled: false` and `locked` always
    * paint grey. */
   readonly disabledLook?: 'grey' | 'dim';
+  /** A key the slot itself doesn't handle (it handles Enter, Space, ContextMenu and Escape): a grid's paging. */
+  readonly onKey?: (event: UiElementKey) => boolean;
+  /** The slot gained or lost focus (a virtualised panel moves focus off a slot it recycles). */
+  readonly onFocus?: (focused: boolean) => void;
 }
 /** Bare item art at its native size, centred: station emblems, recipe lines, ingredient rows. */
 export function uiItemImage(options: { readonly itemKind: string; readonly artwork?: UiSlotOptions['artwork']; readonly label?: string; readonly size?: number }): UiElement {
@@ -233,6 +237,8 @@ export interface UiSlotView {
 interface UiVerdictStack { itemKind: string; quantity: number; instance: string; rarity: string }
 interface UiSlotVerdict {
   readonly held: UiVerdictStack; readonly own: UiVerdictStack | null; readonly policy: unknown; readonly revision: number;
+  /** The cell the verdict is for: a recycled slot re-checks when it shows another cell. */
+  readonly container: string; readonly index: number;
   readonly value: 'accept' | 'refuse';
 }
 function sameVerdictStack(kept: UiVerdictStack | null, stack: ItemStack | null): boolean {
@@ -267,42 +273,57 @@ export function uiSetSlotState(element: UiElement, state: UiSlotState | undefine
 /** The derived state of a slot made by `uiSlot`, or undefined for any other element. */
 export function uiSlotView(element: UiElement): UiSlotView | undefined { return slotViews.get(element)?.(); }
 const slotStateBlocksInput = (state: UiSlotState | undefined) => state !== undefined && (state.enabled === false || state.locked !== undefined);
+/** What a recycled slot takes on when it shows another cell (a virtualised grid): its binding, id and label, and the
+ * cell's rules, placeholder, state and disabled flag. */
+export interface UiSlotRebinding {
+  readonly binding: UiInventorySlotRef; readonly id?: string; readonly label?: string;
+  readonly rules?: UiSlotRules; readonly placeholder?: UiSlotPlaceholderSource; readonly state?: UiSlotState; readonly disabled?: boolean;
+}
+const slotRebinders = new WeakMap<UiElement, (next: UiSlotRebinding) => void>();
+/** Points a slot made by `uiSlot` at another cell. Its drop verdict, controller registration, id and label follow. */
+export function uiRebindSlot(element: UiElement, next: UiSlotRebinding): void {
+  const rebind = slotRebinders.get(element); if (!rebind) throw new Error('uiRebindSlot needs a slot made by uiSlot'); rebind(next);
+}
 export function uiSlot(options: UiSlotOptions): UiElement {
   const variant = options.variant ?? 'slot';
   if (variant !== 'slot') throw new Error(`uiSlot variant '${variant}' awaits owner approval (wiki Roadmap/Item Slot Component)`);
   let unregister: (() => void) | undefined;
   let pressed = false;
-  const stack = () => options.controller && options.binding ? options.controller.model.stack(options.binding) : typeof options.stack === 'function' ? options.stack() : options.stack ?? null;
+  // The cell this slot shows. A virtualised grid rebinds it (uiRebindSlot); everything below reads these.
+  let binding = options.binding, rules = options.rules, placeholder = options.placeholder, disabledOption = Boolean(options.disabled);
+  const stack = () => options.controller && binding ? options.controller.model.stack(binding) : typeof options.stack === 'function' ? options.stack() : options.stack ?? null;
   // One art resolver: the legacy artwork/iconAnimation/contentRegistry options wrap into the same UiSlotArt.
   const slotArt = options.art ?? uiSlotArt({ ...(options.artwork ? { artwork: options.artwork } : {}), ...(options.iconAnimation ? { iconAnimation: options.iconAnimation } : {}), ...(options.contentRegistry ? { contentRegistry: options.contentRegistry } : {}) });
   let current: UiSlotState | undefined = options.state;
   const state = () => current;
-  const blocked = (next: UiSlotState | undefined = current) => Boolean(options.disabled) || slotStateBlocksInput(next);
+  const blocked = (next: UiSlotState | undefined = current) => disabledOption || slotStateBlocksInput(next);
   // The held stack as drawn under the pointer: during a spread preview, the original stack.
-  const carried = (): ItemStack | null => options.controller && options.binding ? options.controller.model.displayedCursor() ?? options.controller.model.cursor : null;
+  const carried = (): ItemStack | null => options.controller && binding ? options.controller.model.displayedCursor() ?? options.controller.model.cursor : null;
   // Against the held stack: the controller's verdict, narrowed by the slot's own rules through the shared sim rule
   // and the live content policy. Without a live registry the rules are not checked (never against bootstrap).
   // While a stack is held every slot needs its verdict (refusers dim), so it is kept until the held item (kind and
-  // gear copy), this slot's own stack, the item policy or the controller's rules revision changes: an idle frame
-  // re-checks nothing.
+  // gear copy), this slot's own stack, the item policy, the controller's rules revision or the cell it shows (its
+  // container and index: a recycled slot) changes: an idle frame re-checks nothing.
   let verdict: UiSlotVerdict | undefined;
   const dropTarget = (): 'accept' | 'refuse' | null => {
     const cursor = carried();
-    if (!cursor || !options.controller || !options.binding) return null;
+    if (!cursor || !options.controller || !binding) return null;
     // A disabled or locked slot takes nothing (S4).
     if (blocked()) return 'refuse';
-    const policy = options.rules === undefined ? undefined : uiSlotArtPolicy(slotArt), own = options.controller.model.stack(options.binding);
+    const policy = rules === undefined ? undefined : uiSlotArtPolicy(slotArt), own = options.controller.model.stack(binding);
     const revision = options.controller.rulesRevision;
-    if (verdict && verdict.revision === revision && verdict.policy === policy && sameVerdictStack(verdict.held, cursor) && sameVerdictStack(verdict.own, own)) return verdict.value;
-    const accepts = options.controller.model.canAccept(options.binding, cursor) && (options.rules === undefined || policy === undefined || uiSlotAcceptsItem(options.rules, cursor.itemKind, policy));
-    verdict = { held: verdictStack(cursor, verdict?.held, false), own: verdictStack(own, verdict?.own, true), policy, revision, value: accepts ? 'accept' : 'refuse' };
+    if (verdict && verdict.container === binding.container && verdict.index === binding.index && verdict.revision === revision
+      && verdict.policy === policy && sameVerdictStack(verdict.held, cursor) && sameVerdictStack(verdict.own, own)) return verdict.value;
+    const accepts = options.controller.model.canAccept(binding, cursor) && (rules === undefined || policy === undefined || uiSlotAcceptsItem(rules, cursor.itemKind, policy));
+    verdict = { held: verdictStack(cursor, verdict?.held, false), own: verdictStack(own, verdict?.own, true), policy, revision,
+      container: binding.container, index: binding.index, value: accepts ? 'accept' : 'refuse' };
     return verdict.value;
   };
-  const slot = new UiElement({ id: options.id, kind: 'slot', label: options.label ?? (options.binding ? `${options.binding.container}/${options.binding.index}` : 'Slot'),
-    focusable: Boolean(options.controller || options.onPress), disabled: blocked(), pointerMode: 'capture', props: { ...(options.tone ? { tone: options.tone } : {}), binding: options.binding, selected: options.selected ?? current?.selected ?? false, hoverWhenDisabled: current?.locked !== undefined },
+  const slot = new UiElement({ id: options.id, kind: 'slot', label: options.label ?? (binding ? `${binding.container}/${binding.index}` : 'Slot'),
+    focusable: Boolean(options.controller || options.onPress), disabled: blocked(), pointerMode: 'capture', props: { ...(options.tone ? { tone: options.tone } : {}), binding, selected: options.selected ?? current?.selected ?? false, hoverWhenDisabled: current?.locked !== undefined },
     style: { width: uiFixed(28), height: uiFixed(31), display: 'stack', padding: 8, shrink: 0, ...options.layout }, children: options.icon ? [uiIcon(options.icon).setStyle({ width: 'grow', height: 'grow' })] : [],
     onPointer(event, element) {
-      if (options.controller && options.binding) return options.controller.pointer(event, options.binding);
+      if (options.controller && binding) return options.controller.pointer(event, binding);
       if (!options.onPress) return false;
       if (event.type === 'cancel') { pressed = false; return true; }
       if (event.button !== 0 && !(options.allowSecondary && event.button === 2)) return false;
@@ -313,9 +334,10 @@ export function uiSlot(options: UiSlotOptions): UiElement {
       }
       return pressed;
     },
-    onKey(event) { if (event.key === 'Escape') { options.controller?.cancel(); return true; } if (!['Enter', ' ', 'ContextMenu'].includes(event.key)) return false;
-      if (options.controller && options.binding) options.controller.activate(options.binding, event.key === 'ContextMenu' ? 2 : 0, event.shiftKey); else options.onPress?.({...event,button:event.key==='ContextMenu'?2:0}); return true; },
+    onKey(event) { if (event.key === 'Escape') { options.controller?.cancel(); return true; } if (!['Enter', ' ', 'ContextMenu'].includes(event.key)) return options.onKey?.(event) ?? false;
+      if (options.controller && binding) options.controller.activate(binding, event.key === 'ContextMenu' ? 2 : 0, event.shiftKey); else options.onPress?.({...event,button:event.key==='ContextMenu'?2:0}); return true; },
     onDispose() { unregister?.(); },
+    ...(options.onFocus ? { onFocus: (focused: boolean) => options.onFocus!(focused) } : {}),
     paint(element, { context, art, hovered, focused, now }) {
       if (!art) return; if (art.missingArt) { paintUiMissingArt(context, element.rect, art); return; }
       context.save();
@@ -330,15 +352,15 @@ export function uiSlot(options: UiSlotOptions): UiElement {
       const refuser = !hovered && !disabled && !busy && carried() !== null && dropTarget() === 'refuse';
       context.save(); if (refuser) context.globalAlpha *= UI_SLOT_REFUSER_ALPHA;
       paintUiSlotBody(context, art, r, { item: actual ?? ghost, ghost: Boolean(ghost), disabled, locked, slotArt,
-        ...(options.renderContent ? { renderContent: options.renderContent } : {}), ...(options.placeholder ? { placeholder: options.placeholder } : {}),
+        ...(options.renderContent ? { renderContent: options.renderContent } : {}), ...(placeholder ? { placeholder } : {}),
         ...(options.hotkey ? { hotkey: options.hotkey } : {}), cooldown: options.cooldown?.() ?? null });
       context.restore();
       // Authored corner selectors: green marks the selected hotbar slot or an accepting drop, red a refused drop or a
       // locked slot under the pointer, white a spread target, hover and keyboard focus. A refused drop flashes red.
       // Only the slot under the pointer or keyboard focus shows drop feedback, so only it checks the rules.
-      const flash = options.controller && options.binding ? options.controller.refusalFrame(options.binding, now) : 0;
+      const flash = options.controller && binding ? options.controller.refusalFrame(binding, now) : 0;
       const target = hovered || focused ? dropTarget() : null, selected = Boolean(element.props['selected']) || state()?.selected === true;
-      const spreading = options.controller && options.binding ? options.controller.spreadTarget(options.binding) : false;
+      const spreading = options.controller && binding ? options.controller.spreadTarget(binding) : false;
       if (flash) paintUiSlotRefusedFlash(context, art, r, flash);
       else if (selected || (hovered && target === 'accept' && !locked)) paintUiSelector(context, art.skin.selector, 'confirm', r);
       else if (hovered && (target === 'refuse' || locked)) paintUiSelector(context, art.skin.selector, 'deny', r);
@@ -361,13 +383,24 @@ export function uiSlot(options: UiSlotOptions): UiElement {
       variant, enabled: !live.disabled, locked: current?.locked ?? null,
       selected: Boolean(live.props['selected']) || current?.selected === true, pending: current?.pending === true,
       cooldown: cooldown === null ? null : { ...cooldown, fraction: Math.min(1, Math.max(0, cooldown.fraction)) },
-      placeholder: options.placeholder ?? null, rules: options.rules ?? null, drag: options.drag ?? null, dropTarget: dropTarget(),
+      placeholder: placeholder ?? null, rules: rules ?? null, drag: options.drag ?? null, dropTarget: dropTarget(),
     });
   };
-  const register = (element: UiElement) => { slotStates.set(element, setState); slotDropTargets.set(element, dropTarget); slotViews.set(element, view); };
+  const rebind = (next: UiSlotRebinding) => {
+    rules = next.rules; placeholder = next.placeholder; verdict = undefined;
+    const moved = binding?.container !== next.binding.container || binding?.index !== next.binding.index;
+    binding = next.binding;
+    if (next.id !== undefined) live.id = next.id;
+    live.label = next.label ?? `${binding.container}/${binding.index}`;
+    if (moved) { live.setProps({ binding }, false); if (options.controller) { unregister?.(); unregister = options.controller.register(slot, binding); } }
+    const wasBlocked = blocked(); disabledOption = Boolean(next.disabled); current = next.state;
+    if (live.props['hoverWhenDisabled'] !== (current?.locked !== undefined)) live.setProps({ hoverWhenDisabled: current?.locked !== undefined }, false);
+    if (blocked() !== wasBlocked) live.setDisabled(blocked()); else live.invalidateRoot?.(false);
+  };
+  const register = (element: UiElement) => { slotStates.set(element, setState); slotDropTargets.set(element, dropTarget); slotViews.set(element, view); slotRebinders.set(element, rebind); };
   register(slot);
   slotAdopters.set(slot, replacement => { live = replacement; register(replacement); });
-  if (options.controller && options.binding) unregister = options.controller.register(slot, options.binding); return slot;
+  if (options.controller && binding) unregister = options.controller.register(slot, binding); return slot;
 }
 export interface UiHeldStackOptions {
   readonly id?: string;
@@ -460,6 +493,42 @@ export interface UiInventoryGridOptions {
   readonly iconAnimation?: UiSlotOptions['iconAnimation']; readonly contentRegistry?: UiSlotOptions['contentRegistry'];
   /** Icon only, in the slot's icon well; see UiSlotOptions.renderContent. */
   readonly renderContent?: (context: CanvasRenderingContext2D, bounds: UiRect, item: ItemStack, index: number, state: { readonly ghost: boolean }) => void;
+  /** A key a cell doesn't handle itself, with the index of the cell it shows (a panel's paging). */
+  readonly onCellKey?: (index: number, event: UiElementKey) => boolean;
+  /** A cell's slot gained or lost focus. */
+  readonly onCellFocus?: (slot: UiElement, focused: boolean) => void;
+}
+const gridCellBinders = new WeakMap<UiElement, (cell: UiInventoryCell) => void>();
+/** Points a grid's slot at another cell (a virtualised panel recycling its slots): its index, id, label and the
+ * cell's rules, placeholder, state and disabled flag. */
+export function uiBindGridCell(slot: UiElement, cell: UiInventoryCell): void {
+  const bind = gridCellBinders.get(slot); if (!bind) throw new Error('uiBindGridCell needs a slot made by uiInventoryGrid'); bind(cell);
+}
+function gridCellSlot(options: UiInventoryGridOptions, cell: UiInventoryCell, position: number): UiElement {
+  // The index this slot shows; a virtualised panel moves it (uiBindGridCell) and every callback reads it.
+  const at = { index: cell.index ?? position };
+  const slotId = (index: number) => options.id ? `${options.id}.slot.${index}` : undefined;
+  const slot = uiSlot({ id: slotId(at.index), label: `${options.container}/${cell.id}`, binding: { container: options.container, index: at.index }, controller: options.controller,
+    ghost: options.ghost ? () => options.ghost!(at.index) : undefined, iconAnimation: options.iconAnimation, contentRegistry: options.contentRegistry,
+    renderContent: options.renderContent ? (context, bounds, item, state) => options.renderContent!(context, bounds, item, at.index, state) : undefined,
+    activateOn: options.activateOn, allowSecondary: options.allowSecondary, stack: options.stack ? () => options.stack!(at.index) : undefined,
+    onPress: options.onActivate ? event => options.onActivate!(at.index, event) : undefined, artwork: options.artwork, icon: cell.icon, placeholder: cell.placeholder,
+    disabled: cell.disabled, ...(options.onCellKey ? { onKey: (event: UiElementKey) => options.onCellKey!(at.index, event) } : {}),
+    ...(options.onCellFocus ? { onFocus: (focused: boolean) => options.onCellFocus!(slot, focused) } : {}),
+    ...cellSlotOptions(cell, options.art), ...(options.hotkeys ? { hotkey: String((position + 1) % 10) } : {}) });
+  let icon = cell.icon;
+  gridCellBinders.set(slot, next => {
+    const index = next.index ?? at.index; at.index = index;
+    if (next.icon !== icon) {
+      icon = next.icon;
+      for (const child of [...slot.children]) child.dispose();
+      if (icon) slot.append(uiIcon(icon).setStyle({ width: 'grow', height: 'grow' }));
+    }
+    uiRebindSlot(slot, { binding: { container: options.container, index }, id: slotId(index) ?? slot.id, label: `${options.container}/${next.id}`,
+      ...(next.rules ? { rules: next.rules } : {}), ...(next.placeholder ? { placeholder: next.placeholder } : {}),
+      ...(next.state ? { state: next.state } : {}), ...(next.disabled ? { disabled: true } : {}) });
+  });
+  return slot;
 }
 export function uiInventoryGrid(options: UiInventoryGridOptions): UiElement {
   const cells: readonly UiInventoryCell[] = options.cells ?? Array.from({ length: options.count ?? 6 }, (_, index) => ({ id: String(index), index }));
@@ -484,12 +553,13 @@ export function uiInventoryGrid(options: UiInventoryGridOptions): UiElement {
       }
       const height = Math.max(0, Math.ceil(count / columns) * (slotHeight + gap) - gap);
       return { min: { width: options.fixedColumns ? columns * (width + gap) - gap : Math.min(width, available.width), height: slotHeight }, preferred: { width: columns * (width + gap) - gap, height } };
-    }, children: cells.map((cell, index) => uiSlot({ id: options.id ? `${options.id}.slot.${cell.index ?? index}` : undefined, label: `${options.container}/${cell.id}`, binding: { container: options.container, index: cell.index ?? index }, controller: options.controller, ghost: options.ghost ? () => options.ghost!(cell.index ?? index) : undefined, iconAnimation: options.iconAnimation, contentRegistry: options.contentRegistry, renderContent: options.renderContent ? (context, bounds, item, state) => options.renderContent!(context, bounds, item, cell.index ?? index, state) : undefined, activateOn: options.activateOn, allowSecondary: options.allowSecondary, stack: options.stack ? () => options.stack!(cell.index ?? index) : undefined, onPress: options.onActivate ? event => options.onActivate!(cell.index ?? index,event) : undefined, artwork: options.artwork, icon: cell.icon, placeholder: cell.placeholder, disabled: cell.disabled, ...cellSlotOptions(cell, options.art), ...(options.hotkeys ? { hotkey: String((index + 1) % 10) } : {}) })),
+    }, children: cells.map((cell, index) => gridCellSlot(options, cell, index)),
   }); return grid;
 }
 export function uiHotbar(options: UiInventoryGridOptions & { readonly selected?: number | (() => number); readonly digitKeys?: boolean; readonly onSelect?: (index: number) => void }): UiElement {
-  const base = uiInventoryGrid({ ...options, count: options.count ?? HOTBAR_SLOT_COUNT, columns: options.columns ?? options.count ?? HOTBAR_SLOT_COUNT, hotkeys: true, activateOn: 'down',
-    onActivate: options.controller ? options.onActivate : index => select(index) });
+  const base = uiInventoryGrid({ ...options, count: options.count ?? HOTBAR_SLOT_COUNT, columns: options.columns ?? options.count ?? HOTBAR_SLOT_COUNT, hotkeys: true, activateOn: options.activateOn ?? 'down',
+    // Without a controller a press selects, unless the window gives the press its own action (trade offers the item).
+    onActivate: options.controller ? options.onActivate : options.onActivate ?? (index => select(index)) });
   const controlled = typeof options.selected === 'function' ? options.selected : undefined;
   const applySelection = (index: number) => {
     if (grid.props['selected'] !== index) grid.setProps({ selected: index }, false);

@@ -38,6 +38,9 @@ function fixture(overrides: Partial<NpcInteractionModel> = {}, calls: Partial<Np
     return { ui, model, callbacks };
 }
 function node(ui: NpcInteractionUi, id: string) { ui.root.arrange(); const found = ui.root.entries().find(entry => entry.element.id === id)?.element; expect(found, `missing ${id}`).toBeDefined(); return found!; }
+/** Sell tab: press a carried item in the shared player inventory pane (BUG-067); `one` is the secondary press. */
+function pick(ui: NpcInteractionUi, slot: number, one = false) { const element = node(ui, slot < 10 ? `merchant.hotbar.slot.${slot}` : `merchant.backpack.slot.${slot - 10}`); ui.root.focus.set(element, 'keyboard'); ui.root.key({ key: one ? 'ContextMenu' : 'Enter' }); ui.root.arrange(); }
+function shownCell(ui: NpcInteractionUi, id: string) { ui.root.arrange(); return ui.root.entries().some(entry => entry.element.id === id && entry.element.style.display !== 'none'); }
 function press(ui: NpcInteractionUi, id: string, modifiers: Omit<UiElementKey, 'key'> = {}) { const element = node(ui, id); ui.root.focus.set(element, 'keyboard'); ui.root.key({ key: 'Enter', ...modifiers }); ui.root.arrange(); }
 function tap(ui: NpcInteractionUi, id: string, pointerType = 'mouse') {
     const element = node(ui, id);
@@ -52,8 +55,8 @@ describe('production retained merchant', () => {
     it.each([[320, 180], [480, 270], [960, 600]])('keeps a stable scale-one root and bounded frame at %sx%s', (width, height) => { const { ui, model } = fixture({ width, height }); const root = ui.root, frame = node(ui, 'game.merchant'); expect(root.scale).toBe(1); expect(frame.rect.x).toBeGreaterThanOrEqual(0); expect(frame.rect.y).toBeGreaterThanOrEqual(0); expect(frame.rect.x + frame.rect.width).toBeLessThanOrEqual(width); expect(frame.rect.y + frame.rect.height).toBeLessThanOrEqual(height); ui.update({ ...model, width: width + 20 }); expect(ui.root).toBe(root); expect(node(ui, 'game.merchant')).toBe(frame); ui.dispose(); expect(root.disposed).toBe(true); });
     it('starts at zero and submits a multi-kind cart once on retained pointer release', async () => { const { ui, callbacks } = fixture(); expect(ui.shopState.lines).toEqual([]); tap(ui, 'merchant.plus:homestead_deed'); tap(ui, 'merchant.plus:axe', 'touch'); expect(ui.shopState).toMatchObject({ totalBronze: 50450n, canCommit: true }); tap(ui, 'merchant.commit'); expect(callbacks.buy).toHaveBeenCalledExactlyOnceWith([{ itemKind: 'homestead_deed', quantity: 1 }, { itemKind: 'axe', quantity: 1 }]); expect(ui.shopState.pending).toBe(true); await settle(); expect(ui.shopState.lines).toEqual([]); });
     it('blocks empty and unaffordable carts and retains a rejected cart', async () => { const buy = vi.fn().mockRejectedValue(new Error('inventory_full')); const { ui, model } = fixture({ balanceBronze: 10n }, { buy }); press(ui, 'merchant.commit'); expect(buy).not.toHaveBeenCalled(); press(ui, 'merchant.plus:homestead_deed'); expect(ui.shopState.canCommit).toBe(false); press(ui, 'merchant.commit'); expect(buy).not.toHaveBeenCalled(); ui.update({ ...model, balanceBronze: 100000n }); press(ui, 'merchant.commit'); await settle(); expect(ui.shopState.pending).toBe(false); expect(ui.shopState.lines).toEqual([{ itemKind: 'homestead_deed', quantity: 1 }]); expect(ui.root.entries().some(entry => entry.element.label.includes('Transaction rejected'))).toBe(true); });
-    it('preserves separate buy/sell carts and filtered-out lines; applies bounded modifiers', () => { const { ui } = fixture({ inventory: [{ slot: 10, itemKind: 'wood', quantity: 25 }] }); press(ui, 'merchant.plus:axe'); press(ui, 'merchant.sell'); press(ui, 'merchant.plus:wood', { shiftKey: true }); expect(ui.shopState.lines).toEqual([{ itemKind: 'wood', quantity: 10 }]); press(ui, 'merchant.plus:wood', { ctrlKey: true }); expect(ui.shopState.lines[0]?.quantity).toBe(25); press(ui, 'merchant.minus:wood', { shiftKey: true }); expect(ui.shopState.lines[0]?.quantity).toBe(15); ui.setFilterText('nothing'); expect(ui.shopState.lines[0]?.quantity).toBe(15); press(ui, 'merchant.buy'); expect(ui.shopState.lines).toEqual([{ itemKind: 'axe', quantity: 1 }]); });
-    it('uses effective backpack custody, sell overrides and reclamps ownership', () => { const { ui, model } = fixture({ backpackSlotCapacity: 20, sellPriceOverrides: { stone: 17 }, inventory: [{ slot: 29, itemKind: 'stone', quantity: 2 }, { slot: 30, itemKind: 'stone', quantity: 4 }, { slot: 39, itemKind: 'stone', quantity: 8 }] }); press(ui, 'merchant.sell'); press(ui, 'merchant.plus:stone', { ctrlKey: true }); expect(ui.shopState).toMatchObject({ lines: [{ itemKind: 'stone', quantity: 2 }], totalBronze: 34n }); ui.update({ ...model, inventory: [{ slot: 29, itemKind: 'stone', quantity: 1 }] }); expect(ui.shopState.lines[0]?.quantity).toBe(1); ui.update({ ...model, backpackSlotCapacity: 8 }); expect(ui.shopState.lines).toEqual([]); });
+    it('preserves separate buy/sell carts and filtered-out lines; applies bounded modifiers', () => { const { ui } = fixture({ inventory: [{ slot: 10, itemKind: 'wood', quantity: 25 }] }); press(ui, 'merchant.plus:axe'); press(ui, 'merchant.sell'); pick(ui, 10, true); expect(ui.shopState.lines).toEqual([{ itemKind: 'wood', quantity: 1 }]); press(ui, 'merchant.plus:wood', { shiftKey: true }); expect(ui.shopState.lines).toEqual([{ itemKind: 'wood', quantity: 11 }]); press(ui, 'merchant.plus:wood', { ctrlKey: true }); expect(ui.shopState.lines[0]?.quantity).toBe(25); press(ui, 'merchant.minus:wood', { shiftKey: true }); expect(ui.shopState.lines[0]?.quantity).toBe(15); ui.setFilterText('nothing'); expect(ui.shopState.lines[0]?.quantity).toBe(15); press(ui, 'merchant.buy'); expect(ui.shopState.lines).toEqual([{ itemKind: 'axe', quantity: 1 }]); });
+    it('uses effective backpack custody, sell overrides and reclamps ownership', () => { const { ui, model } = fixture({ backpackSlotCapacity: 20, sellPriceOverrides: { stone: 17 }, inventory: [{ slot: 29, itemKind: 'stone', quantity: 2 }, { slot: 30, itemKind: 'stone', quantity: 4 }, { slot: 39, itemKind: 'stone', quantity: 8 }] }); press(ui, 'merchant.sell'); pick(ui, 29); expect(ui.shopState).toMatchObject({ lines: [{ itemKind: 'stone', quantity: 2 }], totalBronze: 34n }); expect(shownCell(ui, 'merchant.backpack.slot.19')).toBe(true); ui.update({ ...model, inventory: [{ slot: 29, itemKind: 'stone', quantity: 1 }] }); expect(ui.shopState.lines[0]?.quantity).toBe(1); ui.update({ ...model, backpackSlotCapacity: 8 }); expect(ui.shopState.lines).toEqual([]); });
     it('sells exactly the cells the capacity rule opens, projected or authored (BUG-056)', () => {
         const backpack = registry.items.get('item:backpack')!;
         const withBag = (inventoryCapacity: number) => ({ ...registry, items: new Map(registry.items).set('item:small_bag', { ...backpack, id: 'item:small_bag', equip: { ...backpack.equip!, inventoryCapacity } }) });
@@ -61,8 +64,9 @@ describe('production retained merchant', () => {
         const stones = [[7, 1], [11, 2], [12, 4], [19, 8]].map(([cell, quantity]) => ({ slot: 10 + cell!, itemKind: 'stone', quantity: quantity! }));
         const sellable = (overrides: Partial<NpcInteractionModel>) => {
             const { ui } = fixture(overrides); press(ui, 'merchant.sell');
-            if (!ui.root.entries().some(entry => entry.element.id === 'merchant.plus:stone')) return 0;
-            press(ui, 'merchant.plus:stone', { ctrlKey: true }); return ui.shopState.lines[0]?.quantity ?? 0;
+            // Pick every stone the pane shows: exactly the cells the bag opens.
+            for (const [cell] of [[7], [11], [12], [19]]) if (shownCell(ui, `merchant.backpack.slot.${cell}`)) pick(ui, 10 + cell!);
+            return ui.shopState.lines[0]?.quantity ?? 0;
         };
         const bag = { slot: 34, itemKind: 'small_bag', quantity: 1 };
         expect(sellable({ backpackSlotCapacity: 12, inventory: stones })).toBe(3);
@@ -71,7 +75,7 @@ describe('production retained merchant', () => {
         expect(sellable({ contentRegistry: withBag(4), inventory: [bag, ...stones] })).toBe(1);
         expect(sellable({ backpackSlotCapacity: 20, inventory: stones })).toBe(15);
     });
-    it('uses equipped authored capacity and excludes quest and unsellable items', () => { const { ui } = fixture({ inventory: [{ slot: 34, itemKind: 'backpack', quantity: 1 }, { slot: 29, itemKind: 'stone', quantity: 2 }, { slot: 0, itemKind: 'marlow_book', quantity: 1 }] }); press(ui, 'merchant.sell'); press(ui, 'merchant.plus:stone'); expect(ui.shopState.lines).toEqual([{ itemKind: 'stone', quantity: 1 }]); expect(ui.root.entries().some(entry => entry.element.id === 'merchant.plus:marlow_book')).toBe(false); });
+    it('uses equipped authored capacity and excludes quest and unsellable items', () => { const { ui } = fixture({ inventory: [{ slot: 34, itemKind: 'backpack', quantity: 1 }, { slot: 29, itemKind: 'stone', quantity: 2 }, { slot: 0, itemKind: 'marlow_book', quantity: 1 }] }); press(ui, 'merchant.sell'); pick(ui, 29, true); expect(ui.shopState.lines).toEqual([{ itemKind: 'stone', quantity: 1 }]); expect(node(ui, 'merchant.hotbar.slot.0').disabled).toBe(true); expect(ui.root.entries().some(entry => entry.element.id === 'merchant.plus:marlow_book')).toBe(false); });
     it('fails closed for missing shops, retired offers and live null prices', () => { const rows = bootstrapContentRows().map(row => row.id === 'item:axe' ? { ...row, json: { ...registry.items.get(row.id)!, displayName: 'Moon Axe', maxStack: 2, economy: { buy: 17, sell: 1 } } } : row.id === 'shop:general_tools' ? { ...row, json: { ...registry.shops.get(row.id)!, offers: [{ item: 'item:axe' }] } } : row); const live = buildContentRegistry(rows).registry; const { ui, model } = fixture({ contentRegistry: live }); press(ui, 'merchant.plus:axe', { ctrlKey: true }); expect(ui.shopState).toMatchObject({ totalBronze: 34n, lines: [{ itemKind: 'axe', quantity: 2 }] }); const noPrice = buildContentRegistry(rows.map(row => row.id === 'item:axe' ? { ...row, json: { ...live.items.get(row.id)!, economy: { buy: null, sell: 1 } } } : row)).registry; ui.update({ ...model, contentRegistry: noPrice }); expect(ui.shopState.lines).toEqual([]); ui.update({ ...model, shopId: undefined }); expect(ui.shopState.lines).toEqual([]); ui.update({ ...model, contentRegistry: { ...live, shops: new Map() } }); expect(ui.root.entries().some(entry => entry.element.id === 'merchant.plus:axe')).toBe(false); });
     it('honours live quest-custody tags', () => { const contentRegistry = buildContentRegistry(bootstrapContentRows().map(row => row.id === 'item:stone' ? { ...row, json: { ...registry.items.get(row.id)!, tags: ['item.quest_unique'] } } : row)).registry; const { ui } = fixture({ contentRegistry, inventory: [{ slot: 0, itemKind: 'stone', quantity: 3 }] }); press(ui, 'merchant.sell'); expect(ui.root.entries().some(entry => entry.element.id === 'merchant.plus:stone')).toBe(false); });
     it('retains filter selection and routes editor digits and L without host shortcuts', () => { const { ui, model, callbacks } = fixture(); const input = node(ui, 'merchant.filter'); ui.root.focus.set(input, 'keyboard'); ui.root.text('1l'); expect(ui.filterValue).toBe('1l'); expect(ui.shopState.tab).toBe('buy'); expect(callbacks.chooseDialogueOption).not.toHaveBeenCalled(); const editor = input.props['editor'] as {
@@ -197,7 +201,7 @@ it('forwards actual NPC identity and a bounded portrait viewport into retained d
 it('does not retarget a held purchase into a prepared sell cart when the tab changes', () => {
     const { ui, callbacks } = fixture({ inventory: [{ slot: 10, itemKind: 'wood', quantity: 3 }] });
     press(ui, 'merchant.plus:axe');
-    press(ui, 'merchant.sell'); press(ui, 'merchant.plus:wood'); press(ui, 'merchant.buy');
+    press(ui, 'merchant.sell'); pick(ui, 10, true); press(ui, 'merchant.buy');
     const commit = node(ui, 'merchant.commit'); ui.root.focus.set(commit, 'keyboard'); ui.root.arrange();
     const point = { x: commit.rect.x + 2, y: commit.rect.y + 2 };
     ui.root.pointer({ type: 'down', point, pointerId: 41, button: 0 });
@@ -228,7 +232,7 @@ it('cancels a held commit when its live price changes, preserving harmless updat
 
 it('cancels a held sell after authoritative ownership reclamps its quantities', () => {
     const { ui, model, callbacks } = fixture({ inventory: [{ slot: 10, itemKind: 'wood', quantity: 3 }] });
-    press(ui, 'merchant.sell'); press(ui, 'merchant.plus:wood', { ctrlKey: true });
+    press(ui, 'merchant.sell'); pick(ui, 10);
     const commit = node(ui, 'merchant.commit'); ui.root.focus.set(commit, 'keyboard'); ui.root.arrange();
     const point = { x: commit.rect.x + 2, y: commit.rect.y + 2 };
     ui.root.pointer({ type: 'down', point, pointerId: 44, button: 0 });
@@ -236,4 +240,42 @@ it('cancels a held sell after authoritative ownership reclamps its quantities', 
     ui.root.pointer({ type: 'up', point, pointerId: 44, button: 0 });
     expect(callbacks.sell).not.toHaveBeenCalled(); expect(ui.shopState.lines).toEqual([{ itemKind: 'wood', quantity: 2 }]);
     press(ui, 'merchant.commit'); expect(callbacks.sell).toHaveBeenCalledExactlyOnceWith([{ itemKind: 'wood', quantity: 2 }]);
+});
+it('sells from the shared player inventory pane: its filter, every empty cell, disabled unsellable items (BUG-067)', () => {
+    const { ui } = fixture({ backpackSlotCapacity: 12, inventory: [{ slot: 0, itemKind: 'marlow_book', quantity: 1 }, { slot: 12, itemKind: 'stone', quantity: 5 }, { slot: 15, itemKind: 'wood', quantity: 9 }] });
+    press(ui, 'merchant.sell');
+    const ids = new Set(ui.root.entries().map(entry => entry.element.id));
+    expect(ids.has('merchant.backpack.filter')).toBe(true);
+    // The same header as every pane: filter and sort (disabled here, where the host offers no sort).
+    expect(node(ui, 'merchant.backpack.sort').disabled).toBe(true);
+    expect(node(ui, 'merchant.hotbar').parent?.parent?.children[0]?.kind).toBe('window-divider');
+    // Selling filters with the pane's own filter; the Buy tab's search field is hidden.
+    expect(ui.root.entries().some(entry => entry.element.id === 'merchant.filter')).toBe(false);
+    press(ui, 'merchant.buy'); expect(node(ui, 'merchant.filter').visible).toBe(true); press(ui, 'merchant.sell');
+    const shown = () => Array.from({ length: 20 }, (_, cell) => cell).filter(cell => shownCell(ui, `merchant.backpack.slot.${cell}`));
+    expect(shown()).toEqual(Array.from({ length: 12 }, (_, cell) => cell));
+    expect(node(ui, 'merchant.hotbar.slot.0').disabled).toBe(true);
+    // Nothing picked yet: the ledger asks the player to pick; a press adds the stack, a secondary press one more.
+    expect(ui.shopState.lines).toEqual([]);
+    pick(ui, 12); pick(ui, 15, true);
+    expect(ui.shopState.lines).toEqual([{ itemKind: 'stone', quantity: 5 }, { itemKind: 'wood', quantity: 1 }]);
+    // Picking never goes past what is carried.
+    pick(ui, 12); expect(ui.shopState.lines[0]).toEqual({ itemKind: 'stone', quantity: 5 });
+});
+it('sorts the backpack from the Sell pane when the host offers it, and not while a sale is in flight (BUG-067)', () => {
+    const sortBackpack = vi.fn();
+    const { ui } = fixture({ inventory: [{ slot: 12, itemKind: 'stone', quantity: 5 }] }, { sortBackpack });
+    press(ui, 'merchant.sell');
+    expect(node(ui, 'merchant.backpack.sort').disabled).toBe(false);
+    press(ui, 'merchant.backpack.sort');
+    expect(sortBackpack).toHaveBeenCalledOnce();
+});
+it('filters the Sell pane by the live content names and marks the selected hotbar slot (BUG-067)', () => {
+    const renamed = buildContentRegistry(bootstrapContentRows().map(row => row.id === 'item:stone' ? { ...row, json: { ...registry.items.get('item:stone')!, displayName: 'Moon Rock' } } : row)).registry;
+    const { ui } = fixture({ contentRegistry: renamed, selectedSlot: 2, inventoryRevision: 1, inventory: [{ slot: 12, itemKind: 'stone', quantity: 5 }, { slot: 13, itemKind: 'wood', quantity: 2 }] });
+    press(ui, 'merchant.sell');
+    expect(node(ui, 'merchant.hotbar').props['selected']).toBe(2);
+    const filter = node(ui, 'merchant.backpack.filter'); ui.root.focus.set(filter, 'keyboard'); ui.root.text('moon'); ui.root.arrange();
+    expect(shownCell(ui, 'merchant.backpack.slot.2')).toBe(true);
+    expect(shownCell(ui, 'merchant.backpack.slot.3')).toBe(false);
 });

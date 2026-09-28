@@ -187,6 +187,23 @@ describe('production retained inventory authority bridge', () => {
     } finally { f.dispose(); }
   });
 
+  it('draws the hearth stash with the shared player inventory pane (BUG-067)', () => {
+    const f = fixture('content', { activeFrameId: 'frame:hearth_stash',
+      openStashInventory: [{ slot: 0, itemKind: 'wood', quantity: 3 }, { slot: 19, itemKind: 'apple', quantity: 5 }] });
+    try {
+      f.root.arrange();
+      expect(f.ui.retainedInventoryActive).toBe(true);
+      const ids = f.root.entries().map(({ element }) => element.id);
+      // The same backpack pane, filter and sort as the inventory and chest windows; the stash has its own filter and sort.
+      expect(ids).toContain('frame:hearth_stash.pane.backpack.filter');
+      expect(ids).toContain('frame:hearth_stash.pane.backpack.sort');
+      expect(ids).toContain('frame:hearth_stash.pane.contents.filter');
+      expect(ids).toContain('frame:hearth_stash.pane.contents.sort');
+      f.click(f.slot('stash', 0));
+      expect(f.handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith('stash', 0, 'left');
+    } finally { f.dispose(); }
+  });
+
   it('rolls back a rejected real gesture prediction to the next authoritative snapshot', async () => {
     const f = fixture();
     try {
@@ -534,11 +551,6 @@ describe('production retained inventory authority bridge', () => {
     } finally { f.dispose(); }
   });
 
-  it.each(['frame:hearth_stash'] as const)('keeps unmigrated content frame %s on its existing path',activeFrameId=>{
-    const f=fixture('content',{activeFrameId});
-    try { expect(f.ui.retainedInventoryActive).toBe(false); }
-    finally { f.dispose(); }
-  });
 
 });
 
@@ -560,6 +572,34 @@ function processorTimingSource(spec: typeof processorCases[number]): ProcessTimi
   return {kind:'process',definitions:[recipe],adapter:spec.adapter,durationTicks:1200n,startTick:100n,
     state:{slots,startTick:100n,lit:true},options:{topology,ticksPerUnit:1200n,maxStackForItem:kind=>runtimeMaxStack(registry,kind)}};
 }
+
+describe('Uncapped Storage: host slots past the old fixed lengths', () => {
+  /** The registry with one frame's entity pane bound to `cells` cells (5 columns), past the host's old fixed arrays
+   * (16 chest and station cells, 20 stash cells). The kit panel keeps the first 25 in view. */
+  function widened(frameId: string, cells: number) {
+    const base = registry.frames.get(frameId as FrameContentDefinition['id'])!;
+    const frame: FrameContentDefinition = { ...base, panes: base.panes.map(pane => 'entitySlots' in pane.bind
+      ? { ...pane, columns: 5, rows: Math.ceil(cells / 5), bind: { entitySlots: Array.from({ length: cells }, (_, index) => index) } } : pane) };
+    return { ...registry, frames: new Map(registry.frames).set(frame.id, frame) };
+  }
+
+  it.each([
+    { window: 'chest' as const, frame: 'frame:chest', container: 'chest', cell: 23, rows: 'openChestInventory' as const },
+    { window: 'barrel' as const, frame: 'frame:barrel', container: 'placeable', cell: 22, rows: 'openPlaceableInventory' as const },
+    { window: 'content' as const, frame: 'frame:hearth_stash', container: 'stash', cell: 24, rows: 'openStashInventory' as const },
+  ])('picks up $container cell $cell through the host slot lookup', ({ window, frame, container, cell, rows }) => {
+    const f = fixture(window, { contentRegistry: widened(frame, 30), activeFrameId: frame as FrameContentDefinition['id'],
+      [rows]: [{ slot: 0, itemKind: 'wood', quantity: 3 }, { slot: cell, itemKind: 'apple', quantity: 5 }] });
+    try {
+      expect(f.ui.retainedInventoryActive).toBe(true);
+      // Keyboard activation: the cell sits in the panel's buffer row, below the rows in view.
+      f.root.focus.set(f.slot(container, cell), 'keyboard'); f.root.key({ key: 'Enter' });
+      // The gesture source found the cell's slot and its stack: the pickup reached the authority and was predicted.
+      expect(f.handlers.inventoryCursorClick).toHaveBeenCalledExactlyOnceWith(container, cell, 'left');
+      expect(cursor(f.ui)).toMatchObject({ itemKind: 'apple', quantity: 5 });
+    } finally { f.dispose(); }
+  });
+});
 
 describe('production retained processor authority bridge',()=>{
   it.each(processorCases)('adopts $frame through its real content route and keeps processor roles unsortable',spec=>{

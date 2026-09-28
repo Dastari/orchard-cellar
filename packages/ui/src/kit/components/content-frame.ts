@@ -12,9 +12,9 @@ import { uiFlex, uiScrollArea } from './layout.js';
 import { uiText } from './text.js';
 import { uiButton } from './button.js';
 import { uiMeter } from './meter.js';
-import { uiHotbar, uiInventoryGrid, uiItemImage, uiPaperDoll, type UiInventoryCell, type UiSlotOptions } from './inventory.js';
+import { uiInventoryGrid, uiItemImage, uiPaperDoll, type UiInventoryCell, type UiSlotOptions } from './inventory.js';
 import { uiSlotRulesFromRestriction } from './slot-rules.js';
-import { uiInventoryPanel, type UiInventoryControls } from './inventory-panel.js';
+import { uiInventoryPanel, uiPlayerHotbar, uiPlayerInventoryPane, type UiInventoryControls } from './inventory-panel.js';
 import type { UiTone } from '../tokens.js';
 export interface UiContentFrameOptions {
   readonly definition: FrameContentDefinition; readonly aliases: FrameContainerAliases;
@@ -149,8 +149,7 @@ function uiDesignedContentFrame(options: UiContentFrameOptions): UiContentFrameE
     return uiInventoryGrid({ ...common, id: `${definition.id}.pane.${pane.id}`, container: bindings[0]!.containerId, cells: cells(pane), columns: pane.columns ?? 'auto', fixedColumns: true, layout: { width: 'fit' } }); };
   const panel = (pane: Pane, label: string) => { const bindings = bindingsOf(pane); if (!bindings.length) return null;
     const controls = options.inventoryControls?.[bindings[0]!.containerId];
-    return uiFlex({ id: `pane:${pane.id}`, direction: 'column', gap: 4, shrink: 0 }, [uiText(label, { role: 'label' }),
-      uiInventoryPanel({ ...common, ...controls, id: `${definition.id}.pane.${pane.id}`, container: bindings[0]!.containerId, cells: cells(pane), columns: pane.columns ?? 5, visibleRows: Math.min(4, pane.rows ?? 4), layout: { width: uiFixed((pane.columns ?? 5) * 30 - 2 + 24) } })]); };
+    return uiPlayerInventoryPane({ ...common, ...controls, label, paneId: `pane:${pane.id}`, id: `${definition.id}.pane.${pane.id}`, container: bindings[0]!.containerId, cells: cells(pane), columns: pane.columns ?? 5, rows: pane.rows }); };
   const isBackpack = (pane: Pane) => 'self' in pane.bind && pane.bind.self === 'backpack';
   const isEntity = (pane: Pane) => 'entitySlots' in pane.bind;
   const backpackPane = definition.panes.find(isBackpack);
@@ -211,8 +210,7 @@ function uiDesignedContentFrame(options: UiContentFrameOptions): UiContentFrameE
   if (backpackPane) { const node = panel(backpackPane, 'BACKPACK'); if (node) children.push(node); }
   // The hotbar keeps one row of ten where it fits and breaks into rows of five on narrow screens.
   // It is the game's hotbar, selection included (green corners on the selected slot); digit keys stay with the host.
-  const hotbar = definition.hotbar && options.aliases.hotbar ? uiHotbar({ ...common, container: options.aliases.hotbar, count: HOTBAR_SLOT_COUNT, columns: HOTBAR_SLOT_COUNT, digitKeys: false,
-    selected: options.hotbarSelected ?? (() => -1), layout: { shrink: 0, width: 'fit', maxWidth: { mode: 'percent', fraction: 1 } } }) : undefined;
+  const hotbar = definition.hotbar && options.aliases.hotbar ? uiPlayerHotbar({ ...common, container: options.aliases.hotbar, selected: options.hotbarSelected ?? (() => -1) }) : undefined;
   // uiHotbar applies a controlled selection when it measures, so a changed selection re-measures it on the host's update.
   const hotbarSelected = options.hotbarSelected;
   if (hotbar && hotbarSelected) refresh.push(() => { if (hotbar.props['selected'] !== hotbarSelected()) hotbar.invalidate(); });

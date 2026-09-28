@@ -39,6 +39,8 @@ export interface TradeUiModel {
   readonly inventorySlots: readonly OverworldUiInventorySlot[];
   /** Authoritative accessible backpack capacity; older callers default to the base bag. */
   readonly backpackSlotCapacity?: number;
+  /** The player's selected hotbar slot, marked on the window's footer hotbar as on the HUD. */
+  readonly selectedSlot?: number;
   readonly walletBronze: bigint;
   readonly requesterName: string;
   readonly recipientName: string;
