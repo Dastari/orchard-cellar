@@ -72,7 +72,7 @@ export interface UiMerchantElement extends UiElement {
     updateMerchant(model: UiMerchantModel): void;
     readonly filterEditor: CanvasTextEditor;
 }
-const INK = '#3f2832', MUTED = '#9e5f45', LIST_WIDTH = 300, ROW_HEIGHT = 22, VISIBLE_ROWS = 7;
+const INK = '#3f2832', MUTED = '#9e5f45', LIST_WIDTH = 300, SELL_LIST_WIDTH = 210, ROW_HEIGHT = 22, VISIBLE_ROWS = 7;
 /** A bare glyph stepper button: minus or plus ink, faded when it cannot step; keeps shift/ctrl modifiers. */
 function stepButton(id: string, glyph: string, label: string, onPress: (event: UiButtonModifiers) => void): UiElement {
     return uiButton({ id, label: '', ariaLabel: label, onPress, layout: { width: uiFixed(16), height: uiFixed(16), padding: 0, shrink: 0 },
@@ -135,7 +135,7 @@ export function uiMerchant(options: UiMerchantOptions): UiMerchantElement {
             cells: Array.from({ length: BACKPACK_SLOT_COUNT }, (_, index) => ({ id: String(index), index })), columns: 5, rows: 4,
             filterModel: sellFilter, capacity: () => model.sell?.capacity ?? 0, itemLabel: item => itemDefinition(item.itemKind)?.displayName ?? item.itemKind,
             stack: index => carried(BACKPACK_SLOT_OFFSET + index), onActivate: (index, event) => sellFrom(BACKPACK_SLOT_OFFSET + index, event.button === 2) });
-        const hotbar = uiHotbar({ ...common, id: 'merchant.hotbar', container: 'hotbar', count: HOTBAR_SLOT_COUNT, digitKeys: false, selected: () => -1,
+        const hotbar = uiHotbar({ ...common, id: 'merchant.hotbar', container: 'hotbar', count: HOTBAR_SLOT_COUNT, digitKeys: false, selected: () => -1, layout: { width: 'fit', shrink: 0 },
             stack: index => carried(index), onActivate: (index, event) => sellFrom(index, event.button === 2) });
         const grids = pane.children.flatMap(function find(node: UiElement): UiElement[] { return node.kind === 'inventory-grid' ? [node] : node.children.flatMap(find); });
         sellCells = [...grids[0]!.children.map((wrapper, index) => ({ wrapper, slot: BACKPACK_SLOT_OFFSET + index, disabled: false })),
@@ -152,7 +152,7 @@ export function uiMerchant(options: UiMerchantOptions): UiMerchantElement {
         sellFilter.refresh();
     };
     const frame = uiWindow({ id: 'game.merchant', title: (model.title ?? `${model.speaker}'s wares`).toUpperCase(), onClose: options.onClose, layout: { direction: 'column', gap: 4, ...options.layout }, children: [
-            uiFlex({ direction: 'row', gap: 8, align: 'start' }, [uiStack({}, [uiFlex({ direction: 'column', padding: { top: 16 } }, [panel]), header]), sellHost]), notice,
+            uiFlex({ direction: 'row', gap: 8, align: 'start' }, [uiStack({ shrink: 0 }, [uiFlex({ direction: 'column', padding: { top: 16 } }, [panel]), header]), sellHost]), notice,
             uiFlex({ direction: 'row', align: 'center', gap: 6, width: uiFixed(LIST_WIDTH), maxWidth: fit }, [totalLabel, total, uiFlex({ grow: 1 }, []), uiText('PURSE', { role: 'label' }), purse]),
             uiFlex({ direction: 'row', gap: 4, justify: 'end', wrap: true, width: uiFixed(LIST_WIDTH), maxWidth: fit }, [back, seals, commit]),
         ] });
@@ -213,6 +213,8 @@ export function uiMerchant(options: UiMerchantOptions): UiMerchantElement {
         const selling = next.tab === 'sell' && next.sell !== undefined;
         // Selling filters with the pane's own filter; the search field stays with the Buy tab's wares.
         input.setStyle({ visible: !selling }); sellHost.setStyle({ visible: selling, display: selling ? 'flex' : 'none' });
+        // Selling, the ledger narrows so it and the pane fit side by side.
+        panel.setStyle({ width: uiFixed(selling ? SELL_LIST_WIDTH : LIST_WIDTH), maxWidth: selling ? undefined : fit });
         if (selling) {
             const structure = String(next.sell!.capacity);
             if (structure !== sellStructure || !sellHost.children.length) { sellStructure = structure; buildSellInventory(); }
