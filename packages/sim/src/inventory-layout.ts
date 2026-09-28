@@ -85,10 +85,6 @@ export function accessibleBackpackCapacity(equippedCapacity: number, debugBackpa
   return Math.max(normal, Math.min(BACKPACK_SLOT_COUNT, debugBackpackSlots));
 }
 
-export function accessibleBackpackSlotCount(hasBackpack: boolean): number {
-  return hasBackpack ? BACKPACK_SLOT_COUNT : BASE_BACKPACK_CAPACITY;
-}
-
 export function hotbarSlotForInputCode(code: string): number | null {
   const slot = HOTBAR_SLOT_BINDINGS.findIndex((binding) => (
     (binding.codes as readonly string[]).includes(code)

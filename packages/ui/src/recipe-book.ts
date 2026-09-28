@@ -1,7 +1,7 @@
 import type { ItemStack, CraftingStation, ContentRegistry, MoveItemRequest, RecipeDefinition } from '@orchard/sim';
 import { runtimeRecipeSkillSatisfied } from '@orchard/sim/content/farming-runtime';
 import { runtimeRecipeDefinition, runtimeMaxStack } from '@orchard/sim/content/runtime';
-import { BACKPACK_SLOT_COUNT, BACKPACK_SLOT_OFFSET, CRAFTING_SLOT_COUNT, CRAFTING_SLOT_OFFSET, HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
+import { BACKPACK_SLOT_OFFSET, CRAFTING_SLOT_COUNT, CRAFTING_SLOT_OFFSET, HOTBAR_SLOT_COUNT, accessibleBackpackCapacity } from '@orchard/sim/inventory-layout';
 import { BASE_BACKPACK_CAPACITY, maxStackFor } from '@orchard/sim/item-containers';
 import { RECIPES, normalizeShapedRecipe, recipeGridStacks } from '@orchard/sim/recipes';
 
@@ -59,6 +59,16 @@ export function craftingRecipeStacks(recipeId: string, knownRecipeIds: readonly 
   return recipeGridStacks(recipe, CRAFTING_SLOT_COUNT, kind => registry ? runtimeMaxStack(registry, kind) : maxStackFor(kind));
 }
 
+/** The carried cells crafting reads, as the world does (BUG-056): the hotbar, the backpack cells the equipped bag
+ * opens (`accessibleBackpackCapacity`, never a fixed 20), and the crafting grid itself. Items left in cells past the
+ * capacity after a swap to a smaller bag, and equipped gear, are not ingredients. */
+function craftingReadsSlot(slot: number, backpackCapacity: number): boolean {
+  if (!Number.isInteger(slot) || slot < 0) return false;
+  if (slot < HOTBAR_SLOT_COUNT) return true;
+  if (slot >= BACKPACK_SLOT_OFFSET && slot < BACKPACK_SLOT_OFFSET + accessibleBackpackCapacity(backpackCapacity)) return true;
+  return slot >= CRAFTING_SLOT_OFFSET && slot < CRAFTING_SLOT_OFFSET + CRAFTING_SLOT_COUNT;
+}
+
 function ingredientCounts(recipe: RecipeDefinition): Readonly<Record<string, number>> {
   if (recipe.kind === 'shapeless') return recipe.inputs;
   const counts: Record<string, number> = {};
@@ -72,11 +82,13 @@ export function craftingRecipeBookEntries(
   knownRecipeIds: readonly string[],
   registry?: ContentRegistry,
   skillRanks: Readonly<Record<string, number>> = {},
+  /** The player's accessible backpack capacity; anything else is passed through `accessibleBackpackCapacity`. */
+  backpackCapacity: number = BASE_BACKPACK_CAPACITY,
 ): readonly RecipeBookEntry[] {
   const available = new Set(stations);
   const known = new Set(knownRecipeIds);
   const carried: Record<string, number> = {};
-  for (const row of inventory) if (row.itemKind !== 'empty' && row.quantity > 0) {
+  for (const row of inventory) if (row.itemKind !== 'empty' && row.quantity > 0 && craftingReadsSlot(row.slot, backpackCapacity)) {
     carried[row.itemKind] = (carried[row.itemKind] ?? 0) + row.quantity;
   }
   return (Object.values(registry?.compiled.recipes ?? RECIPES) as readonly RecipeDefinition[])
@@ -101,14 +113,14 @@ export function craftingRecipeBookEntries(
 export function ghostFillRecipeMoves(
   recipeId: string,
   inventory: readonly RecipeBookInventoryRow[],
-  hasBackpack: boolean,
+  backpackCapacity: number,
   knownRecipeIds: readonly string[],
   registry?: ContentRegistry,
 ): readonly MoveItemRequest[] | null {
   const desired = craftingRecipeStacks(recipeId, knownRecipeIds, registry);
   if (desired === null) return null;
   const bySlot = new Map(inventory.map((row) => [row.slot, { ...row }]));
-  const sourceEnd = BACKPACK_SLOT_OFFSET + (hasBackpack ? BACKPACK_SLOT_COUNT : BASE_BACKPACK_CAPACITY);
+  const sourceEnd = BACKPACK_SLOT_OFFSET + accessibleBackpackCapacity(backpackCapacity);
   const moves: MoveItemRequest[] = [];
   for (let targetIndex = 0; targetIndex < CRAFTING_SLOT_COUNT; targetIndex += 1) {
     const target = desired[targetIndex] ?? null;

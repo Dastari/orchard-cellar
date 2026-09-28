@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bootstrapContentRows, bootstrapContentRegistry, buildContentRegistry, CRAFTING_SLOT_OFFSET } from '@orchard/sim';
+import { BACKPACK_SLOT_OFFSET, BASE_BACKPACK_CAPACITY, EQUIPMENT_SLOT_OFFSET, bootstrapContentRows, bootstrapContentRegistry, buildContentRegistry, CRAFTING_SLOT_OFFSET } from '@orchard/sim';
 import { craftingRecipeBookEntries, craftingRecipePattern, craftingRecipeStacks, ghostFillRecipeMoves } from './recipe-book.js';
 
 describe('crafting recipe list', () => {
@@ -11,7 +11,7 @@ describe('crafting recipe list', () => {
     const inventory = [{ slot: 0, itemKind: 'plank', quantity: 1 }, { slot: 1, itemKind: 'plank', quantity: 5 },
       { slot: 2, itemKind: 'fiber', quantity: 3 }, { slot: CRAFTING_SLOT_OFFSET + 3, itemKind: 'plank', quantity: 1 }];
     const before = JSON.stringify(inventory);
-    expect(ghostFillRecipeMoves(id, inventory, false, [id], registry)).toEqual([
+    expect(ghostFillRecipeMoves(id, inventory, BASE_BACKPACK_CAPACITY, [id], registry)).toEqual([
       { fromContainer: 'hotbar', fromIndex: 2, toContainer: 'crafting', toIndex: 0, quantity: 1 },
       { fromContainer: 'hotbar', fromIndex: 2, toContainer: 'crafting', toIndex: 1, quantity: 1 },
       { fromContainer: 'hotbar', fromIndex: 2, toContainer: 'crafting', toIndex: 2, quantity: 1 },
@@ -19,7 +19,7 @@ describe('crafting recipe list', () => {
       { fromContainer: 'hotbar', fromIndex: 1, toContainer: 'crafting', toIndex: 5, quantity: 1 },
     ]);
     expect(JSON.stringify(inventory)).toBe(before);
-    expect(ghostFillRecipeMoves(id, [...inventory, { slot: CRAFTING_SLOT_OFFSET + 7, itemKind: 'stone', quantity: 1 }], false, [id], registry)).toBeNull();
+    expect(ghostFillRecipeMoves(id, [...inventory, { slot: CRAFTING_SLOT_OFFSET + 7, itemKind: 'stone', quantity: 1 }], BASE_BACKPACK_CAPACITY, [id], registry)).toBeNull();
   });
   it('projects authored skill requirements independently of recipe identity and station access', () => {
     const rows = bootstrapContentRows().map((row) => row.id !== 'recipe:planks' ? row : {
@@ -65,7 +65,7 @@ describe('crafting recipe list', () => {
     expect(craftingRecipeBookEntries([], [{ slot: 0, itemKind: 'wood', quantity: 99 }],
       ['planks'], retired)).toEqual([]);
     expect(ghostFillRecipeMoves('planks', [{ slot: 0, itemKind: 'wood', quantity: 99 }],
-      false, ['planks'], retired)).toBeNull();
+      BASE_BACKPACK_CAPACITY, ['planks'], retired)).toBeNull();
   });
 
   it('keeps station recipes visible, marks their requirement, and unlocks them beside a workbench', () => {
@@ -92,14 +92,14 @@ describe('crafting recipe list', () => {
 
   it('click-to-ghost-fill plans the shifted recipe without overwriting occupied cells', () => {
     const rows = [{ slot: 0, itemKind: 'plank', quantity: 4 }];
-    expect(ghostFillRecipeMoves('workbench', rows, false, ['workbench'])).toEqual([
+    expect(ghostFillRecipeMoves('workbench', rows, BASE_BACKPACK_CAPACITY, ['workbench'])).toEqual([
       { fromContainer: 'hotbar', fromIndex: 0, toContainer: 'crafting', toIndex: 0, quantity: 1 },
       { fromContainer: 'hotbar', fromIndex: 0, toContainer: 'crafting', toIndex: 1, quantity: 1 },
       { fromContainer: 'hotbar', fromIndex: 0, toContainer: 'crafting', toIndex: 3, quantity: 1 },
       { fromContainer: 'hotbar', fromIndex: 0, toContainer: 'crafting', toIndex: 4, quantity: 1 },
     ]);
-    expect(ghostFillRecipeMoves('workbench', [...rows, { slot: CRAFTING_SLOT_OFFSET, itemKind: 'stone', quantity: 1 }], false, ['workbench'])).toBeNull();
-    expect(ghostFillRecipeMoves('workbench', rows, false, [])).toBeNull();
+    expect(ghostFillRecipeMoves('workbench', [...rows, { slot: CRAFTING_SLOT_OFFSET, itemKind: 'stone', quantity: 1 }], BASE_BACKPACK_CAPACITY, ['workbench'])).toBeNull();
+    expect(ghostFillRecipeMoves('workbench', rows, BASE_BACKPACK_CAPACITY, [])).toBeNull();
   });
 
   it('keeps the complete known pattern available when ingredients are missing', () => {
@@ -110,22 +110,41 @@ describe('crafting recipe list', () => {
     ]);
     expect(craftingRecipePattern('workbench', [])).toBeNull();
     expect(ghostFillRecipeMoves(
-      'workbench', [{ slot: 0, itemKind: 'plank', quantity: 2 }], false, ['workbench'],
+      'workbench', [{ slot: 0, itemKind: 'plank', quantity: 2 }], BASE_BACKPACK_CAPACITY, ['workbench'],
     )).toEqual([
       { fromContainer: 'hotbar', fromIndex: 0, toContainer: 'crafting', toIndex: 0, quantity: 1 },
       { fromContainer: 'hotbar', fromIndex: 0, toContainer: 'crafting', toIndex: 1, quantity: 1 },
     ]);
-    expect(ghostFillRecipeMoves('workbench', [], false, ['workbench'])).toEqual([]);
+    expect(ghostFillRecipeMoves('workbench', [], BASE_BACKPACK_CAPACITY, ['workbench'])).toEqual([]);
   });
 
   it('treats global slot 9 as hotbar key 0 and starts the backpack at slot 10', () => {
-    expect(ghostFillRecipeMoves('workbench', [{ slot: 9, itemKind: 'plank', quantity: 4 }], false, ['workbench']))
+    expect(ghostFillRecipeMoves('workbench', [{ slot: 9, itemKind: 'plank', quantity: 4 }], BASE_BACKPACK_CAPACITY, ['workbench']))
       .toEqual([0, 1, 3, 4].map((toIndex) => ({
         fromContainer: 'hotbar', fromIndex: 9, toContainer: 'crafting', toIndex, quantity: 1,
       })));
-    expect(ghostFillRecipeMoves('workbench', [{ slot: 10, itemKind: 'plank', quantity: 4 }], false, ['workbench']))
+    expect(ghostFillRecipeMoves('workbench', [{ slot: 10, itemKind: 'plank', quantity: 4 }], BASE_BACKPACK_CAPACITY, ['workbench']))
       .toEqual([0, 1, 3, 4].map((toIndex) => ({
         fromContainer: 'backpack', fromIndex: 0, toContainer: 'crafting', toIndex, quantity: 1,
       })));
+  });
+
+  it('counts and fills only the cells the world reads after a swap to a smaller bag (BUG-056)', () => {
+    // Twenty planks sat in backpack cells 12-19 of the 20-cell bag; the player then equipped a 12-cell bag.
+    const stranded = Array.from({ length: 8 }, (_, index) => ({ slot: BACKPACK_SLOT_OFFSET + 12 + index, itemKind: 'plank', quantity: 1 }));
+    const entry = (rows: typeof stranded, capacity: number) =>
+      craftingRecipeBookEntries([], rows, ['workbench'], undefined, {}, capacity).find(candidate => candidate.recipeId === 'workbench');
+    expect(entry(stranded, 12)).toMatchObject({ missingIngredients: true, ingredients: [{ itemKind: 'plank', need: 4, have: 0 }] });
+    expect(ghostFillRecipeMoves('workbench', stranded, 12, ['workbench'])).toEqual([]);
+    // The same cells count once the bag opens them, and cell 11 of the 12-cell bag always counts.
+    expect(entry(stranded, 20)).toMatchObject({ missingIngredients: false, ingredients: [{ itemKind: 'plank', need: 4, have: 8 }] });
+    const reachable = [...stranded, { slot: BACKPACK_SLOT_OFFSET + 11, itemKind: 'plank', quantity: 4 }];
+    expect(entry(reachable, 12)).toMatchObject({ missingIngredients: false, ingredients: [{ itemKind: 'plank', need: 4, have: 4 }] });
+    expect(ghostFillRecipeMoves('workbench', reachable, 12, ['workbench'])?.map(move => move.fromIndex)).toEqual([11, 11, 11, 11]);
+    // A bag authored below 8 still opens the base 8, as the world does; equipped gear is never an ingredient.
+    expect(entry([{ slot: BACKPACK_SLOT_OFFSET + 7, itemKind: 'plank', quantity: 4 }], 4)?.missingIngredients).toBe(false);
+    expect(entry([{ slot: EQUIPMENT_SLOT_OFFSET + 3, itemKind: 'plank', quantity: 4 }], 20)?.missingIngredients).toBe(true);
+    // Items already in the crafting grid still count, as the world's fill returns and reuses them.
+    expect(entry([{ slot: CRAFTING_SLOT_OFFSET, itemKind: 'plank', quantity: 4 }], 8)?.missingIngredients).toBe(false);
   });
 });
