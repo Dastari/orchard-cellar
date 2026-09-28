@@ -74,7 +74,7 @@ export interface UiMerchantElement extends UiElement {
     updateMerchant(model: UiMerchantModel): void;
     readonly filterEditor: CanvasTextEditor;
 }
-const INK = '#3f2832', MUTED = '#9e5f45', LIST_WIDTH = 300, SELL_LIST_WIDTH = 210, ROW_HEIGHT = 22, VISIBLE_ROWS = 7;
+const INK = '#3f2832', MUTED = '#9e5f45', LIST_WIDTH = 300, SELL_LIST_WIDTH = 210, SELL_VISIBLE_ROWS = 4, ROW_HEIGHT = 22, VISIBLE_ROWS = 7;
 /** A bare glyph stepper button: minus or plus ink, faded when it cannot step; keeps shift/ctrl modifiers. */
 function stepButton(id: string, glyph: string, label: string, onPress: (event: UiButtonModifiers) => void): UiElement {
     return uiButton({ id, label: '', ariaLabel: label, onPress, layout: { width: uiFixed(16), height: uiFixed(16), padding: 0, shrink: 0 },
@@ -159,11 +159,14 @@ export function uiMerchant(options: UiMerchantOptions): UiMerchantElement {
         }
         sellFilter.refresh();
     };
+    const totals = uiFlex({ direction: 'row', align: 'center', gap: 6, width: uiFixed(LIST_WIDTH), maxWidth: fit }, [totalLabel, total, uiFlex({ grow: 1 }, []), uiText('PURSE', { role: 'label' }), purse]);
+    const buttons = uiFlex({ direction: 'row', gap: 4, justify: 'end', wrap: true, width: uiFixed(LIST_WIDTH), maxWidth: fit }, [back, seals, commit]);
     const frame = uiWindow({ id: 'game.merchant', title: (model.title ?? `${model.speaker}'s wares`).toUpperCase(), onClose: options.onClose, footer: footerHost, layout: { direction: 'column', gap: 4, ...options.layout }, children: [
-            // Selling, the ledger and the pane sit side by side like a chest window's two panes (16 apart, tops aligned).
-            uiFlex({ direction: 'row', gap: 16, align: 'start' }, [uiStack({ shrink: 0 }, [uiFlex({ direction: 'column', padding: { top: 16 } }, [panel]), header]), sellHost]), notice,
-            uiFlex({ direction: 'row', align: 'center', gap: 6, width: uiFixed(LIST_WIDTH), maxWidth: fit }, [totalLabel, total, uiFlex({ grow: 1 }, []), uiText('PURSE', { role: 'label' }), purse]),
-            uiFlex({ direction: 'row', gap: 4, justify: 'end', wrap: true, width: uiFixed(LIST_WIDTH), maxWidth: fit }, [back, seals, commit]),
+            // Selling, the ledger (with its totals and buttons) and the pane sit side by side like a chest window's two
+            // panes, 16 apart with their tops aligned, so the window keeps the inventory window's height.
+            uiFlex({ direction: 'row', gap: 16, align: 'start' }, [
+                uiFlex({ direction: 'column', gap: 4, shrink: 0 }, [uiStack({ shrink: 0 }, [uiFlex({ direction: 'column', padding: { top: 16 } }, [panel]), header]), notice, totals, buttons]),
+                sellHost]),
         ] });
     const shopRow = (row: UiMerchantRow): UiElement => {
         const art = new UiElement({ kind: 'item-image', label: row.name, style: { width: uiFixed(20), height: uiFixed(20), shrink: 0 },
@@ -225,6 +228,8 @@ export function uiMerchant(options: UiMerchantOptions): UiMerchantElement {
         footerHost.parent?.setStyle({ display: selling ? 'flex' : 'none' });
         // Selling, the ledger narrows so it and the pane fit side by side.
         panel.setStyle({ width: uiFixed(selling ? SELL_LIST_WIDTH : LIST_WIDTH), maxWidth: selling ? undefined : fit });
+        list.setStyle({ height: uiFixed((selling ? SELL_VISIBLE_ROWS : VISIBLE_ROWS) * ROW_HEIGHT) });
+        for (const row of [totals, buttons]) row.setStyle({ width: uiFixed(selling ? SELL_LIST_WIDTH : LIST_WIDTH), maxWidth: selling ? undefined : fit });
         if (selling) {
             const structure = String(next.sell!.capacity);
             if (structure !== sellStructure || !sellHost.children.length) { sellStructure = structure; buildSellInventory(); }
