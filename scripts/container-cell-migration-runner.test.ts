@@ -92,7 +92,8 @@ describe('container-cell migration lane gate (Uncapped Storage step 4)', () => {
       .toThrow('container_cell_migration_status_invalid:cells');
     expect(() => parseContainerCellMigrationStatus(JSON.stringify({ ...complete, issues: [{ kind: 'x' }] })))
       .toThrow('container_cell_migration_status_invalid:id');
-    const { legacyFingerprint: _dropped, ...withoutPlayerFingerprint } = complete.players;
+    const withoutPlayerFingerprint: Partial<typeof complete.players> = { ...complete.players };
+    delete withoutPlayerFingerprint.legacyFingerprint;
     expect(() => parseContainerCellMigrationStatus(JSON.stringify({ ...complete, players: withoutPlayerFingerprint })))
       .toThrow('container_cell_migration_status_invalid:legacyFingerprint');
     expect(() => parseContainerCellMigrationStatus(JSON.stringify({ ...complete, players: { ...complete.players, orphans: { ...complete.players.orphans, ids: [1] } } })))
