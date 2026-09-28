@@ -17,6 +17,10 @@ export interface PlayerStatisticModel {
   readonly statisticKind: string;
   readonly subjectKind: string;
   readonly value: bigint;
+  /** The authority's row id and ticks, reported when two rows share a statistic and subject (BUG-063 diagnostics). */
+  readonly id?: string;
+  readonly createdTick?: bigint;
+  readonly updatedTick?: bigint;
 }
 
 export interface StatisticsScreenModel {
@@ -39,13 +43,30 @@ const CATEGORY_ORDER: readonly PlayerStatisticCategory[] = [
  * copy never hides the fuller count. */
 function uniquePlayerStatistics(statistics: readonly PlayerStatisticModel[]): readonly PlayerStatisticModel[] {
   const unique = new Map<string, PlayerStatisticModel>();
+  let duplicates: PlayerStatisticModel[][] | null = null;
   for (const entry of statistics) {
     const key = JSON.stringify([entry.statisticKind, entry.subjectKind]);
     const previous = unique.get(key);
+    if (previous !== undefined) (duplicates ??= []).push([previous, entry]);
     if (previous === undefined || entry.value > previous.value) unique.set(key, entry);
   }
+  if (duplicates !== null) reportDuplicateStatistics(duplicates);
   return unique.size === statistics.length ? statistics : [...unique.values()];
 }
+
+let duplicateStatisticsReported = false;
+/** Tells the console once per page session which rows collided, with their authority ids and ticks, so a player's
+ * console shows where the duplicate rows come from (BUG-063). */
+function reportDuplicateStatistics(pairs: readonly PlayerStatisticModel[][]): void {
+  if (duplicateStatisticsReported) return;
+  duplicateStatisticsReported = true;
+  const describe = (row: PlayerStatisticModel) => ({ id: row.id, statisticKind: row.statisticKind, subjectKind: row.subjectKind,
+    value: String(row.value), createdTick: row.createdTick?.toString(), updatedTick: row.updatedTick?.toString() });
+  console.warn('Orchard statistics: rows share a statistic and subject; showing the larger value (BUG-063)',
+    JSON.stringify(pairs.map(pair => pair.map(describe))));
+}
+/** Test seam: forget that the duplicate report was made. */
+export function resetDuplicateStatisticsReport(): void { duplicateStatisticsReported = false; }
 
 export function visiblePlayerStatisticRows(model: StatisticsScreenModel): readonly StatisticsScreenRow[] {
   return uniquePlayerStatistics(model.statistics).flatMap((entry) => {
