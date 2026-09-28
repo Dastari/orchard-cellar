@@ -1,5 +1,6 @@
 import { bootstrapContentRegistry, FIXED_UNITS_PER_PIXEL } from '@orchard/sim';
 import type { ContentRegistry } from '@orchard/sim';
+import type { PointLight } from '@orchard/engine/lighting';
 import type { WorldDepthItem } from '@orchard/engine/renderer';
 import type { LoadedAsset } from '@orchard/ui';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -41,6 +42,7 @@ function renderCarried(
     stateJsonValid: true,
     sprite: { asset: authoredAsset, animation: 'burn', scale: 1.5 },
   })),
+  overrides: Record<string, unknown> = {},
 ) {
   const queue: WorldDepthItem[] = [];
   const placeable = carriedRow(definitionId);
@@ -121,6 +123,7 @@ function renderCarried(
     frameLightingModel: 'classic',
     drawSouthFacingReceiver: (_x: number, _y: number, draw: () => void) => draw(),
     objectPresentations: { resolve },
+    ...overrides,
   } as unknown as Parameters<typeof enqueueGameplayPlayers>[0]);
   return { queue, placeable, resolve };
 }
@@ -175,6 +178,23 @@ describe('authored carried-placeable presentation', () => {
       expect(engine.drawOverworldPlaceable).not.toHaveBeenCalled();
     },
   );
+
+  it('BUG-061: gives a held flickering light its authored radius and strength 1000 as the steady light Basic draws', () => {
+    const lantern = { light: { color: [255, 176, 84], radiusTiles: 3, profile: 'flicker', offsetY: 0 } };
+    const lights = [0, 3, 7, 11, 20, 33, 50].map((renderTick) => {
+      const pointLights: PointLight[] = [];
+      renderCarried(arbitraryRegistry(), '', undefined, {
+        collectLights: true, lightPreviewKind: 'held_lantern', pointLights,
+        liveItemContentDefinition: (_snapshot: unknown, kind: string) => kind === 'held_lantern' ? lantern : null,
+        visualTickClock: { renderTick },
+      });
+      expect(pointLights).toHaveLength(1);
+      return pointLights[0]!;
+    });
+    for (const light of lights) expect(light).toMatchObject({ profile: 'flame', steady: { radiusTiles: 3, strengthPerMille: 1000 } });
+    // The flickered values really move across render ticks, so `steady` is not just a copy of them.
+    expect(new Set(lights.map((light) => light.radiusTiles)).size).toBeGreaterThan(1);
+  });
 
   it('does not render stale exact-kind art for a retired or missing live object', () => {
     const registry = arbitraryRegistry();

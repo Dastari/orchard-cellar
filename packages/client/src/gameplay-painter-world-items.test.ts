@@ -1,6 +1,7 @@
 import { bootstrapContentRows, buildContentRegistry, FIXED_UNITS_PER_PIXEL } from '@orchard/sim';
 import type { WorldDepthItem } from '@orchard/engine/renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { PointLight } from '@orchard/engine/lighting';
 import { enqueueGameplayResources } from './gameplay-painter-resources.js';
 
 const drawOverworldItem = vi.hoisted(() => vi.fn());
@@ -10,7 +11,7 @@ vi.mock('@orchard/engine/overworld-art', async original => ({
   drawOverworldItem,
 }));
 
-function itemDefinition(itemKind: string, retired = false) {
+function itemDefinition(itemKind: string, retired = false, profile: 'steady' | 'flicker' = 'steady') {
   const source = buildContentRegistry(bootstrapContentRows()).registry.items.get('item:wood')!;
   return {
     ...source,
@@ -20,14 +21,14 @@ function itemDefinition(itemKind: string, retired = false) {
     light: {
       color: [101, 151, 241] as const,
       radiusTiles: 5,
-      profile: 'steady' as const,
+      profile,
       offsetY: -3,
     },
     ...(retired ? { retired: true } : {}),
   };
 }
 
-function renderWorldItem(registry: ReturnType<typeof buildContentRegistry>['registry'], itemKind: string) {
+function renderWorldItem(registry: ReturnType<typeof buildContentRegistry>['registry'], itemKind: string, renderTick = 7) {
   const queued: WorldDepthItem[] = [];
   const pointLights: unknown[] = [];
   const worldItem = {
@@ -67,7 +68,7 @@ function renderWorldItem(registry: ReturnType<typeof buildContentRegistry>['regi
     cameraX: 0,
     cameraY: 0,
     scale: 1,
-    visualTickClock: { renderTick: 7 },
+    visualTickClock: { renderTick },
     treeShakeRemaining: new Map(),
     resourceGlanceRemaining: new Map(),
     effectPhase: 0,
@@ -110,6 +111,15 @@ describe('authored ground item presentation', () => {
       1,
       true,
     );
+  });
+
+  it('BUG-061: gives a flickering dropped light its authored radius and strength 1000 as the steady light Basic draws', () => {
+    const definition = itemDefinition('moon_lantern', false, 'flicker');
+    const registry = buildContentRegistry([{ id: definition.id, kind: definition.kind, json: definition }]).registry;
+    const lights = [0, 3, 7, 11, 20, 33, 50].map((tick) => renderWorldItem(registry, 'moon_lantern', tick).pointLights[0] as PointLight);
+    for (const light of lights) expect(light).toMatchObject({ profile: 'flame', steady: { radiusTiles: 5, strengthPerMille: 1000 } });
+    // The flickered values really move across render ticks, so `steady` is not just a copy of them.
+    expect(new Set(lights.map((light) => light.radiusTiles)).size).toBeGreaterThan(1);
   });
 
   it('skips retained same-slug artwork when the live item is retired or missing', () => {
