@@ -46,6 +46,12 @@ const SURVIVAL_CHUNK_PIXELS = SURVIVAL_CHUNK_TILES * TILE_SIZE_PIXELS;
 const RADIUS_SETTLE_MS = 180;
 /** Presence heartbeat cadence; the server's lease is 30 s (PRESENCE_LEASE_MICROS). */
 export const HEARTBEAT_INTERVAL_MS = 10_000;
+/**
+ * A hidden tab keeps its presence this long, then lets the lease lapse once (#250 review). Below
+ * Chrome's 5-minute intensive throttling, which fires timers about once a minute: heartbeats every
+ * ~60 s against a 30 s lease would flap the player offline and online (a chat notice a minute).
+ */
+export const HIDDEN_HEARTBEAT_LIMIT_MS = 4 * 60_000;
 const RTT_SAMPLE_CAPACITY = 256;
 const WORLD_REGION_RANGE_QUERIES = 17;
 const ROGUE_REGION_RANGE_QUERIES = 6;
@@ -397,6 +403,8 @@ export class OverworldConnection {
   private timeRecoveryTimer: number | null = null;
   private timeCacheWatchdogTimer: number | null = null;
   private heartbeatTimer: number | null = null;
+  /** Wall time the tab became hidden (null while visible): bounds hidden heartbeats. */
+  private hiddenSince: number | null = null;
   private activitySinceHeartbeat = true;
   private sequence = 0n;
   private inputReady = false;
@@ -548,11 +556,13 @@ export class OverworldConnection {
   get gameplayReady(): boolean { return this.connected && this.inputReady && this.recovery.state === 'ready'; }
   get recoveryState(): ConnectionRecoveryState { return this.recovery.state; }
   pause(): void {
+    if (document.hidden) this.hiddenSince ??= Date.now();
     this.clearHeldInput();
     if (this.gameplayReady) this.sendDesiredDirection();
     this.recovery.pause();
   }
   resume(): void {
+    if (!document.hidden) this.hiddenSince = null;
     this.clearHeldInput();
     this.recovery.resume();
     // Back from a hidden or frozen tab (BUG-062): renew the presence lease now rather than at the
@@ -564,6 +574,11 @@ export class OverworldConnection {
   }
   private sendHeartbeat(connection: DbConnection): void {
     if (!this.currentConnection(connection) || !navigator.onLine) return;
+    if (document.hidden) {
+      // Hidden past the limit: stop, so the lease lapses once instead of flapping (resume renews it).
+      this.hiddenSince ??= Date.now();
+      if (Date.now() - this.hiddenSince > HIDDEN_HEARTBEAT_LIMIT_MS) return;
+    } else this.hiddenSince = null;
     const active = this.activitySinceHeartbeat && !document.hidden;
     this.activitySinceHeartbeat = false;
     void this.call(() => connection.reducers.heartbeat({ active })).catch(() => {
