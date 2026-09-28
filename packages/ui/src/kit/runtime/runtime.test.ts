@@ -4,6 +4,7 @@ import { UiElement } from './element.js';
 import { UiRoot } from './root.js';
 import { UiAnimations } from './animation.js';
 import { createUiRecordingCanvas } from './recording-canvas.js';
+import { uiInput } from '../components/input.js';
 
 function control(id: string, activate = vi.fn()) {
   return new UiElement({ id, focusable: true, label: id, style: { width: uiFixed(40), height: uiFixed(24) },
@@ -23,6 +24,26 @@ describe('retained input and lifecycle', () => {
     root.key({ key: 'Tab' }); expect(root.focus.current).toBe(close);
     expect(root.pointer({ type: 'down', point: { x: 300, y: 190 }, button: 0, pointerId: 1 })).toBe(true);
     root.key({ key: 'Escape' }); root.arrange(); expect(modal.parent).toBeNull(); expect(root.focus.current).toBe(b);
+  });
+  it('passes over a skipAutoFocus control for a modal\'s first keyboard focus when another can hold it (BUG-064)', () => {
+    const root = new UiRoot({ scale: 1 }); root.resize(320, 200);
+    const filter = uiInput({ label: 'Filter items', placeholder: 'Filter' }).setProps({ skipAutoFocus: true }), slot = control('slot');
+    root.mount(new UiElement({ style: { zLayer: 'modal', width: uiFixed(200), height: uiFixed(100) }, children: [filter, slot] }));
+    root.arrange();
+    expect(root.focus.current).toBe(slot);
+    // A dialog whose only control is skipped still focuses it, and an ordinary text field still takes first focus.
+    const only = new UiRoot({ scale: 1 }); only.resize(320, 200);
+    const name = uiInput({ label: 'Name' }).setProps({ skipAutoFocus: true });
+    only.mount(new UiElement({ style: { zLayer: 'modal', width: uiFixed(200), height: uiFixed(100) }, children: [name] }));
+    only.arrange();
+    expect(only.focus.current).toBe(name);
+    const prompt = new UiRoot({ scale: 1 }); prompt.resize(320, 200);
+    const field = uiInput({ label: 'Character name' });
+    prompt.mount(new UiElement({ style: { zLayer: 'modal', width: uiFixed(200), height: uiFixed(100) }, children: [field, control('ok')] }));
+    prompt.arrange();
+    expect(prompt.focus.current).toBe(field);
+    // Tab still reaches the field.
+    root.key({ key: 'Tab', shiftKey: true }); expect(root.focus.current).toBe(filter);
   });
   it('routes captured pointers outside a box and releases capture on unmount', () => {
     const root = new UiRoot({ scale: 1 }); root.resize(100, 100); const seen: string[] = [];

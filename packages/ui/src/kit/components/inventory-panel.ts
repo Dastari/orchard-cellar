@@ -65,6 +65,8 @@ export function uiInventoryPanel(options: UiInventoryGridOptions & UiInventoryCo
   const filter = options.showFilter === false ? null : uiInput({ id: options.id ? `${options.id}.filter` : undefined, label: 'Filter items', placeholder: 'Filter', editor,
     clearable: true, size: 'md', leading: uiGlyph('glyph.search'), onChange(value) { options.onFilter?.(value); filterModel.refresh(); },
   });
+  // Opening a window never parks the keyboard in its filter: the player clicks or tabs into it (BUG-064).
+  filter?.setProps({ skipAutoFocus: true }, false);
   const toolbar = uiFlex({ direction: 'row', width: 'grow', gap: 4 }, [
     ...(filter ? [filter] : []), ...(sort ? [sort] : []),
   ]);
