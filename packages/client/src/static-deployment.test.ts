@@ -10,6 +10,8 @@ describe('game static deployment', () => {
     expect(unit).toContain('ConditionPathExists=/home/toby/projects/orchard-cellar/packages/client/dist/index.html');
     expect(unit).toContain('npm run preview -w @orchard/client');
     expect(unit).not.toContain('npm run dev');
+    // G9: /world/ chunk blobs from the persistent directory the host's drop-in also sets.
+    expect(unit).toContain('Environment=ORCHARD_WORLD_CHUNK_DIR=/home/toby/.local/share/orchard/world-chunks');
     expect(clientListenOptions).toMatchObject({ port: 5173, strictPort: true });
     expect(clientProxy['/v1']).toEqual({ target: 'http://127.0.0.1:3000', ws: true });
   });

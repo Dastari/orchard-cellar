@@ -6,7 +6,7 @@ import {
   blockingProbes, main, MANUAL_GATES, parseReadinessArgs, READINESS_PROBES, requirementFailures, runProbe, validClientBuildAudit,
   type ProbeResult,
 } from './static-world-readiness.js';
-import { chunkRuntimeBuildAudit } from '../packages/client/src/chunk-shadow-build-gate.js';
+import { CHUNK_RUNTIME_ACTIVATION_RELEASE, chunkRuntimeBuildAudit } from '../packages/client/src/chunk-shadow-build-gate.js';
 
 describe('static-world readiness', () => {
   it('finds the whole-map dependencies the migration still has to remove', () => {
@@ -94,10 +94,14 @@ describe('static-world readiness', () => {
     for (const mode of ['off', 'shadow']) expect(validClientBuildAudit(chunkRuntimeBuildAudit(mode, [], { production: true }))).toBe(true);
     expect(validClientBuildAudit(chunkRuntimeBuildAudit('on', [], { production: false }))).toBe(false);
     expect(validClientBuildAudit(chunkRuntimeBuildAudit('on', [], { production: false }), 'preview')).toBe(true);
+    // The S5c activation build (the committed release id) is a releasable production artifact.
+    const activation = chunkRuntimeBuildAudit('on', [], { production: true, activationRelease: CHUNK_RUNTIME_ACTIVATION_RELEASE! });
+    expect(validClientBuildAudit(activation)).toBe(true);
+    expect(validClientBuildAudit(activation, 'preview')).toBe(false);
     for (const bad of [
       null, [], { legacyModules: [] }, { ...emitted, schema: 2 }, { ...emitted, mode: 'banana' }, { ...emitted, mode: 'live' },
       { ...emitted, activationAllowed: true }, { ...emitted, mode: 'on', activationAllowed: true },
-      // No release is approved yet (CHUNK_RUNTIME_ACTIVATION_RELEASE is null), so no id can make activation valid.
+      // Only the committed CHUNK_RUNTIME_ACTIVATION_RELEASE makes activation valid; any other id does not.
       { ...emitted, mode: 'on', activationAllowed: true, activationRelease: 'static-world-s5c' },
       { ...emitted, activationRelease: 'static-world-s5c' }, { ...emitted, activationAllowed: 'false' },
       { ...emitted, legacyModules: null }, { ...emitted, legacyModules: [1] },

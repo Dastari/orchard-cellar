@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
+import { CHUNK_RUNTIME_ACTIVATION_RELEASE } from '../packages/client/src/chunk-shadow-build-gate.js';
 
 const release = readFileSync(new URL('./world-release.sh', import.meta.url), 'utf8');
 const finalize = readFileSync(new URL('./world-release-finalize.sh', import.meta.url), 'utf8');
@@ -178,6 +179,8 @@ describe('production continuity tooling', () => {
         // Dry-runs resolve this checkout; production keeps its canonical-path guard.
         cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8',
         env: { ...process.env, WORLD_RELEASE_DRY_RUN: 'true', WORLD_REJOIN_TOKENS_FILE: token,
+          // After the S5c activation the lane needs an explicit client chunk runtime (G6).
+          WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: 'on', WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION: CHUNK_RUNTIME_ACTIVATION_RELEASE!,
           WORLD_RELEASE_BACKUP_DIRECTORY: join(directory, 'new-backup'),
           WORLD_RELEASE_PRE_DRAIN_SNAPSHOT: join(directory, 'new-pre-drain.json'),
           WORLD_RELEASE_POST_DRAIN_SNAPSHOT: join(directory, 'new-post-drain.json'),
@@ -185,7 +188,7 @@ describe('production continuity tooling', () => {
       });
       expect(result.status, result.stderr).toBe(0);
       expect(result.stdout).toContain('World release stage-A dry-run passed');
-      expect(result.stdout).toContain('Client chunk runtime plan: {"mode":"off","activationRelease":null');
+      expect(result.stdout).toContain(`Client chunk runtime plan: {"mode":"on","activationRelease":"${CHUNK_RUNTIME_ACTIVATION_RELEASE}"`);
       expect(`${result.stdout}${result.stderr}`).not.toContain('test-value-never-printed');
     } finally { rmSync(directory, { recursive: true, force: true }); }
   });
@@ -237,7 +240,10 @@ describe('production continuity tooling', () => {
       for (const [extra, code] of [
         [{ VITE_CHUNK_RUNTIME_MODE: 'off' }, 'release_raw_chunk_runtime_variable:VITE_CHUNK_RUNTIME_MODE'],
         [{ ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE: '' }, 'release_raw_chunk_runtime_variable:ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE'],
-        [{ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: 'on', WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION: 'unreviewed' }, 'release_chunk_runtime_on_not_approved'],
+        [{ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: 'on', WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION: 'unreviewed' }, 'release_chunk_activation_mismatch'],
+        // G6: after activation the mode is explicit, and off needs the rollback flag.
+        [{}, 'release_chunk_runtime_mode_required_after_activation'],
+        [{ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: 'off' }, 'release_chunk_deactivation_requires_rollback'],
       ] as const) {
         const result = run(extra);
         expect(result.status, JSON.stringify(extra)).toBe(64);

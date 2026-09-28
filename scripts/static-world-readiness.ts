@@ -170,7 +170,7 @@ export function runProbe(probe: ReadinessProbe, repoRoot: string): ProbeResult {
  * (packages/client/src/chunk-shadow-build-gate.ts) emits: schema 1, mode
  * off|shadow|on and string legacyModules. The dist is a production artifact, so an
  * `on` audit is valid only with activationAllowed true and the reviewed
- * CHUNK_RUNTIME_ACTIVATION_RELEASE (null until S5c).
+ * CHUNK_RUNTIME_ACTIVATION_RELEASE (set by the S5c activation).
  */
 export function clientBuildLegacyModules(repoRoot: string): readonly string[] | null {
   const path = resolve(repoRoot, 'packages/client/dist/chunk-runtime-audit.json');
