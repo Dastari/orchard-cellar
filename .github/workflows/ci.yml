@@ -31,6 +31,18 @@ jobs:
       - run: npm run lint
       - run: npm run assets:validate
 
+  # Static world S6 (step 5): the game client bundle carries no island generator, map compiler or
+  # whole-map document code. Mandatory: the bundle audit lists every legacy module the build included.
+  client-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup
+      - run: npm run build -w @orchard/client -- --mode client-production
+      - run: npm run client:chunks:check
+        env:
+          ORCHARD_REQUIRE_GENERATOR_FREE: '1'
+
   test:
     runs-on: ubuntu-latest
     strategy:
