@@ -121,7 +121,7 @@ function paintDecorations(registry: ContentRegistry, decorations: readonly MapDe
   const queued: unknown[] = [];
   const pointLights: unknown[] = [];
   enqueueGameplayDecorations({
-    dynamicLighting: true, debugEntitiesHidden: false,
+    collectLights: true, debugEntitiesHidden: false,
     activeSpaceDefinition: { spaceId: TOPSIDE_SPACE_ID, generator: 'survival_island' },
     snapshot: { content: { registry }, placeables: [], homesteads: [], clock: { authorityTick: NIGHT } },
     pointLights, projectedLight: (light: object, y?: number, x?: number) => ({ ...light, projectedY: y, projectedX: x }),

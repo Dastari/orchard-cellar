@@ -200,6 +200,7 @@ function buildEnqueueGameplayResources(input: Inputs): void {
         worldY: y + (itemLight.offsetY ?? 0),
         receiverDirectionWorldY: y,
         radiusTiles: itemLight.radiusTiles + flicker.radiusOffset,
+        steady: { radiusTiles: itemLight.radiusTiles, strengthPerMille: 1000 },
         color: { r: itemLight.color[0], g: itemLight.color[1], b: itemLight.color[2] },
         strengthPerMille: flicker.strengthPerMille,
         profile: itemLight.profile === 'flicker' ? 'flame' : 'steady',

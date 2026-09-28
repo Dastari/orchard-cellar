@@ -124,6 +124,7 @@ function buildEnqueueGameplayPlayers(input: Inputs): void {
         worldY: lightY,
         receiverDirectionWorldY: y,
         radiusTiles: equippedLight.radiusTiles + flicker.radiusOffset,
+        steady: { radiusTiles: equippedLight.radiusTiles, strengthPerMille: 1000 },
         color: {
           r: equippedLight.color[0],
           g: equippedLight.color[1],

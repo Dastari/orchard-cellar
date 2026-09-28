@@ -18,6 +18,14 @@ describe('BUG-061 wiring', () => {
     }
   });
 
+  it('gives Basic the steady light for render-tick flicker (held torches, dropped lit items), so it never repaints per frame', () => {
+    for (const painter of ['gameplay-painter-players.ts', 'gameplay-painter-resources.ts']) {
+      const text = readFileSync(new URL(`./${painter}`, import.meta.url), 'utf8');
+      expect(text, painter).toContain('visualTickClock.renderTick');
+      expect(text, painter).toMatch(/radiusTiles: (equippedLight|itemLight)\.radiusTiles \+ flicker\.radiusOffset,\n\s+steady: \{ radiusTiles: \1\.radiusTiles, strengthPerMille: 1000 \},/u);
+    }
+  });
+
   it('draws Basic through the object-light pools, with no debug switch left in production', () => {
     const basic = renderFrame.slice(renderFrame.indexOf('if (!dynamicLighting) {'), renderFrame.indexOf('} else if (!seasonalDynamic) {'));
     expect(basic).toContain('basicObjectLight.composite(context, frame.layout.width, frame.layout.height, scale, cameraX, cameraY, frameAmbient, pointLights);');
