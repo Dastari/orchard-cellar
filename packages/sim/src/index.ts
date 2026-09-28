@@ -60,6 +60,8 @@ export * from './durability.js';
 export * from './tile-targeting.js';
 export * from './spaces.js';
 export * from './homestead-biome.js';
+export * from './homestead-biome-rules.js';
+export * from './survival-tree-species.js';
 export * from './tree-regrowth.js';
 export * from './growth.js';
 export * from './crops.js';
