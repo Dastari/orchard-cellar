@@ -1,7 +1,9 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   OBSERVER_EFFECT_STATISTICS,
+  PRE_CONTAINER_CELL_REJOIN_EXCLUSIONS,
   REQUIRED_REJOIN_TABLES,
   WORLD_REJOIN_EXCLUSIONS,
   RETIRED_CHEST_ACCESSORS,
@@ -275,6 +277,39 @@ describe('world rejoin snapshot normalization', () => {
     expect(compareWorldRejoinSnapshots(before, actorDrift)).toEqual([
       expect.objectContaining({ code: 'row_mismatch', table: 'owner:contentHead' }),
     ]);
+  });
+
+  it('accepts a snapshot captured by the previous release tooling across the container-cell upgrade, and nothing looser', () => {
+    // The previous release's list: the current one without the entries tagged `introducedWith`. The hash is that of
+    // the exclusions in the real pre-upgrade captures of the 2026-09-28 step-4 rehearsal (origin/main f7754da1).
+    expect(WORLD_REJOIN_EXCLUSIONS.filter((exclusion) => 'introducedWith' in exclusion).map(({ accessor }) => accessor))
+      .toEqual(['ownOpenPlaceableContainerCells']);
+    expect(createHash('sha256').update(JSON.stringify(PRE_CONTAINER_CELL_REJOIN_EXCLUSIONS)).digest('hex'))
+      .toBe('9f39092eb1c058fb5cfbb578f6e960d41a0eebcb8e4f4c2190ca2d57b2fb2da3');
+    const introduced = REQUIRED_REJOIN_TABLES.filter(({ introducedWith }) => introducedWith !== undefined).map(({ accessor }) => accessor);
+    const current = snapshot();
+    const preTables = Object.fromEntries(Object.entries(current.identities[0]!.tables)
+      .filter(([accessor]) => !introduced.includes(accessor)));
+    // Sanitized pre-upgrade shape: v2, previous exclusion list, no container-cell views.
+    const preUpgrade = { ...current, exclusions: PRE_CONTAINER_CELL_REJOIN_EXCLUSIONS,
+      identities: [{ ...current.identities[0]!, tables: preTables }] };
+    const parsed = parseWorldRejoinSnapshot(JSON.parse(JSON.stringify(preUpgrade)));
+    expect(parsed.exclusions).toEqual(PRE_CONTAINER_CELL_REJOIN_EXCLUSIONS);
+    expect(compareWorldRejoinSnapshots(parsed, current)).toEqual([]);
+    expect(() => parseWorldRejoinSnapshot(JSON.parse(JSON.stringify(current)))).not.toThrow();
+
+    const withExclusions = (exclusions: unknown) => JSON.parse(JSON.stringify({ ...preUpgrade, exclusions })) as unknown;
+    const untagged = WORLD_REJOIN_EXCLUSIONS.map(({ accessor, reason }) => ({ accessor, reason }));
+    const [first, second, ...rest] = PRE_CONTAINER_CELL_REJOIN_EXCLUSIONS;
+    for (const exclusions of [
+      PRE_CONTAINER_CELL_REJOIN_EXCLUSIONS.slice(1),
+      [second, first, ...rest],
+      [...PRE_CONTAINER_CELL_REJOIN_EXCLUSIONS, { accessor: 'ownPlayerContainerCells', reason: 'hidden custody' }],
+      [{ ...first!, reason: 'changed' }, second, ...rest],
+      untagged,
+      WORLD_REJOIN_EXCLUSIONS.filter(({ accessor }) => accessor !== 'visibleWorldSpeech'),
+      undefined,
+    ]) expect(() => parseWorldRejoinSnapshot(withExclusions(exclusions))).toThrow('invalid_world_rejoin_snapshot');
   });
 
   it('uses exact parity for all remaining values and rejects identity drift', () => {

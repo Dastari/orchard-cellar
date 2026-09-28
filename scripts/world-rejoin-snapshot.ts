@@ -21,7 +21,8 @@ export const OBSERVER_EFFECT_STATISTICS = Object.freeze([
 ] as const);
 
 /** These rows are deliberately not continuity evidence: connecting creates or
- * clears them, or they represent an in-flight/session-only UI interaction. */
+ * clears them, or they represent an in-flight/session-only UI interaction. An entry tagged `introducedWith` names a
+ * view that release added; a snapshot captured before it (by the previous release's tooling) lacks exactly those. */
 export const WORLD_REJOIN_EXCLUSIONS = Object.freeze([
   { accessor: 'activeFarmSkillNodes', reason: 'derived estate presentation; durable personal ranks are covered by ownPlayerSkillNodes' },
   { accessor: 'activeFarmUpgrades', reason: 'derived estate presentation; durable owned upgrades are covered by ownHomesteadUpgrades' },
@@ -43,10 +44,23 @@ export const WORLD_REJOIN_EXCLUSIONS = Object.freeze([
   { accessor: 'ownOpenChestSlots', reason: 'legacy in-flight container UI session' },
   { accessor: 'ownActivePlaceable', reason: 'in-flight container UI session' },
   { accessor: 'ownOpenPlaceableSlots', reason: 'in-flight container UI session; durable owned slots use ownPlacedPlaceableSlots' },
-  { accessor: 'ownOpenPlaceableContainerCells', reason: 'in-flight container UI session (container cells); durable owned cells use ownPlacedPlaceableContainerCells' },
+  { accessor: 'ownOpenPlaceableContainerCells', reason: 'in-flight container UI session (container cells); durable owned cells use ownPlacedPlaceableContainerCells', introducedWith: 'container_cells' },
   { accessor: 'visibleWorldSpeech', reason: 'short-lived presentation event' },
   { accessor: 'observer statistics', reason: 'connections_opened, world_entries, and time_played are changed by the read-only reconnect act itself' },
 ] as const);
+
+/** The exclusion list a snapshot captured before the container-cell release carries: the current list without the
+ * entries introduced with it, in the same order and byte-identical otherwise. */
+export const PRE_CONTAINER_CELL_REJOIN_EXCLUSIONS = Object.freeze(
+  WORLD_REJOIN_EXCLUSIONS.filter((exclusion) => !('introducedWith' in exclusion)),
+);
+
+/** Only the current list, or the pre-container-cell list (older tooling across the upgrade), is accepted. */
+function acceptedRejoinExclusions(exclusions: unknown): boolean {
+  const serialized = JSON.stringify(exclusions);
+  return serialized === JSON.stringify(WORLD_REJOIN_EXCLUSIONS)
+    || serialized === JSON.stringify(PRE_CONTAINER_CELL_REJOIN_EXCLUSIONS);
+}
 
 export type RejoinCoverageCategory =
   | 'inventory' | 'equipment' | 'profile' | 'economy' | 'survival'
@@ -127,7 +141,8 @@ export interface WorldRejoinSnapshot {
   readonly formatVersion: typeof WORLD_REJOIN_SNAPSHOT_VERSION;
   readonly database: string;
   readonly capturedAt: string;
-  readonly exclusions: typeof WORLD_REJOIN_EXCLUSIONS;
+  /** The capturing tooling's list: the current one, or the pre-container-cell one for a snapshot from before it. */
+  readonly exclusions: typeof WORLD_REJOIN_EXCLUSIONS | typeof PRE_CONTAINER_CELL_REJOIN_EXCLUSIONS;
   readonly identities: readonly WorldRejoinIdentitySnapshot[];
 }
 
@@ -271,7 +286,7 @@ export function parseWorldRejoinSnapshot(value: unknown): WorldRejoinSnapshot {
   if (source?.['formatVersion'] !== WORLD_REJOIN_SNAPSHOT_VERSION
     || typeof source['database'] !== 'string'
     || typeof source['capturedAt'] !== 'string'
-    || JSON.stringify(source['exclusions']) !== JSON.stringify(WORLD_REJOIN_EXCLUSIONS)
+    || !acceptedRejoinExclusions(source['exclusions'])
     || !Array.isArray(source['identities'])) throw new Error('invalid_world_rejoin_snapshot');
   const identities = source['identities'];
   if (identities.length === 0) throw new Error('world_rejoin_snapshot_has_no_identities');
