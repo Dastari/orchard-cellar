@@ -141,7 +141,7 @@ function sourceFiles(root: string): string[] {
     const path = join(root, entry);
     if (statSync(path).isDirectory()) {
       if (entry !== 'node_modules' && entry !== 'dist') out.push(...sourceFiles(path));
-    } else if (/\.tsx?$/u.test(entry) && !/\.test\.tsx?$/u.test(entry)) {
+    } else if (/\.tsx?$/u.test(entry) && !/\.(?:test|fixture)\.tsx?$/u.test(entry)) {
       out.push(path);
     }
   }

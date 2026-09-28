@@ -18,6 +18,7 @@ import {
   type ObjectContentDefinition,
 } from '@orchard/sim';
 import { worldChunkHash } from '@orchard/sim/world-chunk';
+import { islandCollisionGenerators as island } from './collision-island.js';
 import { clientLiveRowObstacles, createClientCollisionMap, prepareClientTerrainCollision } from './collision.js';
 import { terrainForSpace, terrainForWorld, type TerrainArray } from './terrain.js';
 import { cellFlags } from '@orchard/sim/cell-flags';
@@ -242,7 +243,7 @@ describe('client collision cache', () => {
 
   it('shares projected stone-face and upper-cap masks with authority prediction', () => {
     const terrain = terrainForWorld(0x4f434852, 16);
-    const collision = createClientCollisionMap(terrain, []);
+    const collision = createClientCollisionMap(terrain, [], [], 'ground', [], new Set(), undefined, undefined, undefined, island);
     expect(collision.terrainPlaneBlocked).toBe(survivalTerrainPlaneCollisionBytes(terrain.seed));
     let lowerPlaneBlockers = 0;
     let upperPlaneBlockers = 0;
@@ -302,7 +303,7 @@ describe('client collision cache', () => {
 
   it('builds the inverse shoreline layer and water-rock obstacles for watercraft', () => {
     const terrain = terrainForWorld(0x4f434852, 3);
-    const collision = createClientCollisionMap(terrain, [], [], 'water');
+    const collision = createClientCollisionMap(terrain, [], [], 'water', [], new Set(), undefined, undefined, undefined, island);
     const oceanIndex = terrain.biomes.findIndex((biome) => SURVIVAL_BIOMES[biome] === 'water');
     const beachIndex = terrain.biomes.findIndex((biome) => SURVIVAL_BIOMES[biome] === 'beach');
     expect(collision.blocked[oceanIndex]).toBe(0);
@@ -361,9 +362,9 @@ describe('client collision cache', () => {
       if (Array.isArray(item) && item.length > 64 && item.every(entry => typeof entry === 'boolean')) return `booleans:${worldChunkHash(Uint8Array.from(item, Number))}`;
       return item;
     })));
-    const ground = createClientCollisionMap(terrain, resources, chests, 'ground', placeables, suppressions, undefined, registry);
-    const water = createClientCollisionMap(terrain, resources, chests, 'water', placeables, suppressions, undefined, registry);
-    const docks = prepareClientTerrainCollision(terrain, 'ground', [{ tileX: 5, tileY: 5 }]);
+    const ground = createClientCollisionMap(terrain, resources, chests, 'ground', placeables, suppressions, undefined, registry, undefined, island);
+    const water = createClientCollisionMap(terrain, resources, chests, 'water', placeables, suppressions, undefined, registry, undefined, island);
+    const docks = prepareClientTerrainCollision(terrain, 'ground', [{ tileX: 5, tileY: 5 }], island);
     expect(terrain.originX).toBeUndefined();
     expect([ground, water, docks].some(map => 'originX' in map)).toBe(false);
     expect(digest({ ...ground, resourceObstacles: [...ground.resourceObstacles].map(([id, box]) => [String(id), box]) })).toBe(LEGACY_GROUND_DIGEST);

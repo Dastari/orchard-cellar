@@ -103,8 +103,13 @@ export {
   survivalBiomeAllowsHorseJump,
   survivalResourceInitialHealth,
   survivalDecorationResource,
+  survivalLandmarkPathTiles,
+  survivalLandmarkPathTiles as generateSurvivalLandmarkPathTiles,
+  type SurvivalCampPathTile,
 } from './survival-rules.js';
 import {
+  survivalLandmarkPathTiles as generateSurvivalLandmarkPathTiles,
+  type SurvivalCampPathTile,
   survivalFishermanDockWalkableAt,
   type GeneratedSurvivalResource,
   survivalResourceObstacle,
@@ -193,11 +198,6 @@ export interface SurvivalSpawnTile {
 }
 
 
-
-export interface SurvivalCampPathTile {
-  readonly tileX: number;
-  readonly tileY: number;
-}
 
 export interface SurvivalResourceCollision {
   readonly kind: string;
@@ -359,27 +359,6 @@ export function isSurvivalAuthoredLandmarkDecoration(
 /** A two-tile-wide campsite track with a short southern spur. The authored
  * mask deliberately extends beyond the reserved clearing so the path tapers
  * back into the surrounding world rather than ending at an invisible radius. */
-export function generateSurvivalLandmarkPathTiles(
-  landmarks: readonly SpaceLandmarkDefinition[],
-  role?: string,
-): readonly SurvivalCampPathTile[] {
-  const tiles: SurvivalCampPathTile[] = [];
-  const seen = new Set<string>();
-  for (const landmark of role === undefined ? landmarks : survivalLandmarksForRole(landmarks, role)) {
-    for (const area of landmark.pathAreas ?? []) {
-      for (let tileY = area.minimumTileY; tileY <= area.maximumTileY; tileY += 1) {
-        for (let tileX = area.minimumTileX; tileX <= area.maximumTileX; tileX += 1) {
-          const key = `${tileX}:${tileY}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          tiles.push({ tileX, tileY });
-        }
-      }
-    }
-  }
-  return Object.freeze(tiles);
-}
-
 const marlowCampPathTiles = generateSurvivalLandmarkPathTiles(
   bootstrapIslandLandmarks(), 'automated_campfire',
 );

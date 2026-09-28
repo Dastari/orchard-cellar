@@ -1,7 +1,6 @@
 import {
-  activeSurvivalLandmarks, authoredMapContentPainterTie, generateSurvivalLandmarkDecorations, generateSurvivalProceduralDecorations,
-  mapLandmarkDecoration, runtimeLandmarkCampfirePlans, survivalDecorationBlocksTraversal, survivalDecorationObstacle, TOPSIDE_SPACE_ID,
-  type CollisionObstacle, type ContentRegistry, type MapDocumentV3,
+  authoredMapContentPainterTie, runtimeLandmarkCampfirePlans, survivalDecorationBlocksTraversal, survivalDecorationObstacle,
+  type CollisionObstacle, type ContentRegistry,
 } from '@orchard/sim';
 import type { ChunkWindowMapRecords, TopsideMapRecords } from '@orchard/engine/chunk-map-records';
 import { isLightEmitterKind } from '@orchard/engine/light-sources';
@@ -11,61 +10,30 @@ import type { RuntimeSurvivalDecoration } from './gameplay-painter-inputs.js';
 export type { TopsideMapRecords } from '@orchard/engine/chunk-map-records';
 
 /**
- * Static world S4e: the one place the topside client chooses where its authored
- * map content comes from.
- *
- * - Chunk mode `on` while the chunk collision serves: the render window's chunk
- *   records (WorldSource.mapRecords). Painters, light occluders, the supply cache
- *   and the ferry read them; nothing reads the whole map document.
- * - Otherwise (modes off and shadow, `on` before a revision serves, or whenever
- *   the server would serve its compiled map): the legacy live map document and the
- *   generator's procedural decorations, exactly as before S4e. S6b deletes this branch.
+ * Static world S4e, S6: the one place the topside client resolves its authored map content:
+ * the render window's chunk records (WorldSource.mapRecords) while the chunk collision serves.
+ * Painters, light occluders, the supply cache and the ferry read them; nothing reads a whole map
+ * document (S6 removed it from the client). Null while no window serves (the world is updating).
  */
 export interface TopsideMapSource {
   mapRecords(registry: ContentRegistry): ChunkWindowMapRecords | undefined;
 }
 
-/** The records topside draws from: the chunk window's, else the legacy document. */
-export function topsideMapRecords(source: TopsideMapSource, registry: ContentRegistry,
-  legacyDocument: () => MapDocumentV3 | null): TopsideMapRecords | null {
-  return source.mapRecords(registry) ?? legacyDocument();
+/** The records topside draws from: the chunk window's, or null while none serves. */
+export function topsideMapRecords(source: TopsideMapSource, registry: ContentRegistry): TopsideMapRecords | null {
+  return source.mapRecords(registry) ?? null;
 }
 
-/** True for a chunk window's records (mode `on`), false for the legacy document. */
+/** True for a chunk window's records. */
 export function isChunkMapRecords(records: TopsideMapRecords | null): records is ChunkWindowMapRecords {
   return records !== null && (records as Partial<ChunkWindowMapRecords>).source === 'chunks';
 }
 
-/** The topside decorations (unsuppressed) of resolved records: the chunk window's,
- * else the legacy composition over the document. */
-export function topsideDecorationsFor(records: TopsideMapRecords | null, seed: number, registry: ContentRegistry,
-  legacyDocument: () => MapDocumentV3 | null): readonly RuntimeSurvivalDecoration[] {
-  return isChunkMapRecords(records) ? records.decorations : legacyTopsideDecorations(legacyDocument(), seed, registry);
+/** The topside decorations (unsuppressed) of resolved records; none while no window serves. */
+export function topsideDecorationsFor(records: TopsideMapRecords | null): readonly RuntimeSurvivalDecoration[] {
+  return isChunkMapRecords(records) ? records.decorations : NO_DECORATIONS;
 }
-
-const legacyDecorationCache = new WeakMap<MapDocumentV3, Map<number, readonly RuntimeSurvivalDecoration[]>>();
-
-/** The pre-S4e composition: the procedural decorations plus the document's enabled
- * landmarks (or, without a document, the registry's landmark decorations). */
-export function legacyTopsideDecorations(document: MapDocumentV3 | null, seed: number,
-  registry: ContentRegistry): readonly RuntimeSurvivalDecoration[] {
-  if (document === null) return Object.freeze([
-    ...generateSurvivalProceduralDecorations(seed, registry),
-    ...generateSurvivalLandmarkDecorations(activeSurvivalLandmarks(registry, TOPSIDE_SPACE_ID)),
-  ]);
-  const bySeed = legacyDecorationCache.get(document) ?? new Map();
-  const cached = bySeed.get(seed);
-  if (cached !== undefined) return cached;
-  const decorations = Object.freeze([
-    ...generateSurvivalProceduralDecorations(seed, registry),
-    ...document.landmarks
-      .filter((landmark) => landmark.enabled)
-      .map((landmark) => ({ ...mapLandmarkDecoration(landmark), landmark })),
-  ]);
-  bySeed.set(seed, decorations);
-  legacyDecorationCache.set(document, bySeed);
-  return decorations;
-}
+const NO_DECORATIONS: readonly RuntimeSurvivalDecoration[] = Object.freeze([]);
 
 /** A solid topside decoration that casts a light shadow, before its art is sampled. */
 export interface TopsideDecorationCaster {

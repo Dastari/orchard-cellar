@@ -6,7 +6,8 @@ const collision=source.slice(source.indexOf('function refreshCollision('),source
 
 describe('authored ground-walkable client wiring',()=>{
   it('uses active content and optional persisted source instances without exact decoration kinds',()=>{
-    expect(collision).toContain('activeSpaceGroundWalkableTiles(\n    snapshot.content.registry, TOPSIDE_SPACE_ID, liveDocument?.landmarks,');
+    // Static world S6: topside collides with chunks; other spaces use their own active landmarks.
+    expect(collision).toContain('activeSpaceGroundWalkableTiles(\n    snapshot.content.registry, activeSpaceDefinition.spaceId,');
     expect(collision).toContain('authoredGroundWalkableTiles');
     expect(collision).not.toContain('authoredDockWalkableTiles');
     expect(collision).not.toContain('fisher_dock');

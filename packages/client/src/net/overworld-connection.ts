@@ -8,7 +8,7 @@ import {
   INPUT_REFRESH_STEPS, REMOTE_SNAPSHOT_CAPACITY, CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION,
   SURVIVAL_CHUNK_TILES, SURVIVAL_WORLD_SIZE, TILE_SIZE_FIXED, TILE_SIZE_PIXELS, TOPSIDE_SPACE_ID,
   collisionCellIndex, instanceSpaceRowFor,
-  LIVE_ISLAND_MAP_ID, runtimeResourcePerception,
+  runtimeResourcePerception,
   runtimeChestObjectDefinition,
   type ContentRegistry,
   type CollisionMap, type ItemStack, type MerchantCartLine, type MoveItemRequest, type PlayerState,
@@ -19,7 +19,7 @@ import { DbConnection, tables, type SubscriptionHandle } from '@orchard/world-bi
 import { ensureOidcSession, localProfilesEnabled, oidcConfigured, readOidcSession } from '@orchard/auth';
 import type {
   VillageOrderQuote, OutdoorEnemyProfile, OutdoorRewardClaim, PlayerCombatState, EnemyAttack, CellarExcavation, CharacterProfile, ChatChannel, ChatMessage, ConnectionNotice, RuntimeContentDefinition, ContentHead, FishingCast, Homestead, HomesteadGuest, HomesteadUpgrade, Membership, PlayerAppearance, PlayerCookingJob, PlayerEffect, PlayerJumpState, PlayerKnownRecipe, PlayerPosition, PlayerPredictionState, PlayerPublic, PlayerQuest, PlayerQuestBaseline as StoredPlayerQuestBaseline, PlayerSkillNode, PlayerSkillTrack, PlayerStatistic, PlayerStats, PlayerSurvival, PlayerThought, QuestWorldItem, RogueEnemyProfile, RogueRewardOffer, RogueRoomExit, RogueRun, RogueRunUpgrade, SessionChatNotice,
-  LiveMapDocument, SpacePortal, WorldCampfireState, WorldChest, WorldClock, WorldCombatTarget, WorldCrop, WorldEnvironment, WorldHive, WorldItem, WorldMerchant, WorldNpc, PlaceableContainerCell, WorldPlaceable, WorldProjectile, WorldResource, WorldSeed, WorldSoil, WorldSpeech, WorldWildlifeProfile, WorldWind,
+  SpacePortal, WorldCampfireState, WorldChest, WorldClock, WorldCombatTarget, WorldCrop, WorldEnvironment, WorldHive, WorldItem, WorldMerchant, WorldNpc, PlaceableContainerCell, WorldPlaceable, WorldProjectile, WorldResource, WorldSeed, WorldSoil, WorldSpeech, WorldWildlifeProfile, WorldWind,
   WorldSurface,
 } from '@orchard/world-bindings/types';
 import type { WeatherMode, WindDirectionMode } from '@orchard/sim';
@@ -240,7 +240,6 @@ export interface OverworldView {
   readonly rogueRoomExits: ReadonlyKeyedStore<number, RogueRoomExit>;
   readonly rogueRewardOffers: ReadonlyKeyedStore<number, RogueRewardOffer>;
   readonly rogueRunUpgrades: ReadonlyKeyedStore<string, RogueRunUpgrade>;
-  readonly liveMapDocument: LiveMapDocument | null;
   readonly worldSeed: WorldSeed | null; readonly clock: WorldClock | null; readonly environment: WorldEnvironment | null; readonly wind: WorldWind | null;
 }
 
@@ -286,7 +285,6 @@ export interface OverworldSnapshot {
   readonly questWorldItems: readonly QuestWorldItem[]; readonly thought: PlayerThought | null;
   readonly rogueRun: RogueRun | null; readonly rogueRoomExits: readonly RogueRoomExit[];
   readonly rogueRewardOffers: readonly RogueRewardOffer[]; readonly rogueRunUpgrades: readonly RogueRunUpgrade[];
-  readonly liveMapDocument: LiveMapDocument | null;
   readonly worldSeed: WorldSeed | null; readonly clock: WorldClock | null; readonly environment: WorldEnvironment | null; readonly wind: WorldWind | null;
 }
 
@@ -359,13 +357,23 @@ export class OverworldConnection {
   /** Chunks of the serving store whose load failed (static world S4f spawn readiness). */
   get chunkFailedKeys(): ReadonlySet<string> | undefined { return this.chunkRuntime?.failedChunks; }
   /** Whether the serving chunk revision may stand in for the server's authority now (S4d). */
+  #lastChunkRetryAt = -Infinity;
+  /** Static world S6 "world updating": re-apply the chunk runtime (re-reads the server switch and
+   * the publication, re-subscribes after an error) at most every `intervalMs`. */
+  retryChunkRuntimeEvery(now: number, intervalMs: number): void {
+    if (now - this.#lastChunkRetryAt < intervalMs) return;
+    this.#lastChunkRetryAt = now;
+    this.chunkRuntime?.retry();
+  }
   chunkAuthorityGate(): ChunkAuthorityGate | null {
     // BUG-055: `not_on` only without a controller. The controller's `null` (no gate: the serving
     // revision may stand in for the server) must pass through, or chunk collision never serves.
     return this.chunkRuntime === undefined ? 'not_on' : this.chunkRuntime.authorityGate();
   }
   private chunkRuntimeSource(): ChunkRuntimeSource {
-    return { mapRevision: this.liveMapDocument?.revision ?? 0, mapHash: this.liveMapDocument?.contentHash ?? '', contentHash: this.content.state.registry.contentHash };
+    // Static world S6: the client no longer receives the whole live map document, so only the
+    // content can be compared with the publication (the server reports a map lag itself, SW-D2).
+    return { contentHash: this.content.state.registry.contentHash };
   }
   /** Topside tile bounds to pin, derived from the camera's chunk window (static world S4c). */
   private chunkPin: ChunkView | null = null;
@@ -512,7 +520,6 @@ export class OverworldConnection {
   private wallet: PlayerWallet | null = null;
   private tradeSession: PlayerTradeSession | null = null;
   private readonly tradeOffers = new KeyedStore<string, PlayerTradeOffer>();
-  private liveMapDocument: LiveMapDocument | null = null;
   private worldSeed: WorldSeed | null = null;
   private clock: WorldClock | null = null;
   private environment: WorldEnvironment | null = null;
@@ -721,7 +728,6 @@ export class OverworldConnection {
     this.rogueRun = null; this.rogueRoomExits.clear(); this.rogueRewardOffers.clear();
     this.rogueRunUpgrades.clear(); this.outdoorRewards.clear(); this.outdoorRewardsRevision++; this.outdoorEnemyProfiles.clear(); this.rogueEnemyProfiles.clear(); this.enemyAttacks.clear();
     this.tradeSession = null; this.tradeOffers.clear();
-    this.liveMapDocument = null;
     this.timeSubscription = null; this.timeRecoverySubscriptions.length = 0;
     this.globalSubscription = null; this.selfSubscription = null; this.regionSubscription = null;
     this.regionAuxiliarySubscription = null;
@@ -774,7 +780,6 @@ export class OverworldConnection {
       combatState:this.combatState, equipmentSkillPriority:this.equipmentSkillPriority, skillTracks: this.skillTracks, skillNodes: this.skillNodes, activeFarmSkillNodes: this.activeFarmSkillNodes, questWorldItems: this.questWorldItems, thought: this.thought,
       rogueRun: this.rogueRun, rogueRoomExits: this.rogueRoomExits,
       rogueRewardOffers: this.rogueRewardOffers, rogueRunUpgrades: this.rogueRunUpgrades,
-      liveMapDocument: this.liveMapDocument,
       worldSeed: this.worldSeed,
       clock: this.clock, environment: this.environment, wind: this.wind };
   }
@@ -1387,7 +1392,6 @@ export class OverworldConnection {
       tables.worldWind,
       tables.worldSeed,
       tables.worldMerchant,
-      tables.liveMapDocument.where((row) => row.mapId.eq(LIVE_ISLAND_MAP_ID)),
       tables.contentHead.where((row) => row.packId.eq('live')),
       tables.runtimeContentDefinitions,
     ];
@@ -1760,15 +1764,6 @@ export class OverworldConnection {
     connection.db.worldHive.onDelete((context, row) => incoming(context.event.id, () => this.hives.delete(row.id)));
     connection.db.worldSeed.onInsert((context, row) => incoming(context.event.id, () => { this.worldSeed = row; }));
     connection.db.worldSeed.onUpdate((context, _old, row) => incoming(context.event.id, () => { this.worldSeed = row; }));
-    connection.db.liveMapDocument.onInsert((context, row) => incoming(context.event.id, () => {
-      if (row.mapId === LIVE_ISLAND_MAP_ID) this.liveMapDocument = row;
-    }));
-    connection.db.liveMapDocument.onUpdate((context, _old, row) => incoming(context.event.id, () => {
-      if (row.mapId === LIVE_ISLAND_MAP_ID) this.liveMapDocument = row;
-    }));
-    connection.db.liveMapDocument.onDelete((context, row) => incoming(context.event.id, () => {
-      if (row.mapId === LIVE_ISLAND_MAP_ID) this.liveMapDocument = null;
-    }));
     const resource = (eventId: string, apply: () => void): void => incoming(eventId, () => { apply(); this.resourceRevisionValue += 1; });
     connection.db.worldResource.onInsert((context, row) => resource(context.event.id, () => this.resources.set(row.id, row)));
     connection.db.worldResource.onUpdate((context, _old, row) => resource(context.event.id, () => this.resources.set(row.id, row)));
@@ -2104,7 +2099,6 @@ export class OverworldConnection {
       this.environment = [...connection.db.worldEnvironment.iter()][0] ?? null;
       this.wind = [...connection.db.worldWind.iter()][0] ?? null;
       this.worldSeed = [...connection.db.worldSeed.iter()][0] ?? null;
-      this.liveMapDocument = connection.db.liveMapDocument.mapId.find(LIVE_ISLAND_MAP_ID);
       this.globalsHydrated = true;
       this.refreshContent(connection);
       this.maybeGameplayReady(connection); this.onChanged();

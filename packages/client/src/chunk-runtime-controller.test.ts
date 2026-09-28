@@ -8,7 +8,7 @@ import type {ChunkBlobCache} from './chunk-shadow-cache.js';
 import {OverworldConnection} from './net/overworld-connection.js';
 
 const assets=new TextEncoder().encode('{"assetPacks":{}}'),assetRevision=worldChunkHash(assets);
-const source:ChunkRuntimeSource={mapRevision:3,mapHash:'map-3',contentHash:'content-1'};
+const source:ChunkRuntimeSource={contentHash:'content-1'};
 const view=[0,0,0,0] as const;
 
 /** One published revision: every chunk solid or open, pinned to the served asset revision. */
@@ -106,14 +106,11 @@ describe('on mode',()=>{
    await vi.waitFor(()=>expect(h.controller.status.state).toBe('stale'));
    expect(h.controller.status).toMatchObject({stale:true,staleReasons:['content'],staleObservations:1,servingRevision:'0:1'});
    expect(h.controller.store?.pinnedReady).toBe(true);
-   h.controller.update(h.connection,0n,view,{...source,mapRevision:4,mapHash:'map-4'});
-   await vi.waitFor(()=>expect(h.controller.status.staleReasons).toEqual(['content','map']));
-   expect(h.controller.status.staleObservations).toBe(2);expect(h.controller.store?.pinnedReady).toBe(true);
+   // Static world S6: the client has no live map document, so only content and assets are compared.
    // A newer published revision is still adopted while stale.
    const rev2=revision(1,'assets-other');h.publish(2,rev2,{contentHash:'content-1'});
    await vi.waitFor(()=>expect(h.controller.status.servingRevision).toBe('0:2'));
-   expect(h.controller.status).toMatchObject({state:'stale',staleReasons:['map','asset']});
-   h.controller.update(h.connection,0n,view,{...source,mapRevision:3,mapHash:'map-3'});
+   expect(h.controller.status).toMatchObject({state:'stale',staleReasons:['asset']});
    const rev3=revision(0);h.publish(3,rev3);
    await vi.waitFor(()=>expect(h.controller.status.state).toBe('on'));
    expect(h.controller.status).toMatchObject({stale:false,staleReasons:[],servingRevision:'0:3'});
@@ -133,9 +130,7 @@ describe('on mode',()=>{
    expect(connectionGate(source)).toBeNull();
    // SW-D2: a live map or content ahead of the publication is not a gate; the server keeps serving the
    // pinned publication, so the client keeps using it too (the lag shows in status.staleReasons).
-   expect(connectionGate({...source,mapRevision:4})).toBeNull();
    expect(connectionGate({...source,contentHash:'content-9'})).toBeNull();
-   expect(connectionGate({...source,mapHash:'map-9'})).toBeNull();
    // A newer publication loading behind the serving store: the server already reads it.
    const rev2=revision(1),release=h.hold(rev2.hash);h.publish(2,rev2);
    await vi.waitFor(()=>expect(h.controller.status.state).toBe('loading'));

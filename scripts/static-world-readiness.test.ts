@@ -20,7 +20,9 @@ describe('static-world readiness', () => {
     // S3c: one generator call, the compiled source (`generatedSurvivalResources`), reached by init (chunk
     // authority is necessarily off on a fresh database) and by a map with no runtime. S3-final removes it.
     expect(byId.get('server.generated-resources')!).toMatchObject({ count: 1, files: ['packages/world/src/index.ts'] });
-    expect(byId.get('client.live-map-document')!.count).toBeGreaterThan(0);
+    // Static world S6 (step 5): the client neither reads the whole map document nor builds the generated island.
+    expect(byId.get('client.live-map-document')!.count).toBe(0);
+    expect(byId.get('client.generator-terrain')!.count).toBe(0);
     expect(byId.get('studio.document-json')!.count).toBeGreaterThan(0);
     // Step-6 baseline: studio-connection.ts (3) and admin/live-services.ts (1). S7b/S7c drive it to zero.
     expect(byId.get('studio.live-map-document-table')!).toMatchObject({

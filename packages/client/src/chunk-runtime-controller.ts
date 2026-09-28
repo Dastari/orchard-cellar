@@ -16,7 +16,9 @@ export function chunkRuntimeQueries(spaceId: bigint, bounds: ChunkView): readonl
 }
 
 /** What the client's legacy path currently runs: compared against the published manifest. */
-export interface ChunkRuntimeSource { readonly mapRevision: number; readonly mapHash: string; readonly contentHash: string }
+/** Static world S6: only the content is compared (the client no longer has the live map document;
+ * the server reports a map lag itself and keeps serving the pinned publication, SW-D2). */
+export interface ChunkRuntimeSource { readonly contentHash: string }
 
 /**
  * SEAM (static world S2a, PR #162): the server's public chunkAuthority switch, read from the
@@ -200,6 +202,13 @@ export class ChunkRuntimeController {
   authorityChanged(): void {
     if (!this.#disposed && this.#latest) this.#apply();
   }
+  /** Static world S6 "world updating" retry: re-apply the latest input, and re-subscribe when the
+   * subscription failed (the key is cleared, so the next apply subscribes afresh). */
+  retry(): void {
+    if (this.#disposed || !this.#latest) return;
+    if (this.status.state === 'subscription_error') { this.#subscription?.unsubscribe(); this.#subscription = undefined; this.#key = ''; }
+    this.#apply();
+  }
   #apply(): void {
     const input = this.#latest!, connection = input.connection;
     // Watch the authority on every connection, including while `off`: the switch coming back
@@ -285,7 +294,6 @@ export class ChunkRuntimeController {
     if (manifest.spaceId !== Number(input.spaceId)) throw new Error('chunk_manifest_space_mismatch');
     const reasons: ChunkStaleReason[] = [];
     if (row.contentHash !== input.source.contentHash) reasons.push('content');
-    if (manifest.sourceHash !== input.source.mapHash || manifest.sourceRevision !== input.source.mapRevision) reasons.push('map');
     const heads = [...input.connection.db.worldChunkHead.iter()].filter(head => head.spaceId === input.spaceId);
     // Public regional heads must agree with the atomically published manifest.
     const headsConsistent = !heads.some(head => head.revision !== row.revision

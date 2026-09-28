@@ -5,23 +5,24 @@ import { WORLD_CHUNK_SIZE, type WorldChunkManifest } from '@orchard/sim/world-ch
 /**
  * Static world S4f: whether the local player may move, as far as terrain goes.
  *
- * Only chunk mode `on` ever waits, and only on topside: movement, rendering and
- * collision there come from the chunk window, whose missing chunks are solid void.
- * The player's chunk and its ring of eight must be resident first. Modes `off`
- * and `shadow` (and every other space) are always ready, so they behave exactly
- * as before S4f.
+ * On topside, movement, rendering and collision come only from the chunk window
+ * (static world S6), whose missing chunks are solid void. The player's chunk and its
+ * ring of eight must be resident first. Every other space is always ready.
  *
- * It never locks a player out (plan decision 7): whenever the chunk runtime is not
- * going to serve (nothing published, a failed load, a subscription error) the
- * legacy source serves as before and this is ready; a ring chunk whose load
- * failed counts as resolved (it reads as solid void, like any failed chunk); and
- * a wait that outlasts SPAWN_READINESS_TIMEOUT_MS gives up (reason `timeout`, in
- * the diagnostics). The chunks given up on stay resolved for that publication, so
- * approaching them again never re-arms the wait.
+ * Static world S6 replaced the S4f "never lock a player out" fallback, since the client no
+ * longer has a whole map to fall back to: with no serving store (server `off`, nothing
+ * published, a subscription or load error) the reason is `world_updating`; the client shows
+ * the "world updating" overlay and retries, and that wait never times out. A ring chunk whose
+ * load failed still counts as resolved (it reads as solid void), and a wait for missing chunks
+ * that outlasts SPAWN_READINESS_TIMEOUT_MS still gives up (reason `timeout`, in the
+ * diagnostics); the chunks given up on stay resolved for that publication.
  */
 export type SpawnReadinessReason =
-  | 'not_on' | 'other_space' | 'no_position' | 'legacy' | 'resident' | 'timeout'
-  | 'awaiting_store' | 'awaiting_pin' | 'awaiting_chunks' | 'awaiting_window';
+  | 'not_on' | 'other_space' | 'no_position' | 'resident' | 'timeout'
+  | 'awaiting_store' | 'awaiting_pin' | 'awaiting_chunks' | 'awaiting_window'
+  /** Static world S6: topside has no chunk runtime serving (server `off`, nothing published, a
+   * subscription or load error) and there is no whole-map fallback: "world updating", retried. */
+  | 'world_updating';
 
 export interface SpawnReadiness {
   readonly ready: boolean;
@@ -64,12 +65,14 @@ const LOADING_STATES: ReadonlySet<string> = new Set(['idle', 'subscribing', 'loa
 /** Chunk-level readiness for one instant (no timeout). */
 export function chunkSpawnReadiness(input: SpawnReadinessInput): SpawnReadiness {
   const ready = (reason: SpawnReadinessReason): SpawnReadiness => ({ ready: true, reason, missing: 0 });
-  if (input.mode !== 'on') return ready('not_on');
   if (input.spaceId !== TOPSIDE_SPACE_ID) return ready('other_space');
   if (input.tileX === undefined || input.tileY === undefined) return ready('no_position');
+  // Static world S6: topside only ever draws and collides from chunks. Without a serving store there
+  // is nothing to stand on, so movement waits ("world updating") instead of falling back.
+  if (input.mode !== 'on') return { ready: false, reason: 'world_updating', missing: 0 };
   const store = input.store;
   if (store === undefined) {
-    return LOADING_STATES.has(input.state ?? 'idle') ? { ready: false, reason: 'awaiting_store', missing: 0 } : ready('legacy');
+    return { ready: false, reason: LOADING_STATES.has(input.state ?? 'idle') ? 'awaiting_store' : 'world_updating', missing: 0 };
   }
   const cx = Math.floor(input.tileX / WORLD_CHUNK_SIZE), cy = Math.floor(input.tileY / WORLD_CHUNK_SIZE);
   const pinned = new Set(store.pinnedKeys);
@@ -114,7 +117,9 @@ export class SpawnReadinessGate {
     if (result.ready) this.#waitingSince = undefined;
     else {
       if (this.#waitingSince === undefined) { this.#waitingSince = now; this.#waits++; }
-      if (now - this.#waitingSince >= this.timeoutMs) {
+      // Only missing chunks may be given up on (they read as solid void); with no serving store
+      // at all there is no world to release the player into, so that wait never times out (S6).
+      if (now - this.#waitingSince >= this.timeoutMs && result.reason !== 'world_updating' && result.reason !== 'awaiting_store') {
         if (this.#last.reason !== 'timeout') this.#timeouts++;
         if (manifest !== undefined && result.missingKeys !== undefined) {
           this.#givenUp ??= { manifest, keys: new Set() };

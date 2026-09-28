@@ -168,8 +168,8 @@ describe('WorldSource (static world S4c)', () => {
     const main = readFileSync(new URL('./overworld-main.ts', import.meta.url), 'utf8');
     const render = main.indexOf('worldSource.setView(estimatedCameraTiles(localX, localY));');
     expect(render).toBeGreaterThan(0);
-    expect(main.indexOf('const terrain = terrainForSnapshot(snapshot);', render)).toBeGreaterThan(render);
-    const beforeTerrain = main.slice(render, main.indexOf('const terrain = terrainForSnapshot(snapshot);', render));
+    expect(main.indexOf('const terrain = renderTerrainFor(snapshot);', render)).toBeGreaterThan(render);
+    const beforeTerrain = main.slice(render, main.indexOf('const terrain = renderTerrainFor(snapshot);', render));
     expect(beforeTerrain).not.toContain('beginWorld');
     // S4f: the prepared window advances one stage before this frame's terrain is served.
     expect(beforeTerrain).toContain('worldSource.advance(snapshot.content.registry);');

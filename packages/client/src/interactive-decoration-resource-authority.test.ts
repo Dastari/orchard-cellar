@@ -41,11 +41,9 @@ describe('authored landmark decoration collision wiring', () => {
     // Static world S4e: the elevated decoration occluders moved to topside-map-records.ts.
     expect(topside).toContain("survivalDecorationBlocksTraversal(decoration.kind, 'ground', registry)");
     expect(topside).toContain("survivalDecorationObstacle(decoration, 'ground', registry)");
-    expect(main).toMatch(/topsideDecorationLightCasters\(topsideDecorations\(snapshot, seed\), topsideMapRecords\(snapshot\),\s*snapshot\.content\.registry,/u);
-    expect(main.match(/survivalDecorationObstacle\(\s*decoration, '(?:ground|water)', snapshot\.content\.registry(?:,|\))/gu))
-      .toHaveLength(2);
-    expect(main.match(/liveMapObjectCollisionObstacles\(\s*liveDocument, '(?:ground|water)', snapshot\.content\.registry,/gu))
-      .toHaveLength(2);
+    expect(main).toMatch(/topsideDecorationLightCasters\(topsideDecorations\(snapshot\), topsideMapRecords\(snapshot\),\s*snapshot\.content\.registry,/u);
+    // Static world S6: topside collision comes only from chunk records; no whole-map obstacles in the client.
+    expect(main).not.toMatch(/survivalDecorationObstacle\(|liveMapObjectCollisionObstacles\(/u);
     expect(engineCollision).toContain('survivalDecorationObstacle(decoration, medium, contentRegistry)');
     expect(world).toContain('mapLandmarkCollisionObstacle(landmark, medium, registry)');
     expect(world).toContain('survivalDecorationObstacle(decoration, medium, registry)');
@@ -64,10 +62,12 @@ describe('authored procedural decoration palette wiring', () => {
   });
 
   it('threads live content while keeping only isolated no-space engine fixtures on bootstrap defaults', () => {
-    expect(main).toContain('generateSurvivalProceduralDecorations(seed, snapshot.content.registry)');
-    expect(main).toContain('generateSurvivalDecorations(seed, snapshot.content.registry)');
+    // Static world S6: the client never generates island decorations; the whole-map engine collision
+    // takes them from injected island generators (collision-island.ts, tests and tools only).
+    expect(main).not.toMatch(/generateSurvival(?:Procedural)?Decorations\(/u);
     expect(engineCollision).toContain('contentRegistry.spaces.size > 0');
-    expect(engineCollision).toContain('generateSurvivalDecorations(terrain.seed, decorationRegistry)');
+    expect(engineCollision).toContain('island.decorations(terrain.seed, decorationRegistry)');
+    expect(readFileSync(new URL('../../engine/src/collision-island.ts', import.meta.url), 'utf8')).toContain('generateSurvivalDecorations(seed, registry)');
     expect(world).toContain('generateSurvivalProceduralDecorations(');
     expect(world).toContain('generateSurvivalDecorations(');
   });

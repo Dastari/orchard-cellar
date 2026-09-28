@@ -61,7 +61,7 @@ async function movementReadyMs(warm: boolean): Promise<{ readonly ms: number; re
   const connection = { db: { worldChunkShadow: { ...events, spaceId: { find: (id: bigint) => id === 0n && subscribed ? shadow : undefined } },
     worldChunkHead: { ...events, iter: () => subscribed ? heads : [] } }, subscriptionBuilder: () => builder } as unknown as DbConnection;
   const controller = new ChunkRuntimeController({ buildMode: 'on', authority: () => 'on', fetchBlob, cache });
-  const source: ChunkRuntimeSource = { mapRevision: published.sourceRevision, mapHash: published.sourceHash, contentHash: 'content-1' };
+  const source: ChunkRuntimeSource = { contentHash: 'content-1' };
   const tile = 6 * 64 + 20;
   try {
     // The own player row arrives: the connection pins the window centred on the player.

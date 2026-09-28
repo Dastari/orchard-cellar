@@ -1,6 +1,5 @@
 import { mapDocumentTraversalChannels, mapTraversalChannels, runtimeTraversalPolicy } from '@orchard/sim';
 import type {LightTrunkOccluder} from './light-occlusion.js';
-import {terrainElevationAtWorldFoot,terrainProjectedDepthAtFoot,terrainProjectedElevationAtFoot,terrainProjectedSortOffset} from './terrain-sampling.js';
 import {
   enqueueMapObjects,
   mapObjectLightFrameKey,
@@ -10,7 +9,6 @@ import {
   preloadMapObjectAssets,
   type MapObjectPointLight,
   type MapObjectRenderOptions,
-  type MapObjectTerrainSampler,
 } from './map-object-presentation.js';
 import {
   LIVE_ISLAND_MAP_ID,
@@ -232,13 +230,8 @@ export {
   type MapObjectRenderOptions as LiveMapObjectRenderOptions,
 } from './map-object-presentation.js';
 
-/** Samples a `TerrainArray` for map-object light occluders. */
-export const TERRAIN_ARRAY_MAP_OBJECT_SAMPLER: MapObjectTerrainSampler<TerrainArray> = Object.freeze({
-  elevationAtWorldFoot: (terrain: TerrainArray, worldX: number, worldFootY: number) => terrainElevationAtWorldFoot(terrain, worldX, worldFootY),
-  projectedDepthAtFoot: (terrain: TerrainArray, worldX: number, worldFootY: number) => terrainProjectedDepthAtFoot(terrain, worldX, worldFootY),
-  projectedElevationAtFoot: (terrain: TerrainArray, worldX: number, worldFootY: number) => terrainProjectedElevationAtFoot(terrain, worldX, worldFootY),
-  projectedSortOffset: (elevation: number) => terrainProjectedSortOffset(elevation),
-});
+export { TERRAIN_ARRAY_MAP_OBJECT_SAMPLER } from './terrain-array-map-object-sampler.js';
+import { TERRAIN_ARRAY_MAP_OBJECT_SAMPLER } from './terrain-array-map-object-sampler.js';
 
 /** Resolves the generated sprite sheets referenced by a map before an
  * invalidation-driven editor render. Gameplay can keep using lazy lookup;

@@ -299,3 +299,30 @@ export function survivalDecorationResource(
     tileY: decoration.tileY,
   };
 }
+
+export interface SurvivalCampPathTile {
+  readonly tileX: number;
+  readonly tileY: number;
+}
+
+/** The unique tiles of the landmarks' authored path areas (optionally only those with `role`). */
+export function survivalLandmarkPathTiles(
+  landmarks: readonly SpaceLandmarkDefinition[],
+  role?: string,
+): readonly SurvivalCampPathTile[] {
+  const tiles: SurvivalCampPathTile[] = [];
+  const seen = new Set<string>();
+  for (const landmark of role === undefined ? landmarks : survivalLandmarksForRole(landmarks, role)) {
+    for (const area of landmark.pathAreas ?? []) {
+      for (let tileY = area.minimumTileY; tileY <= area.maximumTileY; tileY += 1) {
+        for (let tileX = area.minimumTileX; tileX <= area.maximumTileX; tileX += 1) {
+          const key = `${tileX}:${tileY}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          tiles.push({ tileX, tileY });
+        }
+      }
+    }
+  }
+  return Object.freeze(tiles);
+}
