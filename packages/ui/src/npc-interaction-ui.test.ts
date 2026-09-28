@@ -270,3 +270,12 @@ it('sorts the backpack from the Sell pane when the host offers it, and not while
     press(ui, 'merchant.backpack.sort');
     expect(sortBackpack).toHaveBeenCalledOnce();
 });
+it('filters the Sell pane by the live content names and marks the selected hotbar slot (BUG-067)', () => {
+    const renamed = buildContentRegistry(bootstrapContentRows().map(row => row.id === 'item:stone' ? { ...row, json: { ...registry.items.get('item:stone')!, displayName: 'Moon Rock' } } : row)).registry;
+    const { ui } = fixture({ contentRegistry: renamed, selectedSlot: 2, inventoryRevision: 1, inventory: [{ slot: 12, itemKind: 'stone', quantity: 5 }, { slot: 13, itemKind: 'wood', quantity: 2 }] });
+    press(ui, 'merchant.sell');
+    expect(node(ui, 'merchant.hotbar').props['selected']).toBe(2);
+    const filter = node(ui, 'merchant.backpack.filter'); ui.root.focus.set(filter, 'keyboard'); ui.root.text('moon'); ui.root.arrange();
+    expect(shownCell(ui, 'merchant.backpack.slot.2')).toBe(true);
+    expect(shownCell(ui, 'merchant.backpack.slot.3')).toBe(false);
+});

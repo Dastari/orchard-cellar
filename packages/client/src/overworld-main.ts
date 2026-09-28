@@ -5716,6 +5716,8 @@ function renderFrame(alpha = 1): void {
     nodeId: snapshot.activeDialogue.nodeId,
     balanceBronze: snapshot.wallet?.balanceBronze ?? 0n,
     inventory: [...snapshot.inventorySlots],
+    inventoryRevision: snapshot.inventorySlots.revision,
+    selectedSlot: optimisticSelectedSlot ?? snapshot.survival?.selectedSlot ?? 0,
     backpackSlotCapacity,
     sellPriceOverrides: Object.fromEntries([...snapshot.content.registry.items.values()]
       .filter((definition) => runtimeItemSalePremium(

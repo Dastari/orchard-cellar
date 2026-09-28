@@ -37,6 +37,10 @@ export interface NpcInteractionModel {
     /** Effective player capacity already projected from equipment and unlocks. */
     readonly backpackSlotCapacity?: number;
     readonly sellPriceOverrides?: Readonly<Record<string, number>>;
+    /** Changes whenever the carried inventory does; the Sell tab's work is cached by it (0 or omitted: never cached). */
+    readonly inventoryRevision?: number;
+    /** The player's selected hotbar slot, marked on the Sell tab's footer hotbar. */
+    readonly selectedSlot?: number;
     readonly quests?: readonly {
         readonly questId: string;
         readonly state: string;
@@ -495,6 +499,11 @@ export class NpcInteractionUi {
                     }];
             });
         }
+        return this.sellWork().rows;
+    }
+    private computeSellRows(): ShopRow[] {
+        if (this.model === null)
+            return [];
         const quantityByKind = new Map<string, number>();
         const sellableSlotLimit = BACKPACK_SLOT_OFFSET + this.backpackCapacity();
         for (const slot of this.model.inventory) {
@@ -541,14 +550,27 @@ export class NpcInteractionUi {
         return accessibleBackpackCapacity(Math.floor(this.model.backpackSlotCapacity ?? authoredCapacity ?? BASE_BACKPACK_CAPACITY));
     }
     /** What the Sell tab's shared player inventory pane shows: the carried hotbar and open backpack cells (BUG-067). */
-    private sellInventory(): UiMerchantSellInventory {
+    private sellCache: { readonly key: string; readonly rows: ShopRow[]; readonly inventory: UiMerchantSellInventory } | null = null;
+    /** The Sell tab's rows and pane model, rebuilt only when the inventory, capacity, content or prices change. */
+    private sellWork(): { readonly rows: ShopRow[]; readonly inventory: UiMerchantSellInventory } {
+        const model = this.model, revision = model?.inventoryRevision;
+        const key = revision ? `${revision}:${model!.backpackSlotCapacity ?? ''}:${model!.contentRegistry?.contentHash ?? ''}:${JSON.stringify(model!.sellPriceOverrides ?? {})}:${model!.selectedSlot ?? -1}` : '';
+        if (key && this.sellCache?.key === key) return this.sellCache;
+        const rows = this.computeSellRows(), inventory = this.buildSellInventory(rows);
+        this.sellCache = key ? { key, rows, inventory } : null;
+        return { rows, inventory };
+    }
+    private sellInventory(): UiMerchantSellInventory { return this.sellWork().inventory; }
+    private buildSellInventory(rows: readonly ShopRow[]): UiMerchantSellInventory {
         const capacity = this.backpackCapacity(), limit = BACKPACK_SLOT_OFFSET + capacity;
         const slots = new Map((this.model?.inventory ?? []).filter(slot => slot.slot >= 0 && slot.slot < limit
             && (slot.slot < HOTBAR_SLOT_COUNT || slot.slot >= BACKPACK_SLOT_OFFSET) && slot.itemKind !== 'empty' && slot.quantity > 0)
             .map(slot => [slot.slot, { itemKind: slot.itemKind, quantity: slot.quantity,
                 ...(slot.durability === undefined ? {} : { durability: slot.durability }), ...(slot.lit === undefined ? {} : { lit: slot.lit }) }]));
-        const sellable = new Set(this.allShopRows('sell').map(row => row.itemKind));
-        return { slots, capacity, sellable: itemKind => sellable.has(itemKind) };
+        const sellable = new Set(rows.map(row => row.itemKind));
+        return { slots, capacity, sellable: itemKind => sellable.has(itemKind),
+            ...(this.model?.contentRegistry ? { contentRegistry: this.model.contentRegistry } : {}),
+            ...(this.model?.selectedSlot === undefined ? {} : { selectedSlot: this.model.selectedSlot }) };
     }
     /** A press on a carried item adds its stack, or one, to the sale, up to what the player carries. */
     private sellSlot(slot: number, one: boolean): void {

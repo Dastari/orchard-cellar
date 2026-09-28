@@ -14,10 +14,10 @@ import type { UiSurfaceStyle } from '../tokens.js';
 import { uiTooltip } from './tooltip.js';
 import { uiPurseLabel } from './purse.js';
 import { uiCurrency, uiCurrencyLabel } from './currency.js';
-import { uiHotbar, uiItemFrame, uiSetSlotState } from './inventory.js';
-import { UiInventoryFilter, uiPlayerInventoryPane } from './inventory-panel.js';
-import { BACKPACK_SLOT_COUNT, BACKPACK_SLOT_OFFSET, HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
-import type { ItemStack } from '@orchard/sim';
+import { uiItemFrame, uiSetSlotState } from './inventory.js';
+import { UiInventoryFilter, uiPlayerHotbar, uiPlayerInventoryPane } from './inventory-panel.js';
+import { BACKPACK_SLOT_COUNT, BACKPACK_SLOT_OFFSET } from '@orchard/sim/inventory-layout';
+import type { ContentRegistry, ItemStack } from '@orchard/sim';
 import { paintUiSkin, uiElementUpperCase } from './art.js';
 import { uiFolderTabs } from './social.js';
 import { uiGlyph, uiWindow } from './window.js';
@@ -50,6 +50,10 @@ export interface UiMerchantSellInventory {
     readonly slots: ReadonlyMap<number, ItemStack>;
     readonly capacity: number;
     readonly sellable: (itemKind: string) => boolean;
+    /** The live content registry, so authored (Studio) items show their art, wear and names, and filter by name. */
+    readonly contentRegistry?: ContentRegistry;
+    /** The player's selected hotbar slot, marked on the footer hotbar as on the HUD. */
+    readonly selectedSlot?: number;
 }
 export interface UiMerchantOptions {
     readonly model: UiMerchantModel;
@@ -134,16 +138,17 @@ export function uiMerchant(options: UiMerchantOptions): UiMerchantElement {
         if (!item || model.pending || !model.sell?.sellable(item.itemKind)) return; options.onSellSlot?.(slot, one); };
     const buildSellInventory = () => {
         for (const child of [...sellHost.children, ...footerHost.children]) child.dispose();
-        const common = { artwork: options.artwork, allowSecondary: true, activateOn: 'up' } as const;
+        const registry = () => model.sell?.contentRegistry;
+        const common = { artwork: options.artwork, allowSecondary: true, activateOn: 'up' as const, contentRegistry: registry,
+            iconAnimation: (item: ItemStack) => registry()?.items.get(`item:${item.itemKind}`)?.icon.animation ?? itemDefinition(item.itemKind)?.iconAnimation ?? 'base' };
         const pane = uiPlayerInventoryPane({ ...common, id: 'merchant.backpack', label: 'BACKPACK', container: 'backpack',
             cells: Array.from({ length: BACKPACK_SLOT_COUNT }, (_, index) => ({ id: String(index), index })), columns: 5, rows: 4,
-            filterModel: sellFilter, capacity: () => model.sell?.capacity ?? 0, itemLabel: item => itemDefinition(item.itemKind)?.displayName ?? item.itemKind,
+            filterModel: sellFilter, capacity: () => model.sell?.capacity ?? 0, itemLabel: item => registry()?.items.get(`item:${item.itemKind}`)?.displayName ?? itemDefinition(item.itemKind)?.displayName ?? item.itemKind,
             stack: index => carried(BACKPACK_SLOT_OFFSET + index), onActivate: (index, event) => sellFrom(BACKPACK_SLOT_OFFSET + index, event.button === 2),
             // The same header as every pane. The sale counts items, not slots, so sorting is safe; it waits for a sale in flight.
             onSort: () => { if (!model.pending) options.onSortBackpack?.(); },
             sortDisabledReason: () => !options.onSortBackpack ? 'Sorting is not available here.' : model.pending ? 'Wait for the sale to finish.' : null });
-        const hotbar = uiHotbar({ ...common, id: 'merchant.hotbar', container: 'hotbar', count: HOTBAR_SLOT_COUNT, columns: HOTBAR_SLOT_COUNT, digitKeys: false, selected: () => -1,
-            layout: { shrink: 0, width: 'fit', maxWidth: { mode: 'percent', fraction: 1 } },
+        const hotbar = uiPlayerHotbar({ ...common, id: 'merchant.hotbar', container: 'hotbar', selected: () => model.sell?.selectedSlot ?? -1,
             stack: index => carried(index), onActivate: (index, event) => sellFrom(index, event.button === 2) });
         const grids = pane.children.flatMap(function find(node: UiElement): UiElement[] { return node.kind === 'inventory-grid' ? [node] : node.children.flatMap(find); });
         sellCells = [...grids[0]!.children.map((wrapper, index) => ({ wrapper, slot: BACKPACK_SLOT_OFFSET + index, disabled: false })),
@@ -233,7 +238,7 @@ export function uiMerchant(options: UiMerchantOptions): UiMerchantElement {
         if (selling) {
             const structure = String(next.sell!.capacity);
             if (structure !== sellStructure || !sellHost.children.length) { sellStructure = structure; buildSellInventory(); }
-            refreshSellable();
+            refreshSellable(); for (const child of footerHost.children) child.invalidate();
         }
         seals.setStyle({ visible: next.sealsAvailable === true });
         for (const [node, bronze] of [[total, next.totalBronze], [purse, next.balanceBronze]] as const) { node.setProps({ bronze }); node.label = uiCurrencyLabel(bronze); }
