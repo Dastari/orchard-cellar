@@ -6314,9 +6314,16 @@ function writePlayerInventory(
   const codec = runtimeStoredStackCodec(registry);
   let changed = false;
   for (const id of CARRIED_CONTAINERS) {
-    const build = inventory.builds[id];
+    const loaded = inventory.builds[id];
     const nextContainer = after[id];
     if (before[id] === undefined || nextContainer === undefined) continue;
+    // An admin restore may carry a snapshot taken at another backpack size: rebuild the same rows at its capacity.
+    const build = nextContainer.capacity === loaded.container.capacity ? loaded
+      : withSenderErrors(() => buildDenseContainer({
+        id, capacity: nextContainer.capacity, codec,
+        cells: [...loaded.cellsByIndex.values(), ...loaded.spill, ...loaded.staleVacant],
+        ...(loaded.container.restrictions === undefined ? {} : { restrictions: loaded.container.restrictions }),
+      }));
     // Only changed cells are written: an upsert per changed occupied cell, a delete per emptied cell.
     const writes = withSenderErrors(() => diffDenseContainer(build, nextContainer, codec));
     if (applyPlayerContainerWrites(ctx.db, owner, id, writes)) changed = true;

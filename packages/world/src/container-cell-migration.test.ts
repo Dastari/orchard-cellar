@@ -371,6 +371,22 @@ describe('open-menu moves on container cells', () => {
     expect(db.player_container_cell.id.find('a1:hotbar:5')).toMatchObject({ itemKind: 'torch', quantity: 7, lit: false });
   });
 
+  it('writes a snapshot taken at another backpack size (an admin undo) by rebuilding the stored rows at its capacity', () => {
+    const { db, ctx, api } = menuWorld();
+    db.player_container_cell.id.delete('a1:equipment:4');
+    const inventory = api.loadPlayerInventory(ctx, alice);
+    expect(inventory.containers.backpack.capacity).toBe(sim.BASE_BACKPACK_CAPACITY);
+    const slots = Array.from({ length: 20 }, (_, index) => index === 15 ? { itemKind: 'apple', quantity: 2, lit: true } : null);
+    slots[19] = { itemKind: 'arrow', quantity: 18, lit: true };
+    api.writePlayerInventory(ctx, inventory, inventory.containers, {
+      ...inventory.containers, backpack: { ...inventory.containers.backpack, capacity: 20, slots },
+    });
+    expect(db.player_container_cell.id.find('a1:backpack:15')).toMatchObject({ itemKind: 'apple', quantity: 2 });
+    expect(db.player_container_cell.id.find('a1:backpack:19')).toMatchObject({ itemKind: 'arrow', quantity: 18 });
+    expect(db.player_container_cell.id.find('a1:backpack:2')).toBeNull();
+    expect(db.inventory_overflow.rows.size).toBe(0);
+  });
+
   it('refuses writes for a player still on the legacy layout', () => {
     const { db, ctx, api } = menuWorld();
     db.inventory_migration.identity.update({ ...db.inventory_migration.identity.find(alice), containerLayoutVersion: 0 });
