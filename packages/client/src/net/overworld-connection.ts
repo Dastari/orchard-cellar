@@ -23,6 +23,7 @@ import type {
   WorldSurface,
 } from '@orchard/world-bindings/types';
 import type { WeatherMode, WindDirectionMode } from '@orchard/sim';
+import { ActivePlaceableSession } from './active-placeable-session.js';
 import { BoundedKeyedQueue, KeyedStore, type ReadonlyKeyedStore } from './keyed-store.js';
 import {
   LatencyInjector, LocalPredictionBuffer, latencyFromSearch,
@@ -44,6 +45,14 @@ const DEFAULT_DATABASE = 'orchard-cellar-world';
 const SURVIVAL_CHUNK_COUNT = Math.ceil(SURVIVAL_WORLD_SIZE / SURVIVAL_CHUNK_TILES);
 const SURVIVAL_CHUNK_PIXELS = SURVIVAL_CHUNK_TILES * TILE_SIZE_PIXELS;
 const RADIUS_SETTLE_MS = 180;
+/** Presence heartbeat cadence; the server's lease is 30 s (PRESENCE_LEASE_MICROS). */
+export const HEARTBEAT_INTERVAL_MS = 10_000;
+/**
+ * A hidden tab keeps its presence this long, then lets the lease lapse once (#250 review). Below
+ * Chrome's 5-minute intensive throttling, which fires timers about once a minute: heartbeats every
+ * ~60 s against a 30 s lease would flap the player offline and online (a chat notice a minute).
+ */
+export const HIDDEN_HEARTBEAT_LIMIT_MS = 4 * 60_000;
 const RTT_SAMPLE_CAPACITY = 256;
 const WORLD_REGION_RANGE_QUERIES = 17;
 const ROGUE_REGION_RANGE_QUERIES = 6;
@@ -395,6 +404,8 @@ export class OverworldConnection {
   private timeRecoveryTimer: number | null = null;
   private timeCacheWatchdogTimer: number | null = null;
   private heartbeatTimer: number | null = null;
+  /** Wall time the tab became hidden (null while visible): bounds hidden heartbeats. */
+  private hiddenSince: number | null = null;
   private activitySinceHeartbeat = true;
   private sequence = 0n;
   private inputReady = false;
@@ -480,8 +491,14 @@ export class OverworldConnection {
   private membership: Membership | null = null;
   private survival: PlayerSurvival | null = null;
   private stats: PlayerStats | null = null;
-  private activeChest: WorldChest | null = null;
-  private activePlaceable: WorldPlaceable | null = null;
+  /** The open placeable session and its chest copies; removals of a replaced session are ignored (BUG-058). */
+  private readonly placeableSession = new ActivePlaceableSession<WorldChest, WorldChestSlot>(
+    this.openPlaceableSlots, this.openChestSlots, {
+      isChest: (row) => isUnifiedChest(this.content.state.registry, row),
+      toChest: compatibilityChest, toChestSlot: compatibilityChestSlot,
+    });
+  private get activeChest(): WorldChest | null { return this.placeableSession.activeChest; }
+  private get activePlaceable(): WorldPlaceable | null { return this.placeableSession.active; }
   private cookingJob: PlayerCookingJob | null = null;
   private fishingCast: FishingCast | null = null;
   private activeDialogue: ActiveDialogue | null = null;
@@ -546,11 +563,35 @@ export class OverworldConnection {
   get gameplayReady(): boolean { return this.connected && this.inputReady && this.recovery.state === 'ready'; }
   get recoveryState(): ConnectionRecoveryState { return this.recovery.state; }
   pause(): void {
+    if (document.hidden) this.hiddenSince ??= Date.now();
     this.clearHeldInput();
     if (this.gameplayReady) this.sendDesiredDirection();
     this.recovery.pause();
   }
-  resume(): void { this.clearHeldInput(); this.recovery.resume(); this.onChanged(); }
+  resume(): void {
+    if (!document.hidden) this.hiddenSince = null;
+    this.clearHeldInput();
+    this.recovery.resume();
+    // Back from a hidden or frozen tab (BUG-062): renew the presence lease now rather than at the
+    // next interval tick, and refresh the sign-in if it lapsed so a needed reconnect is quick.
+    const connection = this.connection;
+    if (connection !== null && this.gameplayReady) this.sendHeartbeat(connection);
+    if (oidcConfigured && !document.hidden) void ensureOidcSession().catch(() => undefined);
+    this.onChanged();
+  }
+  private sendHeartbeat(connection: DbConnection): void {
+    if (!this.currentConnection(connection) || !navigator.onLine) return;
+    if (document.hidden) {
+      // Hidden past the limit: stop, so the lease lapses once instead of flapping (resume renews it).
+      this.hiddenSince ??= Date.now();
+      if (Date.now() - this.hiddenSince > HIDDEN_HEARTBEAT_LIMIT_MS) return;
+    } else this.hiddenSince = null;
+    const active = this.activitySinceHeartbeat && !document.hidden;
+    this.activitySinceHeartbeat = false;
+    void this.call(() => connection.reducers.heartbeat({ active })).catch(() => {
+      if (active && this.currentConnection(connection)) this.activitySinceHeartbeat = true;
+    });
+  }
   retryConnection(): void { this.clearHeldInput(); this.recovery.retry(); }
   dispose(): void { window.clearInterval(this.connectionMonitorTimer); this.recovery.stop(); }
 
@@ -608,14 +649,10 @@ export class OverworldConnection {
         if (localProfilesEnabled && oidcSession === null) {
           void this.call(() => connection.reducers.setDisplayName({ displayName: this.displayName() })).catch(() => undefined);
         }
-        this.heartbeatTimer = window.setInterval(() => {
-          if (!this.currentConnection(connection) || document.hidden || !navigator.onLine) return;
-          const active = this.activitySinceHeartbeat;
-          this.activitySinceHeartbeat = false;
-          void this.call(() => connection.reducers.heartbeat({ active })).catch(() => {
-            if (active && this.currentConnection(connection)) this.activitySinceHeartbeat = true;
-          });
-        }, 10_000);
+        // Hidden tabs keep their presence lease (the server's 30 s idle timeout) as inactive
+        // heartbeats: time away from the tab is not counted as leaving (BUG-062). Browsers still
+        // throttle these timers, and a frozen tab sends nothing; `resume` then heartbeats at once.
+        this.heartbeatTimer = window.setInterval(() => this.sendHeartbeat(connection), HEARTBEAT_INTERVAL_MS);
         this.timeCacheWatchdogTimer = window.setInterval(() => {
           if (!this.currentConnection(connection) || document.hidden || !navigator.onLine) return;
           if (!this.hasTimeState(connection)) this.scheduleTimeStateRecovery(connection, identity);
@@ -705,7 +742,7 @@ export class OverworldConnection {
     this.characterProfile = null; this.membership = null; this.survival = null; this.stats = null;
     this.villageOrders.clear();
     this.hearthStashOpen=false;this.hearthStashSlots.clear();
-    this.activePlaceable = null; this.activeChest = null; this.cookingJob = null; this.activeDialogue = null;
+    this.placeableSession.reset(); this.cookingJob = null; this.activeDialogue = null;
     this.wallet = null; this.thought = null;
     this.clearSpaceScopedCaches();
     this.campfires.clear(); this.merchants.clear(); this.combatTargets.clear();
@@ -1648,7 +1685,10 @@ export class OverworldConnection {
     connection.db.playerPublic.onDelete((context, row) => incoming(context.event.id, () => {
       const id = identityHex(row.identity);
       if (this.profiles.delete(id)) this.presenceRevisionValue += 1;
-      this.visiblePlayers.delete(id);
+      // The own player never depends on its public profile being `online` (as in setPosition):
+      // a lapsed presence lease (a hidden or frozen tab) drops the row from the online-profile
+      // subscription, and removing the player here blanked the world until the next heartbeat (BUG-062).
+      if (this.identity === null || !row.identity.isEqual(this.identity)) this.visiblePlayers.delete(id);
     }));
     connection.db.playerAppearance.onInsert((context, row) => incoming(context.event.id, () => this.appearances.set(identityHex(row.identity), row)));
     connection.db.playerAppearance.onUpdate((context, _old, row) => incoming(context.event.id, () => this.appearances.set(identityHex(row.identity), row)));
@@ -1944,11 +1984,6 @@ export class OverworldConnection {
     connection.db.ownPlayerThought.onInsert((context, row) => incoming(context.event.id, () => { this.thought = row; }));
     connection.db.ownPlayerThought.onUpdate((context, _old, row) => incoming(context.event.id, () => { this.thought = row; }));
     connection.db.ownPlayerThought.onDelete((context) => incoming(context.event.id, () => { this.thought = null; }));
-    const setActivePlaceable = (row: WorldPlaceable): void => {
-      this.activePlaceable = row;
-      this.activeChest = isUnifiedChest(this.content.state.registry, row) ? compatibilityChest(row) : null;
-      if (!isUnifiedChest(this.content.state.registry, row)) this.openChestSlots.clear();
-    };
     const stashActive=(row:{connectionId:{toHexString:()=>string}})=>{
       this.hearthStashOpen=row.connectionId.toHexString()===connection.connectionId?.toHexString();
     };
@@ -1961,23 +1996,12 @@ export class OverworldConnection {
     connection.db.ownHearthStashSlots.onInsert((context,row)=>incoming(context.event.id,()=>this.hearthStashSlots.set(row.slot,row)));
     connection.db.ownHearthStashSlots.onUpdate((context,_old,row)=>incoming(context.event.id,()=>this.hearthStashSlots.set(row.slot,row)));
     connection.db.ownHearthStashSlots.onDelete((context,row)=>incoming(context.event.id,()=>this.hearthStashSlots.delete(row.slot)));
-    connection.db.ownActivePlaceable.onInsert((context, row) => incoming(context.event.id, () => setActivePlaceable(row)));
-    connection.db.ownActivePlaceable.onUpdate((context, _old, row) => incoming(context.event.id, () => setActivePlaceable(row)));
-    connection.db.ownActivePlaceable.onDelete((context) => incoming(context.event.id, () => {
-      this.activePlaceable = null; this.activeChest = null;
-      this.openPlaceableSlots.clear(); this.openChestSlots.clear();
-    }));
-    const setOpenPlaceableSlot = (row: WorldPlaceableSlot): void => {
-      this.openPlaceableSlots.set(row.slot, row);
-      if (this.activePlaceable !== null && isUnifiedChest(this.content.state.registry, this.activePlaceable)) {
-        this.openChestSlots.set(row.slot, compatibilityChestSlot(row));
-      }
-    };
-    connection.db.ownOpenPlaceableSlots.onInsert((context, row) => incoming(context.event.id, () => setOpenPlaceableSlot(row)));
-    connection.db.ownOpenPlaceableSlots.onUpdate((context, _old, row) => incoming(context.event.id, () => setOpenPlaceableSlot(row)));
-    connection.db.ownOpenPlaceableSlots.onDelete((context, row) => incoming(context.event.id, () => {
-      this.openPlaceableSlots.delete(row.slot); this.openChestSlots.delete(row.slot);
-    }));
+    connection.db.ownActivePlaceable.onInsert((context, row) => incoming(context.event.id, () => this.placeableSession.setActive(row)));
+    connection.db.ownActivePlaceable.onUpdate((context, _old, row) => incoming(context.event.id, () => this.placeableSession.setActive(row)));
+    connection.db.ownActivePlaceable.onDelete((context, row) => incoming(context.event.id, () => this.placeableSession.deleteActive(row)));
+    connection.db.ownOpenPlaceableSlots.onInsert((context, row) => incoming(context.event.id, () => this.placeableSession.setSlot(row)));
+    connection.db.ownOpenPlaceableSlots.onUpdate((context, _old, row) => incoming(context.event.id, () => this.placeableSession.setSlot(row)));
+    connection.db.ownOpenPlaceableSlots.onDelete((context, row) => incoming(context.event.id, () => this.placeableSession.deleteSlot(row)));
     connection.db.ownChatChannels.onInsert((context, row) => incoming(context.event.id, () => this.chatChannels.set(row.id, row)));
     connection.db.ownChatChannels.onUpdate((context, _old, row) => incoming(context.event.id, () => this.chatChannels.set(row.id, row)));
     connection.db.ownChatChannels.onDelete((context, row) => incoming(context.event.id, () => this.chatChannels.delete(row.id)));
@@ -2137,18 +2161,7 @@ export class OverworldConnection {
     this.hearthStashOpen=[...connection.db.ownActiveHearthStash.iter()].some(row=>row.connectionId.toHexString()===connection.connectionId?.toHexString());
     this.villageOrders.clear();for(const row of connection.db.ownVillageOrders.iter())this.villageOrders.set(row.id,row);
     this.hearthStashSlots.clear();for(const row of connection.db.ownHearthStashSlots.iter())this.hearthStashSlots.set(row.slot,row);
-    this.activePlaceable = [...connection.db.ownActivePlaceable.iter()][0] ?? null;
-    this.activeChest = this.activePlaceable !== null
-      && isUnifiedChest(this.content.state.registry, this.activePlaceable)
-      ? compatibilityChest(this.activePlaceable) : null;
-    this.openChestSlots.clear(); this.openPlaceableSlots.clear();
-    for (const row of connection.db.ownOpenPlaceableSlots.iter()) {
-      this.openPlaceableSlots.set(row.slot, row);
-      if (this.activePlaceable !== null
-        && isUnifiedChest(this.content.state.registry, this.activePlaceable)) {
-        this.openChestSlots.set(row.slot, compatibilityChestSlot(row));
-      }
-    }
+    this.placeableSession.hydrate([...connection.db.ownActivePlaceable.iter()][0] ?? null, connection.db.ownOpenPlaceableSlots.iter());
     for (const row of connection.db.ownChatChannels.iter()) this.chatChannels.set(row.id, row);
     for (const row of connection.db.visibleChatMessages.iter()) this.chatMessages.set(row.id, row);
     this.sessionChatNotices.clear();

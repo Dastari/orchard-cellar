@@ -53,6 +53,16 @@ export class UiInventoryController {
     for (const ref of refs) this.refusals.set(`${ref.container}:${ref.index}`, now);
     this.refresh();
   }
+  /** Visits every registered, shown slot whose refused-drop flash is playing at `now`, with its frame (the held stack
+   * paints the flash again above itself; owner decision 2026-09-28). Nothing is allocated while no flash plays. */
+  forEachRefusal(now: number, visit: (element: UiElement, ref: UiInventorySlotRef, frame: 1 | 2) => void): void {
+    if (this.refusals.size === 0) return;
+    for (const [element, ref] of this.slots) {
+      if (!element.visible) continue;
+      const frame = this.refusalFrame(ref, now);
+      if (frame !== 0) visit(element, ref, frame);
+    }
+  }
   /** The refused-drop flash frame at `now`: 1 (red wash and pushed-out red corners), 2 (red corners), or 0 (rest). */
   refusalFrame(ref: UiInventorySlotRef, now: number): 0 | 1 | 2 {
     if (this.refusals.size === 0) return 0;

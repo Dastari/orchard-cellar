@@ -97,6 +97,7 @@ import {
 
 import { compositeBasicLighting, LightingQualityState, readLightingQuality, LIGHTING_QUALITY_KEY, type LightingQuality } from '@orchard/engine/lighting-quality';
 import { resetSpriteLightMasks } from '@orchard/engine/light-occlusion';
+import { ClosingEntityWindows, entityWindowKey, escapeClosesSurface } from './escape-precedence.js';
 import { clientBackpackSlotCapacity, equippedBackpackCapacity } from './backpack-capacity.js';
 import { AUTHORITY_TICK_MS, AUTHORITY_HZ, MAIN_HAND_INVENTORY_SLOT, compileEquipmentLoadout, itemContainerContentResolver, EQUIPMENT_SLOT_OFFSET, ACTIVE_EQUIPMENT_SLOT_INDEXES, activeEquipmentSlotAccepts, HUNGER_MAX_CENTI, BASE_BACKPACK_CAPACITY, CROP_WATERING_TICKS, BOW_MAX_CHARGE_MS, BOW_MAX_PROJECTILE_FLIGHT_TICKS, BOW_MAX_TARGET_RANGE_PIXELS, BOW_MIN_TARGET_RANGE_PIXELS, CHEST_INTERACTION_REACH_FIXED, CAMPFIRE_INTERACTION_REACH_FIXED, FIXED_UNITS_PER_PIXEL, INPUT_REFRESH_STEPS, SIM_STEPS_PER_AUTHORITY_TICK, SIM_TICKS_PER_SECOND, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION, TILE_SIZE_FIXED, TICKS_PER_DAY, SKILL_TRACKS, TOPSIDE_SPACE_ID, authorityDayProgress, authorityTickAtDayProgress, calendarAtTick, canAdministerWorld, craftingStationWithinReach, runtimeCropDefinition, runtimeResourcePerception, runtimeNpcMount, runtimeNpcDefinition, runtimeObjectIrrigatesTile, runtimeObjectProtectsCropSeasons, cropGrowthAt, bowChargedRangePixels, bowChargeTracerFraction, bowChargeVigourCostCenti, bowProjectileArcPresentation, bowProjectileOrigin, bowProjectileRangePixels, bowProjectileTargetOrigin, bowShotForTarget, directionFromAim, directionUnitVector, encodedBowTargetAim, isWindDirectionMode, isWeatherMode, lunarIlluminationAtAuthorityTick, lunarPhaseAtAuthorityTick, generateSurvivalDecorations, generateSurvivalProceduralDecorations, survivalTreeKindAt, homesteadBiomeAt, homesteadPathTiles, homesteadPortalName, HOMESTEAD_GATE_TILE, HOMESTEAD_TENT_TILE, cellarOreKindAt, runtimeLandmarkCampfirePlans, ROGUE_RUN_ROOM_COUNT, hearthLobbyFurnitureObstacles, interiorFurnitureBlockingTiles, homesteadTentFootprint, homesteadMarkerPlacementTiles, homesteadBoundaryTiles, homesteadPlotBounds, homesteadPlayableTile, runtimeHomesteadBuildDefinition, homesteadBuildDefinitions, homesteadBuildFootprintTiles, instanceSpaceRowFor, isBreakableRockKind, isChoppableTreeKind, isMineableOreKind, miningHitsUntilYield, miningNodeRichnessLabel, mixedNodeStoneChancePercent, miningWorkPerHit, MINING_YIELD_WORK, FISHING_CAST_TICKS, projectileTraversalCollision, forwardSwingTargetInReach, survivalResourceInitialHealth, survivalResourceObstacle, survivalDecorationObstacle, treeGrowthStageName, isMountWithinReach, runtimeEffectDefinition, runtimeItemDefinition, runtimeItemSalePremium, runtimeRangedWeaponDefinition, runtimeToolDefinition, runtimeVigourDefinition, runtimeHomesteadUpgradeRank, coinPurseFromBronze, itemActionRejection, isPlayerAppearanceSelection, runtimePlayerAppearanceCatalog, isSkillTrack, runtimePlaceableDefinition, placeableObjectDefinition, questDefinitionFromContent, questObjectiveProgress, richSoilGrowthTicks, homesteadRoleAtLeast, isHomesteadMemberRole, estateVintageTier, runtimeCreatureDefinition, runtimeCreatureIsHuntable, runtimeResolveCreatureStats, nextWeatherMode, nextWindDirectionMode, weatherVisualState, collisionTileIsBlockedAtPlane, shiftAuthorityDay, simTickOfDayAtAuthorityTick, movePlayer, movePlayerAtSpeed, movePlayerAtSpeedPermille, modifiersForEffects, nearestTileTarget, normalizedBowAim, playerHitboxBounds, positionCollides, tileTargetIsBlocked, tileTargetWithinFixedReach, tileToolInteractionOrigin, playerInteractionOrigin, resourceToolReachFixed, resourceToolForwardOffsetFixed, toolUsesForwardSwing, resolveStatsWithProfile, runtimeCharacterCombatBalance, resolveSprintAbility, runtimeSprintAbilityDefinition, resolveModifierTarget, sprintVigourCostForSteps, type CollisionMap, type CollisionObstacle, type CraftingStation, type Direction, type MerchantCartLine, type PlayerState, type PlayerAppearanceSelection, type SpaceDefinition, type WeatherMode, type WindDirectionMode, type HomesteadUpgradeMechanic, type MiningNodeClass, type ProcessAdapter, type Modifier, type MapDocumentV3, rogueUpgradeDefinition, resolvedMapBiomeAt, survivalBiomeAt } from '@orchard/sim';
 import {
@@ -109,6 +110,7 @@ import { authoredSpacePortalPrompt } from './content/portal-interaction.js';
 import { readPlayerNameplates, writePlayerNameplates } from './player-ui-preferences.js';
 import { calendarTickForSnapshot, cropCalendarOffsetForSnapshot, snapshotTimingClocks } from './content/timing-clock.js';
 import { activeObjectFrameId, activeObjectFrameState, processJobFrameState, processJobMatchesFrame } from './content/frame-presentation.js';
+import { WorkbenchCraftingWindow } from './content/workbench-crafting-window.js';
 import {
   DEFAULT_UI_SCALE,
   DEFAULT_WORLD_ZOOM,
@@ -123,7 +125,7 @@ import {
 } from '@orchard/engine/display';
 import { createGameplayLoop } from './gameplay-loop.js';
 import { WorldUpdateOverlay } from './world-update-overlay.js';
-import { ConnectionRecoveryOverlay, WORLD_GAP_GRACE_MS, worldGapPresentation, type ConnectionRecoveryState } from './connection-recovery-overlay.js';
+import { ConnectionRecoveryOverlay, WORLD_GAP_GRACE_MS, worldGapPresentation, type ConnectionRecoveryState, type WorldGapPresentation } from './connection-recovery-overlay.js';
 import { installConnectionLifecycle } from './connection-lifecycle.js';
 import { ResourcePerceptionCache, identifiedOreAtWorldPoint } from './resource-perception.js';
 import { WorldSource, type WorldSourceCollision } from './world-source.js';
@@ -295,6 +297,8 @@ let hasRenderedWorldFrame = false;
 /** When the current not-ready gap began, and the recovery modal it shows (BUG-040). */
 let worldGapStartedAt: number | null = null;
 let presentedRecoveryState: ConnectionRecoveryState | null = null;
+/** What the last frame showed (debug seam for connection-gap acceptance, BUG-062). */
+let lastFramePresentation: 'playing' | WorldGapPresentation['kind'] | 'update-prompt' = 'initial-loading';
 const audio = new AudioBus(false);
 void audio.unlock().catch(() => undefined);
 
@@ -614,6 +618,8 @@ let nameplatesPreferenceIdentity: string | null = null;
 let onlinePlayersVisible = false;
 let rosterOpenedByHeldTab = false;
 let homesteadBuildMode = false;
+/** BUG-060: chest and station windows the player just closed, until the server confirms. */
+const closingEntityWindows = new ClosingEntityWindows();
 const unknownActionKinds = new Set<string>();
 const remoteBuffers = new Map<string, RemoteSnapshotBuffer>();
 const remoteDisplay = new Map<string, SampledRemote>();
@@ -664,6 +670,8 @@ const timingHoverIndex = new TimingHoverIndex();
 const growthTimingHoverIndex = new GrowthTimingHoverIndex();
 let hoveredInteractionTile: { readonly tileX: number; readonly tileY: number } | null = null;
 let animatedOpenChestId: bigint | null = null;
+/** Opens the crafting grid for a workbench's placeable session and closes the session with it (BUG-059). */
+const workbenchCrafting = new WorkbenchCraftingWindow();
 let chestAnimationStartedAtMs = 0;
 let closingChestId: bigint | null = null;
 let latestCameraX = 0;
@@ -867,8 +875,8 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
     network.fillCraftingRecipe(recipeId), 'RECIPE PATTERN LOADED', RECIPE_PLACE_FAILURES,
   ),
   closeCrafting: () => { void network.closeCrafting().catch(() => undefined); },
-  closeChest: () => { void network.closeChest().catch(() => undefined); },
-  closePlaceable: () => { void (latestSnapshot.hearthStashOpen?network.closeHearthStash():network.closePlaceable()).catch(() => undefined); },
+  closeChest: () => { closingEntityWindows.closedShown(performance.now()); void network.closeChest().catch(() => undefined); },
+  closePlaceable: () => { closingEntityWindows.closedShown(performance.now()); void (latestSnapshot.hearthStashOpen?network.closeHearthStash():network.closePlaceable()).catch(() => undefined); },
   frameAction: (actionId) => showResult(network.frameAction(actionId), null),
 }, (context, playerId, rect) => {
   const appearance = latestSnapshot.appearances.get(playerId) ?? undefined;
@@ -2329,7 +2337,10 @@ function update(): void {
     worldZoomTarget = Math.max(minimum, Math.min(MAX_WORLD_ZOOM, worldZoomTarget));
     worldZoom = Math.max(minimum, Math.min(MAX_WORLD_ZOOM, worldZoom));
   }
-  if (snapshot.activeChest !== null && overworldUi.openWindow !== 'chest') overworldUi.openWindow = 'chest';
+  // BUG-060: a chest or station window the player just closed stays closed until the server confirms the close.
+  const closingEntityKey = entityWindowKey(snapshot);
+  closingEntityWindows.observe(closingEntityKey, performance.now());
+  if (snapshot.activeChest !== null && overworldUi.openWindow !== 'chest' && !closingEntityWindows.suppresses(closingEntityKey)) overworldUi.openWindow = 'chest';
   if (snapshot.activeChest === null && overworldUi.openWindow === 'chest') overworldUi.openWindow = null;
   const activePlaceableFrameId = activeObjectFrameId(snapshot.content.registry, snapshot.activePlaceable);
   const activePlaceableFrame = activePlaceableFrameId === null
@@ -2339,17 +2350,23 @@ function update(): void {
   const activePlaceableTags = snapshot.activePlaceable === null
     ? [] : placeableObjectDefinition(snapshot.content.registry, snapshot.activePlaceable)
       ?.components.identity?.tags ?? [];
-  if (snapshot.hearthStashOpen && overworldUi.openWindow !== 'content') overworldUi.openWindow='content';
+  if (snapshot.hearthStashOpen && overworldUi.openWindow !== 'content' && !closingEntityWindows.suppresses(closingEntityKey)) overworldUi.openWindow='content';
   if (snapshot.activeChest === null && activeAuthoredEntityFrameId !== null
-    && overworldUi.openWindow !== 'content') overworldUi.openWindow = 'content';
-  if (activeAuthoredEntityFrameId === null && activePlaceableTags.includes('container.barrel') && overworldUi.openWindow !== 'barrel') overworldUi.openWindow = 'barrel';
-  if (activeAuthoredEntityFrameId === null && activePlaceableTags.includes('station.furnace') && overworldUi.openWindow !== 'furnace') overworldUi.openWindow = 'furnace';
-  if (activeAuthoredEntityFrameId === null && activePlaceableTags.includes('station.campfire') && overworldUi.openWindow !== 'cooking') overworldUi.openWindow = 'cooking';
-  if (activeAuthoredEntityFrameId === null && activePlaceableTags.includes('station.press') && overworldUi.openWindow !== 'press') overworldUi.openWindow = 'press';
-  if (activeAuthoredEntityFrameId === null && activePlaceableTags.includes('station.cellar') && overworldUi.openWindow !== 'fermentation') overworldUi.openWindow = 'fermentation';
+    && overworldUi.openWindow !== 'content' && !closingEntityWindows.suppresses(closingEntityKey)) overworldUi.openWindow = 'content';
+  if (activeAuthoredEntityFrameId === null && activePlaceableTags.includes('container.barrel') && overworldUi.openWindow !== 'barrel' && !closingEntityWindows.suppresses(closingEntityKey)) overworldUi.openWindow = 'barrel';
+  if (activeAuthoredEntityFrameId === null && activePlaceableTags.includes('station.furnace') && overworldUi.openWindow !== 'furnace' && !closingEntityWindows.suppresses(closingEntityKey)) overworldUi.openWindow = 'furnace';
+  if (activeAuthoredEntityFrameId === null && activePlaceableTags.includes('station.campfire') && overworldUi.openWindow !== 'cooking' && !closingEntityWindows.suppresses(closingEntityKey)) overworldUi.openWindow = 'cooking';
+  if (activeAuthoredEntityFrameId === null && activePlaceableTags.includes('station.press') && overworldUi.openWindow !== 'press' && !closingEntityWindows.suppresses(closingEntityKey)) overworldUi.openWindow = 'press';
+  if (activeAuthoredEntityFrameId === null && activePlaceableTags.includes('station.cellar') && overworldUi.openWindow !== 'fermentation' && !closingEntityWindows.suppresses(closingEntityKey)) overworldUi.openWindow = 'fermentation';
   if (!snapshot.hearthStashOpen && snapshot.activePlaceable === null && (overworldUi.openWindow === 'barrel' || overworldUi.openWindow === 'furnace'
     || overworldUi.openWindow === 'cooking' || overworldUi.openWindow === 'press'
     || overworldUi.openWindow === 'fermentation' || overworldUi.openWindow === 'content')) overworldUi.openWindow = null;
+  // A workbench's session opens the crafting grid (its frame is the crafting surface); closing the grid ends it.
+  if (workbenchCrafting.step(snapshot.content.registry, snapshot.activePlaceable, overworldUi.openWindow,
+    () => network.closePlaceable())) overworldUi.openWindow = 'crafting';
+  // BUG-060: the entity whose window is now on screen, for the close callbacks to record.
+  closingEntityWindows.showing(['chest', 'content', 'barrel', 'furnace', 'cooking', 'press', 'fermentation'].includes(overworldUi.openWindow ?? '')
+    ? closingEntityKey : null);
   if (optimisticSelectedSlot !== null && snapshot.survival?.selectedSlot === optimisticSelectedSlot) {
     optimisticSelectedSlot = null;
   }
@@ -4013,7 +4030,8 @@ worldInteractions.register('existing-world-entities', snapshot => {
     ...target,
     exclusive: riding && (target.kind === 'horse' || target.kind === 'boat'),
     prompt: interactionPrompt(target, snapshot),
-    activate: () => activateInteraction(target, snapshot),
+    // BUG-060: a fresh interact never waits for an old close (review of #252, finding 2).
+    activate: () => { closingEntityWindows.interacted(); activateInteraction(target, snapshot); },
     payload: target,
   }));
 });
@@ -4109,6 +4127,7 @@ function activateInteraction(target: EInteractionTarget, snapshot: OverworldView
       if(hearthFurnitureShapeForPlaceable(
         snapshot.content.registry, target.placeable,
       )?.seatPoseOffsetPixels!==undefined){showResult(network.sitHearthFurniture(target.placeable.id),null);return;}
+      workbenchCrafting.interacted(snapshot.content.registry, target.placeable);
       showResult(
         network.interactEntity('placeable', target.placeable.id, 'use'),
         target.presentation?.feedback ?? null,
@@ -4734,6 +4753,7 @@ function renderFrame(alpha = 1): void {
         WORLD_GAP_GRACE_MS, terrainWait,
       );
       presentedRecoveryState = gap.kind === 'recovery' ? gap.state : null;
+      lastFramePresentation = gap.kind;
       if (gap.kind === 'initial-loading') {
         drawInitialWorldLoading(renderer, {
           kitArt, apple: art.groundItems['apple'] ?? art.missingItem, cask: art.itemIcons['barrel'],
@@ -4756,6 +4776,7 @@ function renderFrame(alpha = 1): void {
   dismissLoadingScreen();
   worldGapStartedAt = null;
   presentedRecoveryState = null;
+  lastFramePresentation = 'playing';
   const localJumpState = snapshot.identityHex === null ? undefined : snapshot.playerJumps.get(snapshot.identityHex);
   const cameraJump = localAuthority === undefined ? null : horseJumpPose(
     localJumpState?.fromX,
@@ -5567,6 +5588,7 @@ function renderFrame(alpha = 1): void {
         statisticKind: row.statisticKind,
         subjectKind: row.subjectKind,
         value: row.value,
+        id: row.id, createdTick: row.createdTick, updatedTick: row.updatedTick,
       })),
     },
     quests,
@@ -6573,6 +6595,13 @@ window.addEventListener('keydown', (event) => {
       event.preventDefault();
       return;
     }
+    // BUG-060: Escape closes the topmost open surface first (blocking hosts took it above); the menu opens only when
+    // nothing is open.
+    const escapeSurface = escapeClosesSurface(event.code, event.repeat, {
+      chatOpen: chatOverlay.isOpen, buildMode: homesteadBuildMode, windowOpen: overworldUi.openWindow !== null,
+    });
+    if (escapeSurface === 'chat-input') { chatOverlay.dismiss(); syncRetainedText(); event.preventDefault(); return; }
+    if (escapeSurface === 'build-mode') { toggleHomesteadBuildMode(); event.preventDefault(); return; }
     if (overworldUi.handleKeyDown(event.code, event.repeat, { ctrl: event.ctrlKey })) {
       event.preventDefault();
       return;
@@ -7758,6 +7787,8 @@ Object.assign(window, {
       model: lightingModel,
     }),
     netcodeMetrics: () => network.metrics(),
+    connectionStatus: () => ({ recoveryState: network.recoveryState, gameplayReady: network.gameplayReady,
+      generation: network.sessionGeneration, presentation: lastFramePresentation, recoveryModal: presentedRecoveryState }),
     audioStatus: () => audio.getStatus(),
     predictedPosition: () => predicted === null ? null : { ...predicted.position },
     remoteBufferDepths: () => [...remoteBuffers.entries()].map(([identity, buffer]) => ({ identity, depth: buffer.depth })),

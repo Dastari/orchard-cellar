@@ -142,6 +142,36 @@ The routine entrypoint requires these existing inputs:
   It is usually unknown before the release, so the first run normally exits `77` and
   leaves status `deployed-chunk-heads-stale` (players are unaffected). Then follow
   "Publishing chunk heads (S5b)" in README. Turn it on only deliberately.
+- Client chunk runtime: see below.
+
+### Client chunk runtime in the routine lane
+
+The lane chooses the game client's chunk runtime (static world S5c) itself. It sets
+`VITE_CHUNK_RUNTIME_MODE` and `ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE` on the client
+build line only, so `vitest`, typecheck and the Studio build never see them. It refuses
+to start (exit `64`) if either raw variable is already in the environment, even empty.
+
+| Input | Meaning |
+|---|---|
+| `WORLD_RELEASE_CLIENT_CHUNK_RUNTIME` | `off`, `shadow` or `on`. |
+| `WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION` | For `on`: the committed `CHUNK_RUNTIME_ACTIVATION_RELEASE`. |
+| `WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK=1` | After activation: a deliberate `off` or `shadow` build. |
+
+- **Before activation** (`CHUNK_RUNTIME_ACTIVATION_RELEASE` is `null` in
+  `packages/client/src/chunk-shadow-build-gate.ts`), the default is `off`. `shadow` is
+  allowed. `on`, an activation id and the rollback flag are refused.
+- **After activation**, the mode must be given explicitly. Otherwise a later release
+  would silently deactivate the client.
+  - `on` must carry the committed id.
+  - `off` or `shadow` needs `WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK=1`, and is the client half
+    of a rollback. The server half is `setChunkAuthority('off')`.
+
+The plan is saved to `client-chunk-runtime.json` in the evidence. The staged build's
+`chunk-runtime-audit.json` is copied to `client-chunk-runtime-audit.json` and checked
+against the plan: its mode, its activation release, and that it is releasable. After the
+restart, the lane fetches the served `/chunk-runtime-audit.json`
+(`client-chunk-runtime-audit-served.json`), compares it byte for byte with the staged
+audit, and checks it again.
 
 Execute from `/home/toby/projects/orchard-cellar`; the routine script intentionally
 rejects another working directory. Do not switch an actively used checkout or

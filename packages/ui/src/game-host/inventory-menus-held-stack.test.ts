@@ -14,6 +14,8 @@ import type { UiElement } from '../kit/runtime/element.js';
 import type { UiRoot } from '../kit/runtime/root.js';
 import type { InventoryMenus } from './inventory-menus.js';
 import { uiTestArt, uiTestAsset } from '../kit/lab/testing/art.js';
+import { paintUiSelector } from '../kit/components/window.js';
+import type { UiKitArt } from '../kit/components/art.js';
 
 // Item slot S3: the host no longer paints the held stack or the spread corners; the kit does, over every inventory
 // window (wiki Roadmap/Item Slot Component).
@@ -241,5 +243,42 @@ describe('every kit drop verdict is the authority\'s click outcome (S3 review)',
         if (window !== 'chest') expect(refusals, itemKind).toBeGreaterThan(0);
       } finally { f.dispose(); }
     }
+  });
+});
+
+// Owner decision 2026-09-28 ("ship as shown in mock"): the refused-drop flash is drawn again ABOVE the held stack for
+// its 300ms, with the pointer arrow still on top. The oracle is the approval mock's own pipeline
+// (slot-evidence/flash/zz-flash-render.test.ts.txt, renders 03-MOCK-flash-above-held-centred-t000/t150): the window,
+// the held stack, the flash painter (render 02) over the refusing slot, then the pointer arrow.
+describe('the refused-drop flash above the held stack (owner decision 2026-09-28)', () => {
+  const mockFlash = (context: CanvasRenderingContext2D, art: UiKitArt, r: { x: number; y: number; width: number; height: number }, frame: 1 | 2) => {
+    if (frame === 1) { context.save(); context.fillStyle = 'rgba(169, 54, 62, 0.45)'; context.fillRect(r.x + 3, r.y + 3, r.width - 6, r.height - 6); context.restore(); }
+    paintUiSelector(context, art.skin.selector, 'deny', r, frame === 1 ? 1 : 0);
+  };
+  it.each([['centred', 0], ['centred', 150], ['corner', 0], ['corner', 150], ['centred', 320]] as const)('matches the approved mock with the pointer %s at t=%dms', async (where, t) => {
+    let clock = 10_000; vi.spyOn(performance, 'now').mockImplementation(() => clock);
+    const f = await fixture('inventory', { cursorStack: { itemKind: 'arrow', quantity: 12 } });
+    try {
+      const art = await uiTestArt();
+      const helm = f.slot('equipment', 1), r = helm.rect;
+      const point = where === 'centred' ? f.centre(helm) : { x: r.x + 25, y: r.y + 28 };
+      f.move(point);
+      clock -= 80; f.ui.systemCursorDown(point); f.root.pointer({ type: 'down', point, pointerId: 1, button: 0 });
+      clock += 80; f.root.pointer({ type: 'up', point, pointerId: 1, button: 0 });
+      const release = clock; clock = release + t;
+      const canvas = () => { const c = createCanvas(480, 270); return { c, x: c.getContext('2d') as unknown as CanvasRenderingContext2D }; };
+      const drawCursor = (context: CanvasRenderingContext2D) => (f.ui as unknown as { drawCursor(context: CanvasRenderingContext2D): void }).drawCursor(context);
+      const built = canvas(), oracle = canvas(), plain = canvas();
+      f.ui.draw(built.x, false); f.ui.drawCursorOverlay(built.x);
+      // The mock's pipeline: the window (with the slot's own flash), the held stack as shipped before this change (no
+      // flash of its own: drawn after the flash has ended), the flash painter above it, then the pointer arrow.
+      f.ui.draw(oracle.x, false); f.ui.draw(plain.x, false);
+      clock = release + 1_000; f.menus.drawHeldStack(oracle.x, point, 480, 270); f.menus.drawHeldStack(plain.x, point, 480, 270); clock = release + t;
+      if (t < 300) mockFlash(oracle.x, art, r, t < 150 ? 1 : 2);
+      drawCursor(oracle.x); drawCursor(plain.x);
+      expect(built.c.toBuffer('image/png').equals(oracle.c.toBuffer('image/png'))).toBe(true);
+      // While it plays, the flash shows above the held stack: without it the picture differs.
+      expect(built.c.toBuffer('image/png').equals(plain.c.toBuffer('image/png'))).toBe(t >= 300);
+    } finally { f.dispose(); }
   });
 });

@@ -2379,11 +2379,11 @@ export class OverworldUi {
     this.openWindowValue = nextWindow;
     this.syncActiveWindow();
     if (previousWindow !== nextWindow) {
-      if (nextWindow === 'skills') this.skillTree?.focus();
-      if (nextWindow === 'character') this.characterScreen?.focus();
-      if (nextWindow === 'statistics') this.statisticsScreen?.focus();
-      if (nextWindow === 'quests') this.questLog?.focus();
-      if (nextWindow === 'help') this.helpBook?.focus();
+      if (nextWindow === 'skills') this.contained('skills', () => this.skillTree?.focus());
+      if (nextWindow === 'character') this.contained('character', () => this.characterScreen?.focus());
+      if (nextWindow === 'statistics') this.contained('statistics', () => this.statisticsScreen?.focus());
+      if (nextWindow === 'quests') this.contained('quests', () => this.questLog?.focus());
+      if (nextWindow === 'help') this.contained('help', () => this.helpBook?.focus());
     }
   }
 
@@ -3429,12 +3429,13 @@ export class OverworldUi {
       ]) slot.visible = false;
     }
     this.applyContentFrameBindings();
-    this.syncRetainedInventory();
-    this.syncRetainedReading();
-    this.syncRetainedOverlays();
-    this.syncRetainedHud();
-    this.syncRetainedCharacter();
-    this.syncRetainedSystem();
+    // Each retained view syncs on its own: one broken view never stops the others (BUG-063).
+    this.contained('inventory', () => this.syncRetainedInventory());
+    this.contained('reading', () => this.syncRetainedReading());
+    this.contained('overlays', () => this.syncRetainedOverlays());
+    this.contained('hud', () => this.syncRetainedHud());
+    this.contained('character', () => this.syncRetainedCharacter());
+    this.contained('system', () => this.syncRetainedSystem());
     if (this.retainedReadingActive || this.retainedCharacterActive || this.retainedSystemActive) { this.windowNode.visible = false; this.closeNode.visible = false; }
     else this.closeNode.visible = true;
     if (this.retainedInventoryActive) {
@@ -3924,15 +3925,27 @@ export class OverworldUi {
     return hovered && hovered.itemKind !== 'empty' && hovered.quantity > 0 ? hovered : null;
   }
 
+  private readonly reportedViewErrors = new Set<string>();
+  /** Runs one retained view's sync or paint. A view that throws (a kit invariant such as a duplicate UI id) is
+   * reported once and skipped, so it can't abort the frame, the other windows or the HUD (BUG-063). */
+  private contained(view: string, run: () => void): void {
+    try { run(); } catch (error) {
+      const key = `${view}:${error instanceof Error ? error.message : String(error)}`;
+      if (this.reportedViewErrors.has(key)) return;
+      this.reportedViewErrors.add(key);
+      console.error(`Orchard UI: the ${view} view failed and was skipped`, error);
+    }
+  }
+
   private drawWindow(context: CanvasRenderingContext2D, window: OverworldWindow): void {
     if (window === 'delve-confirmation' && this.delveConfirmation) { this.delveConfirmation.draw(context); return; }
-    if (window === 'skills') { this.skillTree?.draw(context); return; }
-    if (window === 'character') { this.characterScreen?.draw(context); return; }
-    if (window === 'statistics') { this.statisticsScreen?.draw(context); return; }
-    if (this.retainedSystemActive) { this.systemMenus!.draw(context); return; }
-    if (window === 'quests') { this.questLog?.draw(context); return; }
+    if (window === 'skills') { this.contained('skills', () => this.skillTree?.draw(context)); return; }
+    if (window === 'character') { this.contained('character', () => this.characterScreen?.draw(context)); return; }
+    if (window === 'statistics') { this.contained('statistics', () => this.statisticsScreen?.draw(context)); return; }
+    if (this.retainedSystemActive) { this.contained('system', () => this.systemMenus!.draw(context)); return; }
+    if (window === 'quests') { this.contained('quests', () => this.questLog?.draw(context)); return; }
     if (this.retainedInventoryActive) {
-      this.retainedMenus!.draw(context);
+      this.contained('inventory', () => this.retainedMenus!.draw(context));
       // The existing single cursor/tooltip overlay uses the kit's real bounds.
       for (const slot of this.retainedSlots()) slot.visible = false;
       for (const { element } of this.retainedMenus!.root.entries()) {

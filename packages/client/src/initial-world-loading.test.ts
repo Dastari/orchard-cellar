@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 import { drawInitialWorldLoading } from './initial-world-loading.js';
-import { WORLD_GAP_GRACE_MS, worldGapPresentation } from './connection-recovery-overlay.js';
+import { RECONNECT_GRACE_MS, WORLD_GAP_GRACE_MS, worldGapPresentation } from './connection-recovery-overlay.js';
 import { drawOrchardBackdrop, type LoadedAsset } from '@orchard/ui';
 import type { UiKitArt } from '@orchard/ui/game';
 
@@ -28,7 +28,7 @@ function fixture() {
     overworldUi: { setPwaUpdateStatus: vi.fn(), blockingUpdatePromptVisible: false }, pwaClient: { status: {} },
     canvas: { classList: { add: vi.fn() } }, dismissLoadingScreen: vi.fn(),
     safeAreaInsets: { left: 0, top: 0, right:0, bottom:0 }, renderer: { compositeWorld: vi.fn() }, kitArt:{},
-    worldGapPresentation, worldGapStartedAt: null as number | null, presentedRecoveryState: null,
+    worldGapPresentation, worldGapStartedAt: null as number | null, presentedRecoveryState: null, lastFramePresentation: 'initial-loading',
     worldUpdateOverlay: { draw: vi.fn(), reset: vi.fn() },
     connectionRecoveryOverlay: { composite: vi.fn(), compositeResync: vi.fn() }, drawInitialWorldLoading: vi.fn(),
     art: { ui: {}, uiSkin: {}, groundItems: { apple: {} }, itemIcons: {}, missingItem: {} },
@@ -48,8 +48,14 @@ describe('initial world loading versus reconnection', () => {
     expect(f.deps.drawInitialWorldLoading).toHaveBeenCalledWith(f.deps.renderer, expect.any(Object), f.deps.loadingStage, 'test', f.deps.safeAreaInsets);
     expect(f.deps.connectionRecoveryOverlay.composite).not.toHaveBeenCalled();
   });
-  it('shows recovery after the player has entered the world', () => {
+  it('shows recovery after the player has entered the world, once a quick reconnect had its grace (BUG-062)', () => {
     const f = fixture(); f.deps.hasRenderedWorldFrame = true; f.deps.network.recoveryState = 'reconnecting';
+    // A gap that began just now keeps the last frame (a quick reconnect stays quiet)...
+    f.render();
+    expect(f.deps.renderer.compositeWorld).toHaveBeenCalledOnce();
+    expect(f.deps.connectionRecoveryOverlay.composite).not.toHaveBeenCalled();
+    // ...and one older than the grace shows the RECONNECTING modal.
+    f.deps.worldGapStartedAt = performance.now() - RECONNECT_GRACE_MS;
     f.render();
     expect(f.deps.connectionRecoveryOverlay.composite).toHaveBeenCalledWith(f.deps.renderer, expect.any(Object), 'reconnecting', true);
     expect(f.deps.drawInitialWorldLoading).not.toHaveBeenCalled();

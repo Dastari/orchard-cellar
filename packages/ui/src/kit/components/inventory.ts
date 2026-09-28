@@ -252,6 +252,11 @@ function verdictStack(stack: ItemStack | null, reuse: UiVerdictStack | null | un
 const slotDropTargets = new WeakMap<UiElement, () => 'accept' | 'refuse' | null>();
 /** A slot's drop verdict for the held stack (`UiSlotView.dropTarget`) without building the whole view. */
 export function uiSlotDropTarget(element: UiElement): 'accept' | 'refuse' | null { return slotDropTargets.get(element)?.() ?? null; }
+const slotAdopters = new WeakMap<UiElement, (replacement: UiElement) => void>();
+/** A host that rebuilds a slot's element from its hooks (to guard or wrap its input) hands the slot over to the new,
+ * live element: uiSetSlotState, uiSlotView and uiSlotDropTarget then apply to it, including input blocking. A no-op
+ * for any element not made by uiSlot. */
+export function uiAdoptSlot(original: UiElement, replacement: UiElement): void { slotAdopters.get(original)?.(replacement); }
 const slotViews = new WeakMap<UiElement, () => UiSlotView>();
 const slotStates = new WeakMap<UiElement, (state: UiSlotState | undefined) => void>();
 /** Changes a slot's state. Enabling or blocking input applies at once (setDisabled), so hit-testing is right even
@@ -284,6 +289,8 @@ export function uiSlot(options: UiSlotOptions): UiElement {
   const dropTarget = (): 'accept' | 'refuse' | null => {
     const cursor = carried();
     if (!cursor || !options.controller || !options.binding) return null;
+    // A disabled or locked slot takes nothing (S4).
+    if (blocked()) return 'refuse';
     const policy = options.rules === undefined ? undefined : uiSlotArtPolicy(slotArt), own = options.controller.model.stack(options.binding);
     const revision = options.controller.rulesRevision;
     if (verdict && verdict.revision === revision && verdict.policy === policy && sameVerdictStack(verdict.held, cursor) && sameVerdictStack(verdict.own, own)) return verdict.value;
@@ -292,7 +299,7 @@ export function uiSlot(options: UiSlotOptions): UiElement {
     return verdict.value;
   };
   const slot = new UiElement({ id: options.id, kind: 'slot', label: options.label ?? (options.binding ? `${options.binding.container}/${options.binding.index}` : 'Slot'),
-    focusable: Boolean(options.controller || options.onPress), disabled: blocked(), pointerMode: 'capture', props: { ...(options.tone ? { tone: options.tone } : {}), binding: options.binding, selected: options.selected ?? current?.selected ?? false },
+    focusable: Boolean(options.controller || options.onPress), disabled: blocked(), pointerMode: 'capture', props: { ...(options.tone ? { tone: options.tone } : {}), binding: options.binding, selected: options.selected ?? current?.selected ?? false, hoverWhenDisabled: current?.locked !== undefined },
     style: { width: uiFixed(28), height: uiFixed(31), display: 'stack', padding: 8, shrink: 0, ...options.layout }, children: options.icon ? [uiIcon(options.icon).setStyle({ width: 'grow', height: 'grow' })] : [],
     onPointer(event, element) {
       if (options.controller && options.binding) return options.controller.pointer(event, options.binding);
@@ -339,21 +346,27 @@ export function uiSlot(options: UiSlotOptions): UiElement {
       context.restore();
     },
   });
-  slotStates.set(slot, (next) => {
-    const wasBlocked = blocked(); current = next;
+  // The element the state applies to: the slot itself, or the live element that replaced it (uiAdoptSlot).
+  let live: UiElement = slot;
+  const setState = (next: UiSlotState | undefined) => {
+    const wasBlocked = blocked(); current = next; verdict = undefined;
+    // A locked slot is hovered although it takes no input, so its red corners (render 01 C) and reason are reachable.
+    if (live.props['hoverWhenDisabled'] !== (next?.locked !== undefined)) live.setProps({ hoverWhenDisabled: next?.locked !== undefined }, false);
     // Input blocking follows the state as it changes, not when the slot is next painted.
-    if (blocked() !== wasBlocked) slot.setDisabled(blocked()); else slot.invalidateRoot?.(false);
-  });
-  slotDropTargets.set(slot, dropTarget);
-  slotViews.set(slot, () => {
+    if (blocked() !== wasBlocked) live.setDisabled(blocked()); else live.invalidateRoot?.(false);
+  };
+  const view = () => {
     const cooldown = options.cooldown?.() ?? null;
     return Object.freeze({
-      variant, enabled: !slot.disabled, locked: current?.locked ?? null,
-      selected: Boolean(slot.props['selected']) || current?.selected === true, pending: current?.pending === true,
+      variant, enabled: !live.disabled, locked: current?.locked ?? null,
+      selected: Boolean(live.props['selected']) || current?.selected === true, pending: current?.pending === true,
       cooldown: cooldown === null ? null : { ...cooldown, fraction: Math.min(1, Math.max(0, cooldown.fraction)) },
       placeholder: options.placeholder ?? null, rules: options.rules ?? null, drag: options.drag ?? null, dropTarget: dropTarget(),
     });
-  });
+  };
+  const register = (element: UiElement) => { slotStates.set(element, setState); slotDropTargets.set(element, dropTarget); slotViews.set(element, view); };
+  register(slot);
+  slotAdopters.set(slot, replacement => { live = replacement; register(replacement); });
   if (options.controller && options.binding) unregister = options.controller.register(slot, options.binding); return slot;
 }
 export interface UiHeldStackOptions {
@@ -375,11 +388,20 @@ export interface UiHeldStackOptions {
 export function uiHeldStack(options: UiHeldStackOptions): UiElement {
   const slotArt = options.art ?? uiSlotArt({ ...(options.artwork ? { artwork: options.artwork } : {}), ...(options.iconAnimation ? { iconAnimation: options.iconAnimation } : {}), ...(options.contentRegistry ? { contentRegistry: options.contentRegistry } : {}) });
   let observed: UiPoint | null = null, body: UiSlotBody | undefined;
+  // One flash painter per held stack, not per frame: nothing is allocated while a stack is held and no flash plays.
+  const flashTarget: { context: CanvasRenderingContext2D | null; art: UiKitArt | null } = { context: null, art: null };
+  const paintFlash = (slot: UiElement, _ref: UiInventorySlotRef, flashFrame: 1 | 2) => {
+    const context = flashTarget.context, art = flashTarget.art; if (!context || !art) return;
+    const clip = uiSlotScrollClip(slot);
+    context.save();
+    if (clip) { context.beginPath(); context.rect(clip.x, clip.y, clip.width, clip.height); context.clip(); }
+    paintUiSlotRefusedFlash(context, art, slot.rect, flashFrame); context.restore();
+  };
   const unsubscribe = options.controller.subscribe(() => held.invalidateRoot?.(false));
   const held: UiElement = new UiElement({ id: options.id, kind: 'held-stack', label: 'Held stack', disabled: true,
     style: { position: 'fixed', width: 'grow', height: 'grow', zLayer: 'cursor' },
     onPointerObserved(event) { observed = event.point; },
-    paint(_element, { context, art }) {
+    paint(_element, { context, art, now }) {
       const stack = options.controller.model.displayedCursor(), point = options.point?.() ?? observed;
       if (!art || art.missingArt || !stack || !point) return;
       const r = uiHeldStackRect(point);
@@ -390,10 +412,23 @@ export function uiHeldStack(options: UiHeldStackOptions): UiElement {
         const entry = art.skin.icon['icon_catalog.catalog.0'], frame = entry && selectAtlasFrame(entry.asset.metadata, 'catalog', REFUSED_BADGE);
         if (entry && frame) context.drawImage(entry.asset.image, frame.x, frame.y, frame.width, frame.height, r.x - 3, r.y - 3, 12, 12);
       }
+      // The refused-drop flash is drawn again ABOVE the held stack for its 300ms (owner decision 2026-09-28, "ship as
+      // shown in mock"), so the stack released over the refusing slot doesn't hide it. The pointer arrow stays on top:
+      // the host composites it after this layer. Each flash keeps to its slot's scroll area.
+      flashTarget.context = context; flashTarget.art = art;
+      options.controller.forEachRefusal(now, paintFlash);
     },
     onDispose() { unsubscribe(); },
   });
   return held;
+}
+/** The clip of a slot's nearest scrolling or clipping ancestor, or null when nothing clips it but the viewport. */
+function uiSlotScrollClip(slot: UiElement): UiRect | null {
+  for (let node = slot.parent; node; node = node.parent) {
+    const overflow = node.style.overflow;
+    if (overflow !== undefined) return node.clip;
+  }
+  return null;
 }
 /** Whether the controller's slot under a point refuses the held stack (the slot's own drop verdict). */
 function uiHeldStackRefusedAt(controller: UiInventoryController, point: UiPoint): boolean {

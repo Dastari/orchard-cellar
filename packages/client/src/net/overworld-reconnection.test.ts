@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Identity } from 'spacetimedb';
 import { bootstrapContentRows, contentDefinitionRowsHash, TILE_SIZE_FIXED, TOPSIDE_SPACE_ID } from '@orchard/sim';
-import { OverworldConnection } from './overworld-connection.js';
+import { HEARTBEAT_INTERVAL_MS, HIDDEN_HEARTBEAT_LIMIT_MS, OverworldConnection } from './overworld-connection.js';
 import { LatencyInjector } from './netcode.js';
 import { clientErrorReporter } from '../client-error-reporter.js';
 import { CLIENT_CONTENT_ENGINE_VERSION } from '../content/live-content.js';
@@ -176,6 +176,84 @@ describe('authenticated OverworldConnection recovery', () => {
     second.subscriptions[2]?.error();
     expect(network.gameplayReady).toBe(false);
     expect(network.view().error).toBe('self_subscription_failed');
+  });
+
+  it('BUG-062: a hidden tab keeps its lease, a lapsed lease never blanks the own player, and return is instant', async () => {
+    const network = create(); await flush();
+    const connection = connections[0]!;
+    await hydrate(connection);
+    connection.subscriptions[4]?.applied(); await flush();
+    expect(network.gameplayReady).toBe(true);
+    const own = () => network.view().players.get(identity.toHexString());
+    expect(own()).toBeDefined();
+    const heartbeat = connection.reducers.heartbeat;
+    heartbeat.mockClear();
+    // Hidden (alt-tab): heartbeats continue as inactive, so the server's 30 s lease does not lapse
+    // while the page can run (throttled timers still fire; before the fix they returned early).
+    vi.stubGlobal('document', { hidden: true }); network.pause();
+    await vi.advanceTimersByTimeAsync(HEARTBEAT_INTERVAL_MS * 3 + 10);
+    expect(heartbeat.mock.calls.length).toBeGreaterThanOrEqual(3);
+    expect((heartbeat.mock.calls as unknown as [{ active: boolean }][]).every(([args]) => args.active === false)).toBe(true);
+    // Frozen past the lease: the server marks the player offline and the own public row leaves the
+    // online-profile subscription. The own player stays in the world (it blanked it for up to 10 s).
+    connection.table('playerPublic').deleted.forEach(callback => callback({ event: { id: 'lease-lapsed' } }, { identity, online: false }));
+    await flush();
+    expect(own()).toBeDefined();
+    // Back: the lease is renewed at once, the sign-in refreshed ahead of any reconnect, and no reconnect happens.
+    heartbeat.mockClear();
+    const ensureCalls = mocked.ensure.mock.calls.length;
+    vi.stubGlobal('document', { hidden: false }); network.resume();
+    await flush();
+    expect(heartbeat).toHaveBeenCalledTimes(1);
+    expect(mocked.ensure.mock.calls.length).toBe(ensureCalls + 1);
+    expect(network.gameplayReady).toBe(true);
+    expect(connections).toHaveLength(1);
+    expect(connection.disconnect).not.toHaveBeenCalled();
+  });
+
+  it('#250 review: a long hide stops heartbeating after the limit, so the lease lapses exactly once, and resumes cleanly', async () => {
+    const network = create(); await flush();
+    const connection = connections[0]!;
+    await hydrate(connection);
+    connection.subscriptions[4]?.applied(); await flush();
+    expect(network.gameplayReady).toBe(true);
+    const heartbeat = connection.reducers.heartbeat;
+    heartbeat.mockClear();
+    const sentAt: number[] = [];
+    heartbeat.mockImplementation(async () => { sentAt.push(Date.now()); });
+    const hiddenAt = Date.now();
+    vi.stubGlobal('document', { hidden: true }); network.pause();
+    // Ten minutes hidden. The fake timers fire every 10 s, more often than a throttled tab would,
+    // which is the harder case: the limit, not throttling, must stop the heartbeats.
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    expect(sentAt.length).toBeGreaterThan(0);
+    expect(Math.max(...sentAt) - hiddenAt).toBeLessThanOrEqual(HIDDEN_HEARTBEAT_LIMIT_MS);
+    // The server's view (30 s lease): online, then one lapse, and nothing more until the return.
+    const LEASE_MS = 30_000;
+    const lapses = (times: readonly number[], until: number) => {
+      let count = 0, last = hiddenAt;
+      for (const at of [...times, until]) { if (at - last > LEASE_MS) count += 1; last = at; }
+      return count;
+    };
+    const returnedAt = Date.now();
+    expect(lapses(sentAt, returnedAt)).toBe(1);
+    // Back: one heartbeat at once renews the lease; heartbeats continue on the normal cadence.
+    vi.stubGlobal('document', { hidden: false }); network.resume();
+    await flush();
+    expect(sentAt.filter(at => at >= returnedAt)).toHaveLength(1);
+    // The live socket's world clock keeps ticking after the return (the watchdog's traffic).
+    const tick = (n: number) => connection.table('worldClock').updated.forEach(callback =>
+      callback({ event: { id: `tick-${n}` } }, { id: 0, authorityTick: 100n }, { id: 0, authorityTick: 100n + BigInt(n) }));
+    for (let n = 1; n <= 5; n += 1) { tick(n); await vi.advanceTimersByTimeAsync(HEARTBEAT_INTERVAL_MS / 2 + 5); }
+    expect(sentAt.filter(at => at >= returnedAt).length).toBeGreaterThanOrEqual(3);
+    expect(lapses(sentAt, Date.now())).toBe(1);
+    // A second, short hide keeps heartbeating (the limit restarts).
+    const secondHide = Date.now();
+    vi.stubGlobal('document', { hidden: true }); network.pause();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(sentAt.filter(at => at > secondHide).length).toBeGreaterThanOrEqual(5);
+    expect(connections).toHaveLength(1);
+    expect(connection.disconnect).not.toHaveBeenCalled();
   });
 
   it('waits for persisted cellar excavation before enabling movement after a rejoin', async () => {

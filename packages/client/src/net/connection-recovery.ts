@@ -10,6 +10,11 @@ export interface ConnectionRecoveryDependencies {
   readonly now?: () => number;
 }
 
+/** How long a connection back from a hidden or frozen tab may stay silent before the
+ * watchdog treats it as stalled (BUG-062). The world clock ticks at 20 Hz, so a live socket
+ * shows traffic within a few frames once the page runs again. */
+export const RESUME_PROBE_MS = 3_000;
+
 /** One connection generation owns all callbacks. Retries rebuild subscriptions;
  * they never replay reducer calls or fall back to a different account. */
 export class ConnectionRecovery {
@@ -24,6 +29,8 @@ export class ConnectionRecovery {
   private terminal = false;
   private everLost = false;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
+  /** After a resume from hidden or frozen, the watchdog waits until then for traffic (BUG-062). */
+  private resumeProbeUntil = 0;
   private readonly now: () => number;
 
   constructor(private readonly dependencies: ConnectionRecoveryDependencies) {
@@ -40,7 +47,9 @@ export class ConnectionRecovery {
     return !this.stopped && generation === this.generationValue;
   }
   observedTraffic(generation: number): void {
-    if (this.isCurrent(generation)) this.lastTrafficAt = this.now();
+    if (!this.isCurrent(generation)) return;
+    this.lastTrafficAt = this.now();
+    this.resumeProbeUntil = 0;
   }
   ready(generation: number): void {
     if (!this.isCurrent(generation)) return;
@@ -73,6 +82,11 @@ export class ConnectionRecovery {
       return;
     }
     if (!this.dependencies.visible()) return;
+    // Time spent hidden or frozen is not silence on the connection (BUG-062): the page could not
+    // run, and the world's updates queued meanwhile arrive just after this. So a hydrated
+    // connection gets RESUME_PROBE_MS to show traffic before the watchdog may fail it. A socket
+    // that died meanwhile still fails at once through socketClosed.
+    if (this.paused && this.hydrated) this.resumeProbeUntil = this.now() + RESUME_PROBE_MS;
     this.paused = false;
     this.check();
   }
@@ -87,8 +101,9 @@ export class ConnectionRecovery {
   check(): void {
     if (this.stopped || this.terminal || !this.allowed()) return;
     if (this.pending || this.hydrated) {
+      const probing = this.hydrated && this.now() < this.resumeProbeUntil;
       if (this.dependencies.socketClosed()
-        || this.now() - this.lastTrafficAt > 15_000
+        || (!probing && this.now() - this.lastTrafficAt > 15_000)
         || (this.pending && this.now() - this.startedAt > 30_000)) {
         this.fail(this.generationValue, 'connection_stalled');
       }
