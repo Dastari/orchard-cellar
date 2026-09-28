@@ -216,6 +216,19 @@ describe('production retained trade host', () => {
     expect(h.handlers.offerItem).toHaveBeenCalledExactlyOnceWith('trade', BACKPACK_SLOT_OFFSET + 15, 0, 2); h.ui.dispose();
   });
 
+  it('offers exactly the cells the capacity rule opens: a 12-cell bag, a bag below the base 8, never past the backpack (BUG-056)', () => {
+    const cells = [7, 11, 12, 19].map(cell => ({ slot: BACKPACK_SLOT_OFFSET + cell, itemKind: 'wood', quantity: 1 }));
+    const offerable = (backpackSlotCapacity: number) => {
+      const h = setup({ ...model(), inventorySlots: [...cells, { slot: EQUIPMENT_SLOT_OFFSET, itemKind: 'wood', quantity: 1 }], backpackSlotCapacity });
+      const ids = new Set(h.ui.root.entries().map(entry => entry.element.id)); h.ui.dispose();
+      return [...cells.map(row => row.slot), EQUIPMENT_SLOT_OFFSET].filter(slot => ids.has(`trade.inventory.slot.${slot}`)).map(slot => slot - BACKPACK_SLOT_OFFSET);
+    };
+    expect(offerable(12)).toEqual([7, 11]);
+    expect(offerable(4)).toEqual([7]);
+    expect(offerable(20)).toEqual([7, 11, 12, 19]);
+    expect(offerable(25)).toEqual([7, 11, 12, 19]);
+  });
+
   it.each([[323, 240], [480, 270], [800, 600]])('keeps modal and footer controls within %sx%s logical bounds', (width, height) => {
     const h = setup(); h.ui.resize(width, height); h.ui.root.arrange();
     // Short screens scroll the window body; each control must come fully into view when focused.

@@ -1,5 +1,5 @@
 import { coinPurseFromBronze, BRONZE_PER_GOLD, BRONZE_PER_SILVER } from '@orchard/sim/commerce';
-import { BACKPACK_SLOT_OFFSET, BACKPACK_SLOT_COUNT, HOTBAR_SLOT_COUNT } from '@orchard/sim/inventory-layout';
+import { BACKPACK_SLOT_OFFSET, HOTBAR_SLOT_COUNT, accessibleBackpackCapacity } from '@orchard/sim/inventory-layout';
 import { BASE_BACKPACK_CAPACITY } from '@orchard/sim/item-containers';
 import { tradeItemDisplayName, tradeItemIsOfferable, type TradeUiModel, type TradeUiCallbacks } from '../../trade-model.js';
 import type { LoadedAsset } from '../../assets.js';
@@ -41,7 +41,8 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
   const offer = (owner: string, slot: number) => model.offers.find(entry => entry.tradeId === model.session.id
     && entry.owner.toHexString() === owner && entry.slot === slot);
   const inventory = () => {
-    const capacity = Math.max(0, Math.min(BACKPACK_SLOT_COUNT, Math.floor(model.backpackSlotCapacity ?? BASE_BACKPACK_CAPACITY)));
+    // The world's one capacity rule (BUG-056), not a second clamp of its own.
+    const capacity = accessibleBackpackCapacity(Math.floor(model.backpackSlotCapacity ?? BASE_BACKPACK_CAPACITY));
     return model.inventorySlots.filter(row => row.slot >= 0 && (row.slot < HOTBAR_SLOT_COUNT
       || row.slot >= BACKPACK_SLOT_OFFSET && row.slot < BACKPACK_SLOT_OFFSET + capacity)).toSorted((a, b) => a.slot - b.slot);
   };
