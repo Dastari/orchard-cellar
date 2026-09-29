@@ -1,3 +1,4 @@
+import { artSlot, defineLazySlot } from './lazy-art.js';
 import { loadGeneratedAsset, loadGeneratedAssetRegistry, type LoadedAsset } from '@orchard/ui';
 export const HEARTH_RESOURCE_ASSET_NAMES = {
   rock_basalt: 'resource_cf_hearth_basalt', ore_cinder: 'resource_cf_hearth_cinder',
@@ -15,6 +16,19 @@ export async function loadHearthResourceArt(): Promise<Readonly<Record<string, L
       return [kind, kind === 'tree_ashwood_stump' ? { ...asset, anchor: [8,13] as const } : asset] as const;
     }));
   return Object.fromEntries(entries);
+}
+
+/** Static world S6: the hearth resource sprites as lazy assets, loaded when first drawn (the
+ * ashwood stump keeps its authored anchor). */
+export function lazyHearthResourceArt(): Readonly<Record<string, LoadedAsset>> {
+  const record: Record<string, LoadedAsset> = {};
+  for (const [kind, name] of Object.entries(HEARTH_RESOURCE_ASSET_NAMES)) {
+    const slot = kind === 'tree_ashwood_stump'
+      ? artSlot(name, 'summer', { key: 'ashwood-stump-anchor', transform: asset => ({ ...asset, anchor: [8, 13] as const }) })
+      : artSlot(name);
+    defineLazySlot(record, kind, slot);
+  }
+  return Object.freeze(record);
 }
 
 /** Shared by visible rendering and optical geometry; a missing cohort stays conspicuous. */

@@ -8,6 +8,8 @@ import { runtimeActorCollision, runtimeTraversalPolicy, traversalSolidGeometry }
 
 import { timingLabels } from '@orchard/ui';
 import { TOUCH_ACTION_KEY_CODES } from '@orchard/ui';
+import type { OverworldUiItemArt } from '@orchard/ui';
+import { lazyArtSlot, lazyArtStandInReads, warmLazyArt } from '@orchard/engine/lazy-art';
 import { GrowthTimingHoverIndex, projectResourceTiming } from './content/growth-timing.js';
 import { projectTiming, rainForWeatherMode } from '@orchard/sim';
 import { TimingHoverIndex } from './content/timing-hover.js';
@@ -53,7 +55,7 @@ import { drawAuthoredOverworldObject } from '@orchard/engine/overworld-art';
 import {activeHearthLobbyDefinition,cellarLadderApproachClear,cellarLadderPortal,
   hearthLobbyPortalApproachClear,
   runtimeHearthLobbyDefinition,runtimeSpaceDefinition} from '@orchard/sim';
-import {loadAuthoredNpcArt} from '@orchard/engine/authored-npc-art';
+import {bindAuthoredNpcArt} from '@orchard/engine/authored-npc-art';
 import {runtimeHearthFerryNetwork,type HearthFerryDock} from '@orchard/sim';
 import { OutdoorRewardsModel } from './outdoor-rewards-model.js';
 import {outdoorEnemyPresentation,outdoorWardenDisplayName} from './outdoor-enemy-presentation.js';
@@ -274,6 +276,9 @@ setLoadingScreenStage({
   title: 'PACKING YOUR WAGON', detail: 'LOADING ART, TILESETS, AND UI', progress: 38,
 });
 const [art, kitArt] = await Promise.all([loadOverworldArt(), loadUiKitArt()]);
+// Static world S6: art loads by need, but the loading screen's emblem and cask draw from its first frame.
+await Promise.all([lazyArtSlot(art.groundItems, 'apple')?.load(), lazyArtSlot(art.itemIcons, 'barrel')?.load()]
+  .map(pending => pending?.catch(() => undefined)));
 // Contained UI failures (a screen that throws in production, BUG-066) reach the audited, rate-limited error telemetry.
 setUiFailureReporter((_scope, error) => { clientErrorReporter.capture('error', error); });
 const retainedUi = new GameUiRuntime();
@@ -695,11 +700,40 @@ let minimapTerrainCache: {
   readonly key: string;
   readonly canvas: HTMLCanvasElement;
 } | null = null;
-const itemArt = {
-  missing: art.missingItem,
-  avatar: art.avatar,
-  ...art.itemIcons,
-};
+/** Item art by kind for the UI (static world S6: a view of the lazy icons, so each loads when a
+ * slot first draws it, and live content changes show through). */
+const itemArt = new Proxy({} as OverworldUiItemArt, {
+  get: (_target, key) => key === 'missing' ? art.missingItem : key === 'avatar' ? art.avatar
+    : typeof key === 'string' ? art.itemIcons[key] : undefined,
+  has: (_target, key) => key === 'missing' || key === 'avatar' || key in art.itemIcons,
+});
+
+/** First-arrival art settle (see settleWorldArt). */
+const WORLD_ART_SETTLE_TIMEOUT_MS = 8_000;
+let worldArtSettled = false;
+let worldArtWaitStartedAt: number | null = null;
+let warmedLocalArtKey = '';
+let toolArtWarmed = false;
+/**
+ * Static world S6: art loads by need. Start the local player's outfit and carried items as soon
+ * as they are known (they load behind the loading screen), and once the player is in the world,
+ * the tool and held-light sheets they may use next, in idle time.
+ */
+function warmLocalArt(snapshot: OverworldView): void {
+  const appearance = ownAppearanceSelection(snapshot) ?? DEFAULT_PLAYER_APPEARANCE;
+  const key = `${appearance.hairKind}:${appearance.shirtKind}:${appearance.pantsKind}:${appearance.shoesKind}:${snapshot.playerCells.revision}`;
+  if (key !== warmedLocalArtKey) {
+    warmedLocalArtKey = key;
+    warmLazyArt([art.playerRig.hair[appearance.hairKind], art.playerRig.shirts[appearance.shirtKind],
+      art.playerRig.pants[appearance.pantsKind], art.playerRig.shoes[appearance.shoesKind]]);
+    for (const cell of snapshot.playerCells.carried()) if (cell.itemKind !== '') void art.itemIcons[cell.itemKind];
+  }
+  if (!toolArtWarmed && hasRenderedWorldFrame) {
+    toolArtWarmed = true;
+    const warmTools = () => warmLazyArt([art.actionAssets, art.heldLights]);
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(warmTools, { timeout: 5_000 }); else setTimeout(warmTools, 1_000);
+  }
+}
 
 function ownAppearanceSelection(snapshot: OverworldView): PlayerAppearanceSelection | null {
   const catalog = runtimePlayerAppearanceCatalog(snapshot.content.registry);
@@ -2250,10 +2284,11 @@ function update(): void {
   synchronizeContentArt();
   if (npcArtContentHash !== latestSnapshot.content.registry.contentHash) {
     npcArtContentHash = latestSnapshot.content.registry.contentHash;
-    void loadAuthoredNpcArt(art, latestSnapshot.content.registry.npcs.values())
-      .catch(error => console.warn('Authored NPC artwork could not be loaded', error));
+    // Static world S6: each NPC's sprite loads when it is first drawn.
+    bindAuthoredNpcArt(art, latestSnapshot.content.registry.npcs.values());
   }
   const snapshot = latestSnapshot;
+  warmLocalArt(snapshot);
   if (!worldClientReady()) {
     clearConnectionInput();
     predicted = null;
@@ -4783,6 +4818,7 @@ function renderFrame(alpha = 1): void {
   worldGapStartedAt = null;
   presentedRecoveryState = null;
   lastFramePresentation = 'playing';
+  const standInsBeforeFrame = lazyArtStandInReads();
   const localJumpState = snapshot.identityHex === null ? undefined : snapshot.playerJumps.get(snapshot.identityHex);
   const cameraJump = localAuthority === undefined ? null : horseJumpPose(
     localJumpState?.fromX,
@@ -6228,10 +6264,28 @@ function renderFrame(alpha = 1): void {
     uiContext.restore();
   }
   renderer.endUi();
+  settleWorldArt(standInsBeforeFrame, performance.now());
   renderMetrics.recordStage('uiDraw', performance.now() - uiDrawStartedAt);
   const renderSubmittedAt = performance.now();
   renderMetrics.record(renderSubmittedAt - renderStarted, renderItems);
   renderMetrics.recordRenderSubmit(renderSubmittedAt);
+}
+
+/** Static world S6 (art by need): the first world frames can draw lazy art that is still loading
+ * (terrain, trees, the player's outfit), which reads as an unpainted island. The loading screen
+ * stays over the world until one frame draws no stand-in, for at most WORLD_ART_SETTLE_TIMEOUT_MS,
+ * and input waits with it (worldClientReady). Only the first arrival waits: later pop-in is brief. */
+function settleWorldArt(standInsBeforeFrame: number, now: number): void {
+  if (worldArtSettled) return;
+  worldArtWaitStartedAt ??= now;
+  if (lazyArtStandInReads() === standInsBeforeFrame || now - worldArtWaitStartedAt >= WORLD_ART_SETTLE_TIMEOUT_MS) {
+    worldArtSettled = true;
+    return;
+  }
+  drawInitialWorldLoading(renderer, {
+    kitArt, apple: art.groundItems['apple'] ?? art.missingItem, cask: art.itemIcons['barrel'],
+  }, { title: 'UNPACKING YOUR WAGON', detail: 'PAINTING THE ISLAND AROUND YOU', progress: 96 },
+  import.meta.env.VITE_CLIENT_VERSION, safeAreaInsets);
 }
 
 function pointerUiPosition(event: MouseEvent): readonly [number, number] {
@@ -6456,7 +6510,7 @@ function currentWorldLoadingStage(): ReturnType<typeof worldLoadingStage> {
 }
 
 function worldClientReady(): boolean {
-  return network.gameplayReady && currentWorldLoadingStage().ready === true;
+  return network.gameplayReady && currentWorldLoadingStage().ready === true && worldArtSettled;
 }
 
 function clearConnectionInput(): void {

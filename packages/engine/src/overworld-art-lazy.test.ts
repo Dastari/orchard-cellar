@@ -2,24 +2,23 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { WORLD_ART_ASSET_NAMES } from './overworld-art.js';
 
-/** Static world S6: world art (terrain, trees, props, buildings, resources) loads by need from the
- * packs the chunks name, never at startup. These pin the art factory to that. */
+/** Static world S6: world art loads by need from the packs the chunks name, and other art the first
+ * time it is needed; only the UI and the player's body load at startup. These pin the factory to that. */
 describe('overworld art startup (static world S6)', () => {
   const source = readFileSync(new URL('./overworld-art.ts', import.meta.url), 'utf8');
   const start = source.indexOf('export async function loadOverworldArt(');
   const factory = source.slice(start, source.indexOf('\n}\n', start));
 
-  it('loads no world asset eagerly', () => {
+  it('loads only the UI, the player body and the missing-item icon at startup', () => {
     const eager = [...factory.matchAll(/loadGeneratedAsset\(\s*([^,)]+)/g)].map(match => match[1]!.trim());
-    expect(eager.length).toBeGreaterThan(20);
-    for (const name of eager) {
-      expect(name, name).not.toMatch(/^["'](?:tile|tree|prop|resource|building|nature)_/);
-      expect(name, name).not.toMatch(/^LEGACY_LANDMARK_ASSET_NAMES/);
-    }
-    for (const bank of ['loadNatureDecorationArt(', 'loadFruitTreeArt(', 'loadOreArt("resource_cf_ore_"', 'additionalTerrainAssetIds()']) {
+    expect(eager).toEqual(['"system_missing_asset"']);
+    expect([...factory.matchAll(/loadCharacterPart\(([^)]+)\)/g)].map(match => match[1])).toEqual(
+      ['...PLAYER_RIG_CORE_ASSETS.base', '...PLAYER_RIG_CORE_ASSETS.hands']);
+    for (const bank of ['loadNatureDecorationArt(', 'loadFruitTreeArt(', 'loadOreArt(', 'additionalTerrainAssetIds()', 'loadWildlifeArt(',
+      'loadRogueEnemyArt(', 'loadItemIconArt(', 'loadCropArt(', 'loadHearthResourceArt(', 'loadPlayerRig(', 'loadCharacterPartMap(']) {
       expect(factory, bank).not.toContain(bank);
     }
-    expect(factory).toContain('return withLazyWorldArt(art);');
+    expect(factory).toContain('return withLazyWorldArt(withLazyGameplayArt(art, registry));');
   });
 
   it('names world assets only', () => {

@@ -153,3 +153,26 @@ describe('client active-content art synchronization', () => {
     expect(changed).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('lazy item and crop art (static world S6)', () => {
+  it('renames lazy records to the live assets without loading any; each loads when drawn', async () => {
+    const { lazyContentArt, lazyContentArtName } = await import('@orchard/engine/lazy-art');
+    const initial = registry('initial', [item('pick', 'item_base')], [crop('turnip', 'crop_base')], [tree('readiness', 'skill_base')]);
+    const load = vi.fn(async (name: string) => asset(name));
+    const art: ClientContentArtTarget = {
+      itemIcons: lazyContentArt({ pick: 'item_base' }),
+      crops: lazyContentArt({ turnip: 'crop_base' }),
+      uiSkin: { skillIcons: { readiness: asset('skill_base') } },
+    };
+    const changed = vi.fn();
+    const synchronizer = createClientContentArtSynchronizer(art, initial, changed, load);
+    await expect(synchronizer.synchronize(state(initial, 1n))).resolves.toMatchObject({ status: 'unchanged' });
+    const next = registry('next', [item('pick', 'item_new'), item('axe', 'item_axe')], [crop('turnip', 'crop_new')], [tree('readiness', 'skill_base')]);
+    await expect(synchronizer.synchronize(state(next, 2n))).resolves.toMatchObject({ status: 'applied', applied: 3, failed: 0 });
+    expect(load).not.toHaveBeenCalled();
+    expect(changed).toHaveBeenCalledTimes(1);
+    expect(lazyContentArtName(art.itemIcons, 'pick')).toBe('item_new');
+    expect(lazyContentArtName(art.itemIcons, 'axe')).toBe('item_axe');
+    expect(lazyContentArtName(art.crops, 'turnip')).toBe('crop_new');
+  });
+});

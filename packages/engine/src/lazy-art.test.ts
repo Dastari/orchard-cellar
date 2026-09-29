@@ -71,17 +71,23 @@ describe('lazy art (static world S6)', () => {
     expect(lazy.pendingLazyArtCount()).toBe(1);
   });
 
-  it('stays the stand-in after a failed load, and retries on a later read', async () => {
+  it('stays the stand-in after a failed load, and retries on a read after a pause', async () => {
     const lazy = await import('./lazy-art.js');
     let attempts = 0;
     lazy.setLazyArtLoaderForTests(async name => { attempts += 1; if (attempts === 1) throw new Error('offline'); return asset(name); });
     const art: Record<string, LoadedAsset> = {};
     lazy.defineLazyAsset(art, 'chest', 'prop_cf_chest');
-    void art['chest'];
-    await vi.waitFor(() => expect(attempts).toBe(1));
-    await Promise.resolve();
-    expect(lazy.isLoadingArt(art['chest'])).toBe(true);
-    await vi.waitFor(() => expect(art['chest']!.name).toBe('prop_cf_chest'));
-    expect(attempts).toBe(2);
+    let clock = 1_000;
+    const now = vi.spyOn(performance, 'now').mockImplementation(() => clock);
+    try {
+      void art['chest'];
+      await vi.waitFor(() => expect(attempts).toBe(1));
+      await Promise.resolve();
+      for (let frame = 0; frame < 5; frame += 1) expect(lazy.isLoadingArt(art['chest'])).toBe(true);
+      expect(attempts).toBe(1); // not every frame
+      clock += 5_001;
+      await vi.waitFor(() => expect(art['chest']!.name).toBe('prop_cf_chest'));
+      expect(attempts).toBe(2);
+    } finally { now.mockRestore(); }
   });
 });
