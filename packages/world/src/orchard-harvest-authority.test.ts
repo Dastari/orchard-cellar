@@ -186,7 +186,7 @@ describe('renewable orchard authority', () => {
     const { reconcileGeneratedSurvivalResources } = load(['reconcileGeneratedSurvivalResources', 'placedLiveIslandResources'], {
       ...sim, SenderError: Error, TOPSIDE_SPACE_ID: 0,
       contentRegistry: () => registry,
-      liveIslandCollisionRuntime: () => null, liveIslandGeneratedResources: () => [desired],
+      liveIslandCollisionRuntime: () => ({ staticView: { resourcePlacements: [] } }), liveIslandGeneratedResources: () => [desired],
       generatedWorldResourceRow: () => ({ ...desired, id: generated.id, fruitReadyAtTick: 0n, activationOrdinal: 0 }),
     });
     reconcileGeneratedSurvivalResources(ctx); reconcileGeneratedSurvivalResources(ctx);

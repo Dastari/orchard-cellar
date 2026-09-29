@@ -48,7 +48,7 @@ const ORPHAN_ID = 999_999_999_999n;
 /** The real index.ts reconcile (S3c), with its sim dependencies, over an injected runtime and a recording table. */
 function realReconcile(registry: ContentRegistry, runtime: unknown): (rows: readonly ResourceRow[]) => string[] {
   const source = ts.createSourceFile('index.ts', readFileSync(new URL('../packages/world/src/index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
-  const names = ['reconcileGeneratedSurvivalResources', 'placedLiveIslandResources', 'liveIslandGeneratedResources', 'generatedSurvivalResources'];
+  const names = ['reconcileGeneratedSurvivalResources', 'placedLiveIslandResources', 'liveIslandGeneratedResources'];
   const text = names.map(name => {
     const fn = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name);
     if (fn === undefined) throw new Error(`missing ${name}`);

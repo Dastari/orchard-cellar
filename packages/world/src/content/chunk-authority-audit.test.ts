@@ -71,8 +71,7 @@ function auditHarness(options: AuditHarnessOptions = {}) {
   const baseCompiled: CompiledCollisionRuntime = { ...complete, key: `3:map-3:${REGISTRY_HASH}`, document: {} as MapDocumentV3 };
   const shadowRow = options.shadow === 'none' ? null
     : { revision: options.shadow?.revision ?? 1, mapId: LIVE_ISLAND_MAP_ID, contentHash: options.shadow?.contentHash ?? REGISTRY_HASH, manifestJson: JSON.stringify(manifest) };
-  const source: Omit<ChunkAuthoritySource, 'mode'> = {
-    compiled: () => baseCompiled,
+  const source: ChunkAuthoritySource = {
     shadow: () => shadowRow,
     liveMap: () => ({ revision: 3, contentHash: 'map-3' }),
     registryContentHash: () => REGISTRY_HASH,
@@ -319,10 +318,8 @@ function procedureHarness(member: { role: string; blocked: boolean; revokedAt?: 
         shadow: () => { outsideTx('shadow'); return world.db.world_chunk_shadow.spaceId.find(0n); },
         liveMap: () => world.db.live_map_document.mapId.find(LIVE_ISLAND_MAP_ID),
         readBlob: (hash: string) => { outsideTx('readBlob'); return world.db.world_chunk_blob.contentHash.find(hash)?.bytes; },
-        compiled: () => { throw new Error('the audit must build compiled cold'); },
       };
     },
-    coldCompiledLiveIslandRuntime: () => { outsideTx('coldCompiled'); return h.input.coldCompiled(); },
     runChunkAuthorityAudit: (input: ChunkAuthorityAuditInput) => { outsideTx('runChunkAuthorityAudit'); return runChunkAuthorityAudit({ ...input, worldSize: WORLD }); },
     chunkAuthorityMode,
     chunkAuthorityAuditClock: () => fakeClock(),
@@ -340,11 +337,13 @@ describe('auditChunkAuthority procedure', () => {
     const p = procedureHarness({ role, blocked: false });
     const report = JSON.parse(p.call()) as ChunkAuthorityAuditReport;
     expect(p.withTx).toHaveBeenCalledTimes(1);
+    // Static world S3-final: no compiled build on the server, so nothing is compared.
     expect(report).toMatchObject({ schema: 1, ok: true, mode: 'shadow', instance: { auditCalls: 1, transaction: 'snapshot' },
-      completeness: { complete: true }, disagreements: { count: 0 } });
+      completeness: { complete: true }, disagreements: { compared: false }, servable: { ok: true } });
     expect(report.timings.snapshotMs).toBeGreaterThan(0);
+    expect(report.timings.compiledBuildMs).toBeNull();
     expect(report).not.toHaveProperty('liveDispatcher');
-    expect(p.compiledBuilds()).toBe(1);
+    expect(p.compiledBuilds()).toBe(0);
     // Every table read happened inside the transaction (the builds only read the copy).
     expect(new Set(p.state.tableReads)).toEqual(new Set(['membership', 'world_chunk_shadow', 'world_chunk_head', 'world_chunk_blob',
       'live_map_document', 'content_head', 'content_definition']));
@@ -375,10 +374,11 @@ describe('auditChunkAuthority procedure', () => {
     const transaction = text.slice(text.indexOf('ctx.withTx('), text.indexOf('});', text.indexOf('ctx.withTx(')));
     expect(transaction).toContain('snapshotChunkAuthorityTables(tx');
     expect(transaction).not.toMatch(/runChunkAuthorityAudit|coldCompiled|chunkAuthoritySource/u);
+    expect(text).not.toContain('coldCompiled');
     expect(text).toContain('chunkAuthoritySource(world)');
     expect(text).toContain('chunkAuthoritySnapshotContext(snapshot.tables)');
     expect(text.match(/withTx\(/gu)).toHaveLength(1);
-    // The dispatcher reads the same source helper; `off` goes straight to compiled.
+    // The dispatcher reads the same source helper; `off` returns no runtime (S3-final: fail safe).
     const dispatcher = declarationText('liveIslandCollisionRuntime');
     expect(dispatcher).toContain('chunkAuthoritySource(ctx)');
     expect(dispatcher.indexOf('chunkAuthoritySource(ctx)')).toBeGreaterThan(dispatcher.indexOf("mode === 'off'"));
@@ -440,12 +440,12 @@ describe('chunk authority snapshot', () => {
     expect(() => { world['sender'] = 'x'; }).toThrow('audit_snapshot_read_only');
   });
 
-  it('allows every table the audit builds read (compiled runtime, content registry, chunk source)', () => {
+  it('allows every table the audit builds read (content registry, chunk source)', () => {
     // Walk the real index.ts from the audit's entry points through every function called with ctx,
     // and collect ctx.db.<table> reads: each must be one the snapshot copies (else the audit throws).
     const functions = new Map<string, string>();
     for (const node of sourceFile.statements) if (ts.isFunctionDeclaration(node) && node.name !== undefined) functions.set(node.name.text, node.getText(sourceFile));
-    const pending = ['compiledLiveIslandRuntime', 'contentRegistry', 'chunkAuthoritySource'], seen = new Set<string>(), tables = new Set<string>();
+    const pending = ['contentRegistry', 'chunkAuthoritySource'], seen = new Set<string>(), tables = new Set<string>();
     while (pending.length > 0) {
       const name = pending.pop()!;
       if (seen.has(name)) continue;
@@ -457,7 +457,7 @@ describe('chunk authority snapshot', () => {
       // ctx must not escape any other way: only `ctx.db` and passing ctx on to a walked function.
       expect(text!.match(/\bctx\.(?!db\b)\w+/gu) ?? [], `${name} reads ctx beyond db`).toEqual([]);
     }
-    expect(seen).toEqual(new Set(['compiledLiveIslandRuntime', 'contentRegistry', 'cachedContentRegistry', 'contentDefinitionRows', 'chunkAuthoritySource']));
+    expect(seen).toEqual(new Set(['contentRegistry', 'cachedContentRegistry', 'contentDefinitionRows', 'chunkAuthoritySource']));
     const allowed = Object.keys(chunkAuthoritySnapshotDb(snapshotChunkAuthorityTables(source().tx, { liveMapId: LIVE_ISLAND_MAP_ID, contentPackId: 'live', spaceId: 0n })) as object);
     expect([...tables].sort()).toEqual(['content_definition', 'content_head', 'live_map_document', 'world_chunk_blob', 'world_chunk_shadow']);
     for (const table of tables) expect(allowed, table).toContain(table);
@@ -466,35 +466,11 @@ describe('chunk authority snapshot', () => {
   });
 });
 
-describe('coldCompiledLiveIslandRuntime', () => {
-  function harness(initial: unknown) {
-    const factory = new Function('initial', `let liveIslandRuntimeCache = initial;
-      const cold = ${transpile(declarationText('coldCompiledLiveIslandRuntime'))};
-      return { cold, cache: () => liveIslandRuntimeCache, set: value => { liveIslandRuntimeCache = value; } };`);
-    return factory(initial) as { cold: (compiled: () => unknown) => unknown; cache: () => unknown; set: (value: unknown) => void };
-  }
-
-  it('builds with the cache cleared, then restores the cache the live call sites were using', () => {
-    const previous = { key: 'live' };
-    const h = harness(previous);
-    const fresh = { key: 'fresh' };
-    const result = h.cold(() => {
-      expect(h.cache(), 'the build must not hit the cache').toBeNull();
-      h.set(fresh);
-      return fresh;
-    });
-    expect(result).toBe(fresh);
-    expect(h.cache()).toBe(previous);
-  });
-
-  it('keeps the fresh build when nothing was cached, and restores the cache after a throw', () => {
-    const empty = harness(null);
-    const fresh = { key: 'fresh' };
-    empty.cold(() => { empty.set(fresh); return fresh; });
-    expect(empty.cache()).toBe(fresh);
-    const previous = { key: 'live' };
-    const failing = harness(previous);
-    expect(() => failing.cold(() => { throw new Error('compile failed'); })).toThrow('compile failed');
-    expect(failing.cache()).toBe(previous);
+describe('no compiled island on the server (static world S3-final)', () => {
+  it('has no compiled runtime, cold build or generator resource source in index.ts', () => {
+    for (const name of ['coldCompiledLiveIslandRuntime', 'compiledLiveIslandRuntime', 'generatedSurvivalResources']) {
+      expect(sourceFile.statements.some(node => ts.isFunctionDeclaration(node) && node.name?.text === name), name).toBe(false);
+    }
   });
 });
+

@@ -84,18 +84,19 @@ describe('chunkAuthority mode parsing and reader', () => {
     for (const value of ['', 'ON', 'active', ' on', null, undefined, 1, true, {}]) expect(parseChunkAuthorityMode(value)).toBeNull();
   });
 
-  it('defaults to off when the row, the key or a valid value is missing', () => {
-    expect(chunkAuthorityModeFromFlagsJson(undefined)).toBe('off');
-    expect(chunkAuthorityModeFromFlagsJson('{"weather":true}')).toBe('off');
-    expect(chunkAuthorityModeFromFlagsJson('{"chunkAuthority":"sideways"}')).toBe('off');
-    expect(chunkAuthorityModeFromFlagsJson('{"chunkAuthority":true}')).toBe('off');
-    expect(chunkAuthorityModeFromFlagsJson('not json')).toBe('off');
-    expect(chunkAuthorityModeFromFlagsJson('["on"]')).toBe('off');
+  it('defaults to on (static world S3-final: chunks are the only source) when the row, the key or a valid value is missing', () => {
+    expect(chunkAuthorityModeFromFlagsJson(undefined)).toBe('on');
+    expect(chunkAuthorityModeFromFlagsJson('{"weather":true}')).toBe('on');
+    expect(chunkAuthorityModeFromFlagsJson('{"chunkAuthority":"sideways"}')).toBe('on');
+    expect(chunkAuthorityModeFromFlagsJson('{"chunkAuthority":true}')).toBe('on');
+    expect(chunkAuthorityModeFromFlagsJson('not json')).toBe('on');
+    expect(chunkAuthorityModeFromFlagsJson('["on"]')).toBe('on');
+    expect(chunkAuthorityModeFromFlagsJson('{"chunkAuthority":"off"}')).toBe('off');
     expect(chunkAuthorityModeFromFlagsJson('{"chunkAuthority":"shadow"}')).toBe('shadow');
   });
 
   it('reads the space 0 row only', () => {
-    expect(chunkAuthorityMode(world(null).ctx)).toBe('off');
+    expect(chunkAuthorityMode(world(null).ctx)).toBe('on');
     expect(chunkAuthorityMode(world(null, '{"chunkAuthority":"on","weather":false}').ctx)).toBe('on');
     const find = vi.fn(() => ({ flagsJson: '{"chunkAuthority":"shadow"}' }));
     expect(chunkAuthorityMode({ db: { space_admin_flag: { spaceId: { find } } } })).toBe('shadow');
@@ -103,11 +104,11 @@ describe('chunkAuthority mode parsing and reader', () => {
   });
 
   it('plans a write that keeps every other flag, and nothing when already in that mode', () => {
-    expect(planChunkAuthorityFlags(undefined, 'off')).toBeNull();
-    expect(planChunkAuthorityFlags('{"chunkAuthority":"bogus"}', 'off')).toBeNull();
-    expect(planChunkAuthorityFlags('{"chunkAuthority":"on"}', 'on')).toBeNull();
+    expect(planChunkAuthorityFlags(undefined, 'on')).toBeNull();
+    expect(planChunkAuthorityFlags('{"chunkAuthority":"bogus"}', 'on')).toBeNull();
+    expect(planChunkAuthorityFlags('{"chunkAuthority":"off"}', 'off')).toBeNull();
     const plan = planChunkAuthorityFlags('{"ownerOnly":false,"weather":true}', 'shadow');
-    expect(plan?.previous).toBe('off');
+    expect(plan?.previous).toBe('on');
     expect(JSON.parse(plan?.flagsJson ?? '')).toEqual({ ownerOnly: false, weather: true, chunkAuthority: 'shadow' });
   });
 });
@@ -123,7 +124,7 @@ describe('setChunkAuthority reducer', () => {
     expect(state.ctx.audits).toHaveLength(1);
     const audit = state.ctx.audits[0]!;
     expect(audit).toMatchObject({
-      id: 0n, actor: 'sender', action: 'set_chunk_authority', value: 'off->shadow', occurredAt: now,
+      id: 0n, actor: 'sender', action: 'set_chunk_authority', value: 'on->shadow', occurredAt: now,
       occurredAtMicros: now.microsSinceUnixEpoch, targetKey: 'space:0',
     });
     // Studio's audit page parses it as a normal v1 row under the space 0 target.
@@ -133,7 +134,7 @@ describe('setChunkAuthority reducer', () => {
     });
     expect(row.target).toEqual({ kind: 'space', spaceId: '0' });
     expect(row.payload.clientMutationId).toBe('chunk-authority-1700000000000000');
-    expect(row.payload.changes).toEqual([{ path: '/chunkAuthority', before: { present: true, value: 'off' }, after: { present: true, value: 'shadow' } }]);
+    expect(row.payload.changes).toEqual([{ path: '/chunkAuthority', before: { present: true, value: 'on' }, after: { present: true, value: 'shadow' } }]);
     expect(row.payload.inverse).toBeNull();
     setChunkAuthority(state.ctx, { mode: 'on' });
     expect(chunkAuthorityMode(state.ctx)).toBe('on');
@@ -144,13 +145,13 @@ describe('setChunkAuthority reducer', () => {
 
   it('inserts the space 0 row when none exists and is idempotent', () => {
     const state = world({ role: 'owner', blocked: false });
-    setChunkAuthority(state.ctx, { mode: 'off' });
+    setChunkAuthority(state.ctx, { mode: 'on' });
     expect(state.insert).not.toHaveBeenCalled();
-    setChunkAuthority(state.ctx, { mode: 'on' });
-    setChunkAuthority(state.ctx, { mode: 'on' });
+    setChunkAuthority(state.ctx, { mode: 'off' });
+    setChunkAuthority(state.ctx, { mode: 'off' });
     expect(state.insert).toHaveBeenCalledTimes(1);
     expect(state.update).not.toHaveBeenCalled();
-    expect(state.row()?.flagsJson).toBe('{"chunkAuthority":"on"}');
+    expect(state.row()?.flagsJson).toBe('{"chunkAuthority":"off"}');
     expect(state.ctx.audits).toHaveLength(1);
   });
 
@@ -176,11 +177,11 @@ describe('setChunkAuthority reducer', () => {
     expect(chunkAuthorityMode(state.ctx)).toBe('shadow');
     expect(state.row()).toMatchObject({ flagsJson: '{"weather":true,"chunkAuthority":"shadow"}', updatedBy: 'sender', updatedAt: now });
     expect(state.ctx.audits).toHaveLength(1);
-    expect(state.ctx.audits[0]).toMatchObject({ actor: 'sender', action: 'set_chunk_authority', value: 'off->shadow', targetKey: 'space:0' });
+    expect(state.ctx.audits[0]).toMatchObject({ actor: 'sender', action: 'set_chunk_authority', value: 'on->shadow', targetKey: 'space:0' });
     setChunkAuthority(state.ctx, { mode: 'on' });
     setChunkAuthority(state.ctx, { mode: 'off' });
     expect(chunkAuthorityMode(state.ctx)).toBe('off');
-    expect(state.ctx.audits.map((audit) => audit['value'])).toEqual(['off->shadow', 'shadow->on', 'on->off']);
+    expect(state.ctx.audits.map((audit) => audit['value'])).toEqual(['on->shadow', 'shadow->on', 'on->off']);
   });
 
   it.each([
@@ -282,8 +283,8 @@ describe('the admin world view keeps showing Topside defaults after a first-time
   it('shows the same flags and world version as before the switch, and admin patches still start from the defaults', () => {
     const state = world({ role: 'owner', blocked: false });
     const before = adminTopside(state.row());
-    setChunkAuthority(state.ctx, { mode: 'on' });
-    expect(state.row()?.flagsJson).toBe('{"chunkAuthority":"on"}');
+    setChunkAuthority(state.ctx, { mode: 'off' });
+    expect(state.row()?.flagsJson).toBe('{"chunkAuthority":"off"}');
     const after = adminTopside(state.row());
     expect(after.spaces[0]?.flags).toEqual(topsideDefaults);
     expect(adminWorldVersion(after)).toBe(adminWorldVersion(before));
@@ -299,7 +300,7 @@ describe('the admin world view keeps showing Topside defaults after a first-time
       adminWorldSpaceId: Number, spaceAdminFlags: compile('spaceAdminFlags', {}), preserveOwnerOnlySpaceFlags, SenderError,
     });
     for (const action of plan.actions) writeAdminWorldRepairAction(state.ctx, action);
-    expect(JSON.parse(state.row()?.flagsJson ?? '')).toEqual({ ...topsideDefaults, buildAllowed: false, chunkAuthority: 'on' });
+    expect(JSON.parse(state.row()?.flagsJson ?? '')).toEqual({ ...topsideDefaults, buildAllowed: false, chunkAuthority: 'off' });
     expect(adminTopside(state.row()).spaces[0]?.flags).toEqual({ ...topsideDefaults, buildAllowed: false });
   });
 
@@ -337,12 +338,12 @@ describe('the admin world view parses stored flags tolerantly', () => {
 
 describe('chunkAuthority audit payload', () => {
   it('is a valid v1 audit payload targeting space 0', () => {
-    const plan = planChunkAuthorityFlags(undefined, 'on')!;
+    const plan = planChunkAuthorityFlags(undefined, 'off')!;
     const parsed = parseAdminAuditPayload(chunkAuthorityAuditPayload(plan, 42n));
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
     expect(parsed.value.target).toEqual({ kind: 'space', spaceId: '0' });
-    expect(parsed.value.changes).toEqual([{ path: '/chunkAuthority', before: { present: true, value: 'off' }, after: { present: true, value: 'on' } }]);
+    expect(parsed.value.changes).toEqual([{ path: '/chunkAuthority', before: { present: true, value: 'on' }, after: { present: true, value: 'off' } }]);
     expect(CHUNK_AUTHORITY_AUDIT_TARGET_KEY).toBe('space:0');
   });
 });

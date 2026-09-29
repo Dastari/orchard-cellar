@@ -4,6 +4,7 @@ import { TILE_SIZE_FIXED, TOPSIDE_SPACE_ID, generateSurvivalResources, SURVIVAL_
 import type { LiveMapDocumentRow } from '@orchard/engine/live-map-runtime';
 import { authorityObstacleKey } from '@orchard/sim/chunk-runtime';
 import { canonicalChunkJson, decodeWorldChunk, WORLD_CHUNK_AUTHORITY_SCHEMA_V2 } from '@orchard/sim/world-chunk';
+import { precomputedSurvivalCollisionMap } from './precomputed-survival-collision.js';
 import { createAuthoritySpaceCollisionMap } from '../packages/world/src/world-rules.js';
 import { assembleChunkLiveIslandRuntime, compareLiveIslandRuntime, composeChunkIslandCollision, type ChunkLiveIslandRuntime,
   type LiveIslandCollisionRuntime } from '../packages/world/src/content/chunk-authority-runtime.js';
@@ -85,9 +86,9 @@ export function liveBaseObstacles(registry: ContentRegistry, runtime: ChunkLiveI
     ? createAuthoritySpaceCollisionMap(registry, TOPSIDE_SPACE_ID, rows.resources.filter(resource => !runtime.generatedSuppressions.has(`resource-${resource.id}`)),
       rows.chests, 'ground', rows.placeables, null, [])
     : createAuthoritySpaceCollisionMap(registry, TOPSIDE_SPACE_ID, [], [], 'water', [], null);
-  const empty = createAuthoritySpaceCollisionMap(registry, TOPSIDE_SPACE_ID, [], [], medium, [], null, medium === 'ground' ? [] : undefined);
-  const all = base.obstacles ?? [], staticCount = empty.obstacles?.length ?? 0;
-  return { staticBase: all.slice(0, staticCount), live: all.slice(staticCount) };
+  // Static world S3-final: the server's island base carries only the live rows; the static base group
+  // it replaced is the precomputed island's (the materializer's reference base).
+  return { staticBase: precomputedSurvivalCollisionMap(medium).obstacles ?? [], live: base.obstacles ?? [] };
 }
 
 /**

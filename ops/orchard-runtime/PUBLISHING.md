@@ -170,13 +170,20 @@ to start (exit `64`) if either raw variable is already in the environment, even 
     - The lanes also run `client:chunks:check` with `ORCHARD_REQUIRE_GENERATOR_FREE=1`, which
       refuses any build but the activated `on` one.
 
-**Kill switch after S6.** The server kill switch (`setChunkAuthority('off')`, or
-`world:chunks:authority set off`) no longer restores play on its own: S6 clients show
-"world updating" and retry. A rollback is always both halves together:
-1. the server `off`;
-2. the **last pre-S6 client dist**, installed from the release rollback copies (runbook §5.1).
-
-Keep that dist in every release's rollback copies until static world S7 ships.
+**`chunkAuthority` after static world S3-final.**
+- The published chunks are the server's only source. The server no longer compiles the map, runs
+  the generator, or keeps a fallback.
+- An absent flag means `on`, which is what a fresh database gets. `shadow` also serves chunks.
+- `off` (`setChunkAuthority('off')`, or `world:chunks:authority set off`) is a **maintenance
+  freeze**:
+  - topside is solid for everyone;
+  - no topside resources are reconciled or respawned;
+  - S6 clients show "world updating" until it is set back.
+- An unservable publication behaves the same way: nothing published, refused (for example
+  `stale_generator` or `traversal_policy_mismatch`), or incomplete. It fails safe, never open.
+- There is no rollback to the legacy whole-map path once S3-final ships. Recover by republishing
+  the chunks, or by reinstalling the previous world module from the rollback copies.
+- The pre-S6 client dist stops being a rollback target at S3-final: it needs the compiled server.
 
 The plan is saved to `client-chunk-runtime.json` in the evidence. The staged build's
 `chunk-runtime-audit.json` is copied to `client-chunk-runtime-audit.json` and checked

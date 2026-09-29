@@ -104,14 +104,12 @@ describe('S3a combat policy parity on the production (Hearth) combat regions', (
     expect(combatPolicyDisagreements(schema1, fixture.server.runtime, width, height).disagreements).toEqual([]);
   }, 120_000);
 
-  it('the real liveIslandCombatPolicy: compiled object in off and shadow, the chunk policy in on', () => {
+  it('the real liveIslandCombatPolicy: the chunk policy (equal to compiled everywhere), none while off (S3-final)', () => {
     const manifestJson = JSON.stringify(fixture.published.manifest);
     const probe = (flagsJson: string | null) => {
       const dispatcher = new ChunkAuthorityDispatcher({ logger: { info() {}, warn() {}, time() {}, timeEnd() {} } });
-      let compiledCalls = 0;
       const functions = serverCombatFunctions({
         chunkAuthorityMode, TOPSIDE_SPACE_ID, LIVE_ISLAND_MAP_ID, chunkAuthorityDispatcher: dispatcher,
-        compiledLiveIslandRuntime: () => { compiledCalls += 1; return fixture.server.runtime; },
         contentRegistry: () => registry, runtimeTraversalPolicy,
       });
       const ctx = { db: {
@@ -120,22 +118,14 @@ describe('S3a combat policy parity on the production (Hearth) combat regions', (
         live_map_document: { mapId: { find: () => ({ revision: row.revision, contentHash: row.contentHash }) } },
         world_chunk_blob: { contentHash: { find: (hash: string) => { const bytes = fixture.blobs.get(hash); return bytes === undefined ? null : { bytes: bytes.slice() }; } } },
       } };
-      return { policy: functions.liveIslandCombatPolicy(ctx), runtime: functions.liveIslandCollisionRuntime(ctx), dispatcher, compiledCalls: () => compiledCalls };
+      return { policy: functions.liveIslandCombatPolicy(ctx), runtime: functions.liveIslandCollisionRuntime(ctx), dispatcher };
     };
-    for (const flags of [null, '{"chunkAuthority":"off"}']) {
-      const off = probe(flags);
-      expect(off.policy).toBe(fixture.server.runtime.combatPolicy);
-      expect(off.compiledCalls()).toBe(2);
-    }
-    const shadow = probe('{"chunkAuthority":"shadow"}');
-    expect(shadow.policy).toBe(fixture.server.runtime.combatPolicy);
-    expect(shadow.dispatcher.status().lastCompare).toMatchObject({ equal: true, total: 0 });
-    const on = probe('{"chunkAuthority":"on"}');
+    expect(probe('{"chunkAuthority":"off"}').policy).toBeUndefined();
+    const on = probe(null);
     const served = on.runtime as ChunkLiveIslandRuntime;
     expect(served.source).toBe('chunks');
     expect(on.policy).toBe(served.combatPolicy);
     expect(on.policy).not.toBe(fixture.server.runtime.combatPolicy);
-    expect(on.compiledCalls()).toBe(0);
     expect(combatPolicyDisagreements(served, fixture.server.runtime, width, height).disagreements).toEqual([]);
   }, 120_000);
 });

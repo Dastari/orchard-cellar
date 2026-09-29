@@ -2,7 +2,7 @@ import { SURVIVAL_WORLD_SIZE } from '@orchard/sim';
 import { validateRuntimeManifest } from '@orchard/sim/chunk-runtime';
 import { WORLD_CHUNK_SIZE, type WorldChunkManifest } from '@orchard/sim/world-chunk';
 import {
-  ChunkAuthorityDispatcher, flattenDisagreementSamples,
+  ChunkAuthorityDispatcher,
   type ChunkAuthorityLogger, type ChunkAuthoritySource, type ChunkAuthorityUnavailableReason,
   type CompiledCollisionRuntime,
 } from './chunk-authority-dispatch.js';
@@ -10,6 +10,17 @@ import {
   assembleChunkLiveIslandRuntime, compareLiveIslandRuntime,
   type ChunkLiveIslandRuntime, type LiveIslandRuntimeDisagreement,
 } from './chunk-authority-runtime.js';
+
+/** First `limit` samples across all diff fields, each tagged with its field. */
+export function flattenDisagreementSamples(fields: Readonly<Record<string, { readonly samples: readonly LiveIslandRuntimeDisagreement[] }>>,
+  limit: number): (LiveIslandRuntimeDisagreement & { readonly field: string })[] {
+  const out: (LiveIslandRuntimeDisagreement & { readonly field: string })[] = [];
+  for (const [field, entry] of Object.entries(fields)) for (const sample of entry.samples) {
+    if (out.length >= limit) return out;
+    out.push({ field, ...sample });
+  }
+  return out;
+}
 
 /**
  * Static-world S2c: the owner-or-admin `auditChunkAuthority` report, as a pure function of
@@ -55,11 +66,11 @@ export interface ChunkAuthorityAuditInput {
   /** The current switch value (reported only; the audit behaves the same in every mode). */
   readonly mode: string;
   /** The live dispatcher's source (its `mode` is ignored: the audit always asks what `on` would do). */
-  readonly source: Omit<ChunkAuthoritySource, 'mode'>;
+  readonly source: ChunkAuthoritySource;
   /** `world_chunk_head` rows for topside. */
   readonly heads: () => readonly ChunkHeadView[];
-  /** A cold compiled build that bypasses (and does not disturb) the server's compiled cache. */
-  readonly coldCompiled: () => CompiledCollisionRuntime | null;
+  /** A cold compiled build to compare with (tools only; the server has no compiled map since S3-final). */
+  readonly coldCompiled?: () => CompiledCollisionRuntime | null;
   readonly clock: ChunkAuthorityAuditClock;
   readonly sampleLimit?: number;
   /** Compiled guard: the survival world dimensions. Tests may use a small island. */
@@ -155,7 +166,7 @@ export function runChunkAuthorityAudit(input: ChunkAuthorityAuditInput): ChunkAu
     if (!blobs.has(hash)) blobs.set(hash, input.source.readBlob(hash));
     return blobs.get(hash);
   };
-  const source: ChunkAuthoritySource = { ...input.source, mode: 'on', readBlob };
+  const source: ChunkAuthoritySource = { ...input.source, readBlob };
 
   let manifest: WorldChunkManifest | null = null;
   let manifestError: string | null = null;
@@ -170,7 +181,7 @@ export function runChunkAuthorityAudit(input: ChunkAuthorityAuditInput): ChunkAu
 
   // The exact `on` decision, from a fresh dispatcher (no cache, silent).
   const chunkStart = clock.now();
-  const dispatcher = new ChunkAuthorityDispatcher({ logger: silentLogger, worldSize, sampleLimit: limit });
+  const dispatcher = new ChunkAuthorityDispatcher({ logger: silentLogger, worldSize });
   let resolution: ReturnType<ChunkAuthorityDispatcher['resolve']>;
   try {
     resolution = dispatcher.resolve(source);
@@ -195,8 +206,8 @@ export function runChunkAuthorityAudit(input: ChunkAuthorityAuditInput): ChunkAu
   }
 
   const compiledStart = clock.now();
-  const compiled = input.coldCompiled();
-  const compiledBuildMs = elapsed(clock, compiledStart);
+  const compiled = input.coldCompiled === undefined ? null : input.coldCompiled();
+  const compiledBuildMs = input.coldCompiled === undefined ? null : elapsed(clock, compiledStart);
 
   let compareMs: number | null = null;
   let disagreements: ChunkAuthorityAuditReport['disagreements'] = { compared: false, equal: false, count: -1, fields: {}, samples: [] };
@@ -232,7 +243,7 @@ export function runChunkAuthorityAudit(input: ChunkAuthorityAuditInput): ChunkAu
 
   const servable: ChunkAuthorityAuditReport['servable'] = !resolution.ok
     ? { ok: false, reason: resolution.reason, ...(resolution.detail === undefined ? {} : { detail: resolution.detail }) }
-    : compiled === null
+    : compiled === null && input.coldCompiled !== undefined
       // `on` would serve chunks, but the live compiled guards reject the map: report it, never treat it as parity.
       ? { ok: false, reason: 'compiled_null', detail: 'the compiled runtime is null for the live map' }
       : { ok: true, ...(resolution.lag === undefined ? {} : { lag: resolution.lag, lagDetail: resolution.lagDetail }) };
@@ -240,7 +251,9 @@ export function runChunkAuthorityAudit(input: ChunkAuthorityAuditInput): ChunkAu
   const report: ChunkAuthorityAuditReport = {
     schema: CHUNK_AUTHORITY_AUDIT_SCHEMA,
     // A lagging publication serves (SW-D2) but is not audit-clean: republish, then audit again.
-    ok: servable.ok && servable.lag === undefined && complete && disagreements.compared && disagreements.equal,
+    // Without a compiled build (the server since S3-final) there is nothing to compare with.
+    ok: servable.ok && servable.lag === undefined && complete
+      && (input.coldCompiled === undefined || (disagreements.compared && disagreements.equal)),
     mode: input.mode,
     keys: {
       shadowRevision: shadow?.revision ?? null,

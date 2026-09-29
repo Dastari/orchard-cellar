@@ -1,11 +1,10 @@
-import { RULE_MEDIA, advanceHazardDamage, mapTraversalChannels, runtimeTraversalPolicy, runtimeActorCollision, runtimeCreatureDefinition, runtimeTraversalAbilities, traversalSolidGeometry, type RuntimeTraversalActor } from '@orchard/sim';
-import { cellFlagsWhere } from '@orchard/sim';
+import { RULE_MEDIA, advanceHazardDamage, runtimeTraversalPolicy, runtimeActorCollision, runtimeCreatureDefinition, runtimeTraversalAbilities, traversalSolidGeometry, type RuntimeTraversalActor } from '@orchard/sim';
 import { planObjectStateSettlement } from './content/object-state-runtime.js';
 import { objectEnvironmentIntervals, type ObjectEnvironmentEpoch, effectsResult, type AnyHandlerRegistration, type ExternalStateTransitionEvent } from '@orchard/sim';
 import { shadowPublicationRefusalCode, validateShadowBlob, validateShadowPublication, ShadowChunkCollisionCache } from './content/chunk-shadow-runtime.js';
 import { ChunkAuthorityDispatcher, type ChunkAuthoritySource } from './content/chunk-authority-dispatch.js';
 import { chunkAuthorityAuditClock, chunkAuthoritySnapshotContext, runChunkAuthorityAudit, snapshotChunkAuthorityTables } from './content/chunk-authority-audit.js';
-import { documentStaticView, LIVE_ISLAND_OUTSIDE_MAP_BIOME, type LiveIslandCollisionRuntime, type LiveIslandStaticView } from './content/chunk-authority-runtime.js';
+import { LIVE_ISLAND_OUTSIDE_MAP_BIOME, type LiveIslandCollisionRuntime, type LiveIslandStaticView } from './content/chunk-authority-runtime.js';
 import { CHUNK_AUTHORITY_AUDIT_TARGET_KEY, CHUNK_AUTHORITY_SPACE_ID, adminSpaceFlagsBySpace, adminVisibleSpaceFlags, chunkAuthorityAuditPayload, chunkAuthorityMode, parseChunkAuthorityMode, planChunkAuthorityFlags, preserveOwnerOnlySpaceFlags } from './chunk-authority-setting.js';
 import { CONTENT_SCOPES, isStudioScope, resolveStudioScopes, requireContentScopes, requireScriptApproval, type StudioScope, type ScopeMembership, type ScopeGrant, type ScopeOverride } from '../../sim/src/studio-scopes.js';
 import { buildSpaceRegistry } from '@orchard/sim';
@@ -43,7 +42,7 @@ import {
   runtimeRogueEnemyAttackPattern,
   hearthAttackImpactsSeparated, hearthWardenDesiredPhase, hearthWardenAttack, WARDEN_PHASE_CUE_TICKS, type HearthWardenPhase,
   hearthEnemyAttack, hearthEnemyMovement, hearthEnemyStepDistance, type HearthEncounterDefinition,
-  CombatRegionPolicy, type CombatRegion, DODGE, BLOCK, dodgeInvulnerable, frontalBlockApplies, resolveHeldBlock,
+  CombatRegionPolicy, DODGE, BLOCK, dodgeInvulnerable, frontalBlockApplies, resolveHeldBlock,
   commitEnemyAttack, enemyAttackPhaseAt, enemyAttackSegmentAt, combatPointWithinSegment,
   MAX_COMMITTED_ATTACKERS, closestCombatPointOnSegment, combatSegmentObstructed, type EnemyAttackPattern,
   AUTHORITY_TICK_MICROS,
@@ -101,10 +100,6 @@ import {
   cellarPlayableTile,
   avatarActionAfterMovement,
   generateSurvivalResources,
-  generateSurvivalDecorations,
-  generateSurvivalProceduralDecorations,
-  generateSurvivalLandmarkDecorations,
-  survivalDecorationObstacle,
   findSurvivalSpawnTile,
   generateSurvivalWildlifeForRegistry,
   generateSurvivalWildlifeHivesForRegistry,
@@ -124,7 +119,6 @@ import {
   runtimeLandmarkPlaceablePlans,
   objectInteractionMetadata,
   runtimeLandmarkCampfirePlans,
-  activeSpaceGroundWalkableTiles,
   activeSurvivalLandmarks,
   survivalLandmarkRoleReservedAt,
   survivalLandmarksReservedAt,
@@ -168,7 +162,6 @@ import {
   runtimeToolReachFixed,
   runtimeToolSpecialization,
   runtimeToolCanMineResource,
-  runtimeTilesetResolver,
   ANVIL_REPAIR_COST_BRONZE,
   UNIQUE_QUEST_ITEM_TAG,
   inventoryContainerSlotCount,
@@ -370,27 +363,17 @@ import {
   WILDLIFE_FIRST_NPC_ID,
   WILDLIFE_GENERATION_VERSION,
   LIVE_ISLAND_MAP_ID,
-  MAP_PREFAB_COLLISION_RESOLUTION,
-  compileMapDocument,
-  createLiveIslandMapDocument,
-  compiledMapTerrainPlaneCollisionBytes,
   mapDocumentUsesSurvivalIslandBase,
-  mapObjectCollisionCells,
-  mapLandmarkCollisionObstacle,
   mapDocumentV3Hash,
   normalizeMapDocumentV3,
   parseMapDocumentV3,
-  resolvedMapBiomeAt,
   serializeMapDocumentV3ForTransport,
-  survivalBiomeAllowsHorseJump,
-  terrainDocumentForMapV3,
   type MapDocumentV3,
   type GeneratedWildlife,
   type GeneratedWildlifeHive,
   type Direction,
   type ContainerSnapshot,
   type CollisionMap,
-  type CollisionObstacle,
   type ItemStack,
   type Modifier,
   type NpcFacing,
@@ -7310,18 +7293,13 @@ function generatedWorldResourceRow(resource: GeneratedSurvivalResource, registry
   };
 }
 
-/** The generator's topside resources for this registry: the compiled source (static world
- * S3c). The only server call of the generator; chunk mode reads `authority.resource` records. */
-function generatedSurvivalResources(registry: ContentRegistry): readonly GeneratedSurvivalResource[] {
-  return generateSurvivalResources(SURVIVAL_WORLD_SEED, registry);
-}
 
-/** Static-world S3c: the generated topside resources from the dispatcher's runtime (compiled in
- * off and shadow, chunk records in on), or the generator when no runtime resolves (a map the
- * compiled guards reject; reconcile used the generator with no placements there too). */
+/** Static-world S3c: the generated topside resources from the chunk runtime's `authority.resource`
+ * records. None while the island is unservable (S3-final: never the generator; callers that would
+ * delete rows, reconcile, skip instead). */
 function liveIslandGeneratedResources(ctx: WorldReducerContext,
   runtime: LiveIslandCollisionRuntime | null = liveIslandCollisionRuntime(ctx)): readonly GeneratedSurvivalResource[] {
-  return runtime === null ? generatedSurvivalResources(contentRegistry(ctx)) : runtime.generatedResources();
+  return runtime === null ? [] : runtime.generatedResources();
 }
 
 /** Where each generated topside resource lives, by reconcile's rule: its map placement's tile when
@@ -7343,12 +7321,27 @@ function placedLiveIslandResources(ctx: WorldReducerContext, liveMapRuntime: Liv
   return { placements, desired };
 }
 
+/** Per module instance: whether topside resources are known to be seeded. */
+let topsideResourcesSeeded = false;
+/**
+ * Static world S3-final: a fresh database seeds no topside resources at init (nothing is published).
+ * Once the island serves, a topside with no resource rows at all is reconciled from the publication,
+ * exactly once. Checked every tick until then, one index probe per module instance afterwards.
+ */
+function seedTopsideResourcesOnce(ctx: WorldReducerContext): void {
+  if (topsideResourcesSeeded) return;
+  if (liveIslandCollisionRuntime(ctx) === null) return;
+  topsideResourcesSeeded = true;
+  for (const row of ctx.db.world_resource.by_chunk.filter(TOPSIDE_SPACE_ID)) { void row; return; }
+  reconcileGeneratedSurvivalResources(ctx);
+}
+
 /** A terrain version may move generated resources off new contour walls, but
  * unchanged rows retain depletion and regrowth progress. Player inventories,
  * soil, chests, and placeables are never part of this reconciliation.
- * Static-world S3c: placements and the generated set come from one dispatcher runtime; in
- * `on` that is only ever a complete, verified chunk runtime, so an incomplete chunk set can
- * never delete rows (the dispatcher falls back to compiled). */
+ * Static-world S3c: placements and the generated set come from one dispatcher runtime; since
+ * S3-final that is only ever a complete, verified chunk runtime, and an unservable island (null)
+ * never reconciles, so an incomplete chunk set can never delete rows. */
 function reconcileGeneratedSurvivalResources(ctx: WorldReducerContext): void {
   const existingRows = [...ctx.db.world_resource.iter()];
   const registry = contentRegistry(ctx);
@@ -7360,6 +7353,8 @@ function reconcileGeneratedSurvivalResources(ctx: WorldReducerContext): void {
     }
   }
   const liveMapRuntime = liveIslandCollisionRuntime(ctx);
+  // S3-final: an unservable island never reconciles (it would delete every generated row).
+  if (liveMapRuntime === null) return;
   const { placements, desired } = placedLiveIslandResources(ctx, liveMapRuntime);
   for (const existing of existingRows) {
     if (existing.spaceId !== TOPSIDE_SPACE_ID
@@ -13087,192 +13082,33 @@ const LIVE_MAP_ALLOWED_BEHAVIORS = new Set([
   'surface:world.surface',
 ]);
 
-interface LiveIslandRuntime {
-  readonly combatPolicy: CombatRegionPolicy;
-  readonly combatRegions: readonly CombatRegion[] | undefined;
-  readonly key: string;
-  readonly document: MapDocumentV3;
-  readonly ground: CollisionMap;
-  readonly water: CollisionMap;
-  readonly generatedSuppressions: ReadonlySet<string>;
-  readonly suppressedDecorationObstacleKeys: Readonly<Record<'ground' | 'water', ReadonlySet<string>>>;
-  readonly staticView: LiveIslandStaticView;
-  generatedResources(): readonly GeneratedSurvivalResource[];
-}
 
-let liveIslandRuntimeCache: LiveIslandRuntime | null = null;
 
-function authoredMapCollisionObstacles(
-  document: MapDocumentV3,
-  medium: 'ground' | 'water',
-  registry: ContentRegistry,
-): readonly CollisionObstacle[] {
-  const subCellSize = TILE_SIZE_FIXED / MAP_PREFAB_COLLISION_RESOLUTION;
-  const obstacles: CollisionObstacle[] = [];
-  for (const object of medium === 'ground' ? document.objects : []) {
-    for (const cell of mapObjectCollisionCells(document, object)) {
-      for (let bit = 0; bit < MAP_PREFAB_COLLISION_RESOLUTION ** 2; bit += 1) {
-        if ((cell.collisionMask & (1 << bit)) === 0) continue;
-        const column = bit % MAP_PREFAB_COLLISION_RESOLUTION;
-        const row = Math.floor(bit / MAP_PREFAB_COLLISION_RESOLUTION);
-        const left = cell.tileX * TILE_SIZE_FIXED + column * subCellSize;
-        const top = cell.tileY * TILE_SIZE_FIXED + row * subCellSize;
-        obstacles.push({ left, top, right: left + subCellSize - 1, bottom: top + subCellSize - 1 });
-      }
-    }
-  }
-  for (const landmark of document.landmarks) {
-    const obstacle = mapLandmarkCollisionObstacle(landmark, medium, registry);
-    if (obstacle !== null) obstacles.push(obstacle);
-  }
-  return obstacles;
-}
 
-function suppressedGeneratedDecorationObstacleKeys(
-  document: MapDocumentV3,
-  generatedSuppressions: ReadonlySet<string>,
-  medium: 'ground' | 'water',
-  activeLandmarks: ReturnType<typeof activeSurvivalLandmarks>,
-  registry: ContentRegistry,
-): ReadonlySet<string> {
-  const keys = new Set<string>();
-  const activeLandmarkIds = new Set(
-    generateSurvivalLandmarkDecorations(activeLandmarks).map((landmark) => landmark.id),
-  );
-  const proceduralIds = new Set(generateSurvivalProceduralDecorations(
-    document.provenance.generatorSeed ?? SURVIVAL_WORLD_SEED,
-    registry,
-  ).map(({ id }) => id));
-  for (const decoration of generateSurvivalDecorations(
-    document.provenance.generatorSeed ?? SURVIVAL_WORLD_SEED,
-    registry,
-  )) {
-    const suppressed = !proceduralIds.has(decoration.id)
-      || activeLandmarkIds.has(decoration.id)
-      || generatedSuppressions.has(String(decoration.id));
-    if (!suppressed
-      && !generatedSuppressions.has(`decoration-${decoration.id}`)
-      && !generatedSuppressions.has(`decoration:${decoration.id}`)) continue;
-    const obstacle = survivalDecorationObstacle(decoration, medium, registry);
-    if (obstacle !== null) keys.add(
-      `${obstacle.left}:${obstacle.top}:${obstacle.right}:${obstacle.bottom}`,
-    );
-  }
-  return keys;
-}
-
-function compiledLiveIslandRuntime(ctx: WorldReducerContext): LiveIslandRuntime | null {
-  const row = ctx.db.live_map_document.mapId.find(LIVE_ISLAND_MAP_ID);
-  const contentHead = ctx.db.content_head.packId.find(LIVE_CONTENT_PACK_ID);
-  const storedKey = row === null || contentHead === null
-    ? null
-    : `${row.revision}:${row.contentHash}:${contentHead.contentHash}`;
-  // Content publication advances the head and map publication advances the
-  // row revision/hash atomically. Those indexed rows are therefore sufficient
-  // to validate the compiled cache without materializing every definition on
-  // every 20 Hz collision pass.
-  if (storedKey !== null && liveIslandRuntimeCache?.key === storedKey) {
-    return liveIslandRuntimeCache;
-  }
-  const registry = contentRegistry(ctx);
-  const landmarks = activeSurvivalLandmarks(registry, TOPSIDE_SPACE_ID);
-  const key = row === null
-    ? `seed:${SURVIVAL_WORLD_SEED}:${SURVIVAL_WORLD_VERSION}:${registry.contentHash}`
-    : `${row.revision}:${row.contentHash}:${registry.contentHash}`;
-  if (liveIslandRuntimeCache?.key === key) return liveIslandRuntimeCache;
-  const document = row === null
-    ? createLiveIslandMapDocument({ landmarks })
-    : parseMapDocumentV3(row.documentJson, landmarks);
-  if (document.width !== SURVIVAL_WORLD_SIZE || document.height !== SURVIVAL_WORLD_SIZE
-    || !mapDocumentUsesSurvivalIslandBase(document)) return null;
-  const compiled = compileMapDocument(
-    terrainDocumentForMapV3(document),
-    runtimeTilesetResolver(registry.tilesets),
-  );
-  const traversalChannels = runtimeTraversalPolicy(registry) === null ? undefined : mapTraversalChannels(document, compiled);
-  const length = compiled.width * compiled.height;
-  const horseJumpableTerrain = cellFlagsWhere(length, (index) => (
-    survivalBiomeAllowsHorseJump(resolvedMapBiomeAt(
-      document,
-      index % compiled.width,
-      Math.floor(index / compiled.width),
-    ))
-  ));
-  let minimumElevation = 0;
-  for (const elevation of compiled.elevations) minimumElevation = Math.min(minimumElevation, elevation);
-  const groundWalkableTiles = new Set(activeSpaceGroundWalkableTiles(
-    registry, TOPSIDE_SPACE_ID, document.landmarks,
-  ).map(({tileX,tileY})=>`${tileX}:${tileY}`));
-  const ground: CollisionMap = {
-    ...(traversalChannels === undefined ? {} : { traversalChannels }),
-    width: compiled.width,
-    height: compiled.height,
-    blocked: compiled.blocked.map((blocked, index) => (
-      groundWalkableTiles.has(`${index % compiled.width}:${Math.floor(index / compiled.width)}`)
-        ? 0
-        : blocked
-    )),
-    elevations: compiled.elevations,
-    terrainMinimumElevation: minimumElevation,
-    terrainTransitions: compiled.transitions,
-    terrainPlaneBlocked: compiledMapTerrainPlaneCollisionBytes(compiled),
-    horseJumpableTerrain,
-    obstacles: authoredMapCollisionObstacles(document, 'ground', registry),
-  };
-  const water: CollisionMap = {
-    ...(traversalChannels === undefined ? {} : { traversalChannels }),
-    width: compiled.width,
-    height: compiled.height,
-    blocked: cellFlagsWhere(length, (index) => compiled.surfaces[index] !== 'water'),
-    horseJumpableTerrain: new Uint8Array(length),
-    obstacles: authoredMapCollisionObstacles(document, 'water', registry),
-  };
-  const generatedSuppressions = new Set(document.generatedSuppressions);
-  const suppressedDecorationObstacleKeys = {
-    ground: suppressedGeneratedDecorationObstacleKeys(
-      document, generatedSuppressions, 'ground', landmarks, registry,
-    ),
-    water: suppressedGeneratedDecorationObstacleKeys(
-      document, generatedSuppressions, 'water', landmarks, registry,
-    ),
-  } as const;
-  liveIslandRuntimeCache = {
-    combatPolicy: new CombatRegionPolicy(document.combatRegions ?? []),
-    combatRegions: document.combatRegions,
-    key,
-    document,
-    ground,
-    water,
-    generatedSuppressions,
-    suppressedDecorationObstacleKeys,
-    staticView: documentStaticView(document),
-    generatedResources: () => generatedSurvivalResources(registry),
-  };
-  return liveIslandRuntimeCache;
-}
 
 const chunkAuthorityDispatcher = new ChunkAuthorityDispatcher();
 
 /**
- * Static-world S2b: the live-island collision runtime behind the owner
- * `chunkAuthority` switch. `off` (the default) is exactly the compiled runtime.
- * `shadow` keeps compiled authoritative while comparing the chunk runtime and
- * logging disagreements. `on` serves the chunk runtime only when it is complete,
- * fresh and passes the compiled guards, and otherwise falls back to compiled.
- * Collision, combat policy (S3a), the static document consumers (S3b) and the
- * generated resources with their placements (S3c: reconcile and admin respawn) read it.
+ * The live-island runtime: the pinned chunk publication (static world S3-final: the only source; the
+ * server no longer compiles the map or runs the generator). Collision, combat policy (S3a), the static
+ * document consumers (S3b) and the generated resources with their placements (S3c) read it.
+ *
+ * Null means the island is unservable: nothing published, a publication the dispatcher refuses, or
+ * the owner switch `chunkAuthority=off` (now a maintenance freeze). It fails SAFE: topside collision
+ * is solid everywhere (`world-rules` island base), resources are neither reconciled nor respawned,
+ * the world seed is not installed or upgraded, and combat regions are empty. Clients follow the same
+ * row and publication and show "world updating" meanwhile. Absent flags mean `on`.
  */
 function liveIslandCollisionRuntime(ctx: WorldReducerContext): LiveIslandCollisionRuntime | null {
-  const mode = chunkAuthorityMode(ctx);
-  if (mode === 'off') {
+  if (chunkAuthorityMode(ctx) === 'off') {
     chunkAuthorityDispatcher.release();
-    return compiledLiveIslandRuntime(ctx);
+    return null;
   }
-  return chunkAuthorityDispatcher.select({ ...chunkAuthoritySource(ctx), mode });
+  return chunkAuthorityDispatcher.select(chunkAuthoritySource(ctx));
 }
 
 /** Static-world S3a: the live-island combat policy (hostile/sanctuary regions) from the
- * runtime the dispatcher selects: compiled in `off` and `shadow`, chunk-built in `on`.
+ * chunk runtime the dispatcher selects (none while unservable: no regions, fail safe).
  * Built once per runtime and cached with it; never read from the document or generator.
  * stepWorld passes the runtime its collision stage already resolved instead. */
 function liveIslandCombatPolicy(ctx: WorldReducerContext): CombatRegionPolicy | undefined {
@@ -13281,9 +13117,8 @@ function liveIslandCombatPolicy(ctx: WorldReducerContext): CombatRegionPolicy | 
 
 /** Everything the dispatcher (and the S2c audit) reads, as lazy accessors. The
  * audit uses the same source so it sees exactly what the live dispatcher sees. */
-function chunkAuthoritySource(ctx: WorldReducerContext): Omit<ChunkAuthoritySource, 'mode'> & { readonly compiled: () => LiveIslandRuntime | null } {
+function chunkAuthoritySource(ctx: WorldReducerContext): ChunkAuthoritySource {
   return {
-    compiled: () => compiledLiveIslandRuntime(ctx),
     shadow: () => ctx.db.world_chunk_shadow.spaceId.find(BigInt(TOPSIDE_SPACE_ID)),
     liveMap: () => ctx.db.live_map_document.mapId.find(LIVE_ISLAND_MAP_ID),
     registryContentHash: () => contentRegistry(ctx).contentHash,
@@ -13299,37 +13134,7 @@ function chunkAuthoritySource(ctx: WorldReducerContext): Omit<ChunkAuthoritySour
   };
 }
 
-/** S2c audit only: a compiled build that bypasses the module cache (so its time is the
- * cold cost), then puts back whatever this instance had cached. The audit procedure runs
- * on its own module instance, so this cache is the procedure instance's, not the one the
- * reducers' collision call sites use. */
-function coldCompiledLiveIslandRuntime(compiled: () => LiveIslandRuntime | null): LiveIslandRuntime | null {
-  const previous = liveIslandRuntimeCache;
-  liveIslandRuntimeCache = null;
-  try {
-    return compiled();
-  } finally {
-    if (previous !== null) liveIslandRuntimeCache = previous;
-  }
-}
 
-/** Shadow mode only, when `chunkAuthorityDispatcher.sampleRuntime(tick)` is due (at
- * most once per sample interval): rebuilds this tick's topside collision from the
- * same rows with the chunk runtime and compares it with the authoritative maps at
- * player positions. Logs only. */
-function sampleChunkAuthorityShadow(
-  ctx: WorldReducerContext,
-  chunkRuntime: LiveIslandCollisionRuntime,
-  authorityTick: bigint,
-  players: readonly PlayerPositionRow[],
-  compiledFinal: { readonly ground: CollisionMap; readonly water: CollisionMap },
-  rows: PrefetchedSpaceCollisionRows,
-): void {
-  chunkAuthorityDispatcher.recordSample(authorityTick, players.map(({ x, y }) => ({ x, y })), compiledFinal, () => {
-    const ground = collisionForSpace(ctx, TOPSIDE_SPACE_ID, undefined, rows, chunkRuntime);
-    return { ground, water: waterCollisionForSpace(ctx, TOPSIDE_SPACE_ID, chunkRuntime, rows.chunkScope, ground) };
-  });
-}
 
 function liveMapCollisionForSpace(
   ctx: WorldReducerContext,
@@ -13345,7 +13150,9 @@ function liveMapCollisionForSpace(
   if (runtime === null) return base;
   const authored = medium === 'ground' ? runtime.ground : runtime.water;
   const suppressedObstacleKeys = runtime.suppressedDecorationObstacleKeys[medium];
-  const retainedBaseObstacles = (base.obstacles ?? []).filter((obstacle) => !suppressedObstacleKeys.has(
+  // S3-final: the static base group (generated decorations) comes from the publication, ahead of the
+  // live rows `base` carries (the island base itself has no obstacles), all filtered by the keys.
+  const retainedBaseObstacles = [...runtime.baseObstacles[medium], ...(base.obstacles ?? [])].filter((obstacle) => !suppressedObstacleKeys.has(
     `${obstacle.left}:${obstacle.top}:${obstacle.right}:${obstacle.bottom}`,
   ));
   return {
@@ -13372,7 +13179,7 @@ function liveMapRuntimeResourceSuppressed(
 }
 
 /** Static-world S3b: generated-resource suppression from the dispatcher's runtime
- * (compiled in off and shadow, chunk-built in on). Only topside resolves a runtime. */
+ * (the chunk runtime; nothing is suppressed while unservable). Only topside resolves a runtime. */
 function liveMapGeneratedResourceSuppressed(
   ctx: WorldReducerContext,
   spaceId: number,
@@ -13686,12 +13493,9 @@ export const init = spacetimedb.init((ctx) => {
     updatedAt: ctx.timestamp,
     updatedBy: ctx.databaseIdentity,
   });
+  // Static world S3-final: a fresh database has nothing published, so no topside resources are
+  // seeded here. They arrive with the first servable chunk publication (seedTopsideResourcesOnce).
   const registry = contentRegistry(ctx);
-  // A fresh database has no space flags, so chunk authority is necessarily off: the compiled
-  // source (the generator) is the only one, and init needs no map compile (static world S3c).
-  for (const resource of generatedSurvivalResources(registry)) {
-    ctx.db.world_resource.insert(generatedWorldResourceRow(resource, registry));
-  }
   ctx.db.world_tree.insert({
     id: 1n,
     owner: ctx.databaseIdentity,
@@ -13864,7 +13668,9 @@ function prepareConnection(ctx: WorldReducerContext): {
   // Additive module publishes do not rerun init. The first post-upgrade connection
   // transactionally installs the immutable seed and initial mutable resources.
   const installedWorld = ctx.db.world_seed.id.find(0);
-  if (installedWorld === null || installedWorld.version < SURVIVAL_WORLD_VERSION) {
+  // S3-final: resources come only from a servable publication, so an upgrade waits until the island
+  // serves (the next connection or tick retries).
+  if ((installedWorld === null || installedWorld.version < SURVIVAL_WORLD_VERSION) && liveIslandCollisionRuntime(ctx) !== null) {
     if (installedWorld !== null) migrateWorldForOceanExpansion(ctx, installedWorld.version);
     // Terrain/resource revisions must not erase player-authored farms. Only the
     // legacy pre-v3 layout migration owned those rows.
@@ -25199,8 +25005,10 @@ export const stepWorld = spacetimedb.reducer(
     tickStageTiming(telemetryTimingSample, 'tick');
     const updateCounters = emptyTickUpdateCounters();
     let obstacleCount = 0;
+    seedTopsideResourcesOnce(ctx);
     const installedWorld = ctx.db.world_seed.id.find(0);
-    if (installedWorld === null || installedWorld.version < SURVIVAL_WORLD_VERSION) {
+    // S3-final: upgraded only once the island serves (see clientConnected).
+    if ((installedWorld === null || installedWorld.version < SURVIVAL_WORLD_VERSION) && liveIslandCollisionRuntime(ctx) !== null) {
       if (installedWorld !== null) migrateWorldForOceanExpansion(ctx, installedWorld.version);
       if (installedWorld !== null && installedWorld.version < 3) {
         ctx.db.crop_patch.clear();
@@ -25643,13 +25451,6 @@ export const stepWorld = spacetimedb.reducer(
         collision,
       );
       waterCollisionBySpace.set(spaceId, waterCollision);
-      // Shadow-mode sampler: null (no allocation, no work) unless shadow is on and due.
-      const chunkSampleRuntime = spaceId === TOPSIDE_SPACE_ID ? chunkAuthorityDispatcher.sampleRuntime(authorityTick) : null;
-      if (chunkSampleRuntime !== null) {
-        sampleChunkAuthorityShadow(ctx, chunkSampleRuntime, authorityTick, playersBySpace.get(spaceId) ?? [], { ground: collision, water: waterCollision }, {
-          resources, chests, combatTargets, chunkScope: new Set(chunkScope.keys()),
-        });
-      }
       obstacleCount += collision.obstacles?.length ?? 0;
     }
     tickStageTiming(telemetryTimingSample, 'collision', true);
@@ -26660,7 +26461,6 @@ export const auditChunkAuthority = spacetimedb.procedure(
       mode: snapshot.mode,
       source,
       heads: () => [...world.db.world_chunk_head.by_space.filter(BigInt(TOPSIDE_SPACE_ID))],
-      coldCompiled: () => coldCompiledLiveIslandRuntime(source.compiled),
       clock,
       snapshotMs,
       instance: { auditCalls: chunkAuthorityAuditCalls, transaction: 'snapshot' },

@@ -118,7 +118,7 @@ describe('set', () => {
     expect(d.deps.refresh).toHaveBeenCalledWith('/private/rejoin.json', { host: 'http://127.0.0.1:3100', database: 'orchard-s5c-disposable' });
     expect(world.calls).toEqual(['set:shadow']);
     const written = JSON.parse(readFileSync(report, 'utf8'));
-    expect(written).toMatchObject({ command: 'set', before: 'off', requested: 'shadow', after: 'shadow', reached: true, at: '2026-09-28T01:02:03.000Z' });
+    expect(written).toMatchObject({ command: 'set', before: 'on', requested: 'shadow', after: 'shadow', reached: true, at: '2026-09-28T01:02:03.000Z' });
     expect(statSync(report).mode & 0o777).toBe(0o600);
     expect(world.closed).toBe(1);
   });
@@ -126,8 +126,9 @@ describe('set', () => {
   it('fails (exit 1) when the row never reaches the mode', async () => {
     const world = new FakeWorld(); world.applies = false;
     const d = deps(world);
-    expect(await run(options(['set', 'on', ...LOCAL], { ...ENV, WORLD_CHUNK_AUTHORITY_CONFIRM: 'set:on:orchard-s5c-disposable' }), d.deps)).toBe(EXIT.failed);
-    expect(JSON.parse(d.out[0]!)).toMatchObject({ before: 'off', requested: 'on', after: 'off', reached: false });
+    // Static world S3-final: no row means `on`, so switching off is the real change.
+    expect(await run(options(['set', 'off', ...LOCAL], { ...ENV, WORLD_CHUNK_AUTHORITY_CONFIRM: 'set:off:orchard-s5c-disposable' }), d.deps)).toBe(EXIT.failed);
+    expect(JSON.parse(d.out[0]!)).toMatchObject({ before: 'on', requested: 'off', after: 'on', reached: false });
     // No refresh unless asked.
     expect(d.deps.refresh).not.toHaveBeenCalled();
   });
@@ -164,12 +165,13 @@ describe('lost calls fail, never pass (#240 review)', () => {
     const silent = new FakeWorld();
     silent.setChunkAuthority = () => never<void>();
     const a = deps(silent, { timeouts: { set: 20 } });
-    expect(await run(options(['set', 'on', ...LOCAL], setEnv), a.deps)).toBe(EXIT.failed);
+    const offEnv = { ...ENV, WORLD_CHUNK_AUTHORITY_CONFIRM: 'set:off:orchard-s5c-disposable' };
+    expect(await run(options(['set', 'off', ...LOCAL], offEnv), a.deps)).toBe(EXIT.failed);
     expect(a.err.join('\n')).toMatch(/set_timeout.*may still have committed/su);
     const stuck = new FakeWorld(); stuck.applies = false;
     const b = deps(stuck);
-    expect(await run(options(['set', 'on', ...LOCAL], setEnv), b.deps)).toBe(EXIT.failed);
-    expect(b.err.join('\n')).toMatch(/public row still says off .*re-check with `status`/su);
+    expect(await run(options(['set', 'off', ...LOCAL], offEnv), b.deps)).toBe(EXIT.failed);
+    expect(b.err.join('\n')).toMatch(/public row still says on .*re-check with `status`/su);
   });
 
   it('main keeps the exit code at unexpected until run settles', async () => {
@@ -208,7 +210,7 @@ describe('status and dump', () => {
     world.map = { revision: 13, contentHash: 'map-13' };
     expect(statusReport(world).publication?.mapMatches).toBe(false);
     world.publication = null; world.flags = 'not json';
-    expect(statusReport(world)).toMatchObject({ chunkAuthority: 'off', publication: null, resourceGenerator: { published: null, matches: false } });
+    expect(statusReport(world)).toMatchObject({ chunkAuthority: 'on', publication: null, resourceGenerator: { published: null, matches: false } });
   });
 
   it('dumps the exact manifest and a validator heads file (published revision only), refusing an existing directory', async () => {

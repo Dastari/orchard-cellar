@@ -13,9 +13,10 @@ describe('active landmark world wiring', () => {
   });
 
   it('keys compiled island authority by active content and supplies landmarks to legacy parsing', () => {
-    const start = source.indexOf('function compiledLiveIslandRuntime(');
-    const end = source.indexOf('function collisionForSpace(', start);
-    const runtime = source.slice(start, end);
+    // Static world S3-final: the compiled island is the chunk materializer's (tools) reference now.
+    const compiled = readFileSync(new URL('../../../scripts/world-chunk-compiled-island.ts', import.meta.url), 'utf8');
+    const runtime = compiled.slice(compiled.indexOf('function compiledLiveIslandRuntime('));
+    expect(source).not.toContain('function compiledLiveIslandRuntime(');
     expect(runtime).toContain('registry.contentHash');
     expect(runtime).toContain('createLiveIslandMapDocument({ landmarks })');
     expect(runtime).toContain('parseMapDocumentV3(row.documentJson, landmarks)');

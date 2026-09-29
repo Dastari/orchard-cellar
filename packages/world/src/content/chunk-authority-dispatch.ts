@@ -1,41 +1,32 @@
 import {
-  LIVE_ISLAND_MAP_ID, mapDocumentUsesSurvivalIslandBase, positionCollides, positionCollidesTerrain, SURVIVAL_WORLD_SIZE,
-  terrainPlaneAtPosition, TILE_SIZE_FIXED, TOPSIDE_SPACE_ID,
-  type CollisionMap, type CollisionObstacle, type MapDocumentV3, type Vec2Fixed,
+  LIVE_ISLAND_MAP_ID, mapDocumentUsesSurvivalIslandBase, SURVIVAL_WORLD_SIZE, TOPSIDE_SPACE_ID, type MapDocumentV3,
 } from '@orchard/sim';
-import { authorityObstacleKey, validateRuntimeManifest } from '@orchard/sim/chunk-runtime';
+import { validateRuntimeManifest } from '@orchard/sim/chunk-runtime';
 import type { WorldChunkManifest } from '@orchard/sim/world-chunk';
 import {
-  assembleChunkLiveIslandRuntime, chunkResourceGeneratorMismatch, compareLiveIslandRuntime,
-  type ChunkLiveIslandRuntime, type LiveIslandCollisionRuntime, type LiveIslandRuntimeDisagreement,
+  assembleChunkLiveIslandRuntime, chunkResourceGeneratorMismatch,
+  type ChunkLiveIslandRuntime, type LiveIslandCollisionRuntime,
 } from './chunk-authority-runtime.js';
 
 /**
- * Static-world S2b: the dual-read collision dispatcher behind the owner
- * `chunkAuthority` switch (`chunk-authority-setting.ts`).
+ * The live-island chunk dispatcher behind the owner `chunkAuthority` switch
+ * (`chunk-authority-setting.ts`). Static world S3-final: the published chunks are the server's
+ * only source (no compiled map, no shadow comparison, no fallback).
  *
- * - `off` only calls `release()`: the server calls the compiled runtime directly.
- * - `shadow`: the compiled runtime stays authoritative. The chunk runtime is
- *   assembled from the published shadow (own cache, keyed by shadow revision and
- *   content hashes), compared in full once per (chunk key, compiled key), and
- *   sampled at player positions at most once per `sampleIntervalTicks`. Only logs;
- *   nothing is stored.
- * - `on`: the chunk runtime is served only when it is complete, fresh (map
- *   revision/hash, content hash and resource generator stamp still match the publication) and passes the
- *   compiled guards (topside, survival world size, survival island base, a live map
- *   row exists, the ground terrain fields compiled always sets, and traversal-policy
- *   presence on both media). Staleness is checked from the shadow row and manifest
- *   header before any blob is decoded. Anything else, including a throw while
- *   parsing or assembling, falls back to the compiled runtime and logs why. A partial
- *   runtime is never served: an obstacle anchored in a missing chunk would lose its
- *   overhang into present chunks and open walkable ground the compiled map blocks.
+ * - `off` only calls `release()`; the server then has no runtime (the island is unservable).
+ * - Otherwise the chunk runtime is served only when it is complete, not built by another resource
+ *   generator, and passes the island guards (topside, survival world size, survival island base,
+ *   a live map row, the ground terrain fields, traversal-policy presence on both media). A map or
+ *   content publication since the chunks keeps the pinned publication serving (SW-D2, a reported
+ *   lag). Anything else, including a throw while parsing or assembling, returns null: the server
+ *   fails safe (solid topside) and clients show "world updating". A partial runtime is never
+ *   served: an obstacle anchored in a missing chunk would lose its overhang into present chunks.
  *
- * State is per module instance (the host may recycle it; the next call rebuilds or
- * re-compares). Every failure is cached per key, so a broken publication costs one
- * attempt per key, not one per tick.
+ * State is per module instance (the host may recycle it; the next call rebuilds). Every failure is
+ * cached per key, so a broken publication costs one attempt per key, not one per tick.
  */
 
-/** The compiled runtime as the dispatcher sees it (the server's `LiveIslandRuntime`). */
+/** A compiled live-island runtime (tools only since S3-final: the chunk materializer and audits). */
 export type CompiledCollisionRuntime = LiveIslandCollisionRuntime & { readonly document: MapDocumentV3 };
 
 export interface ChunkShadowRowView {
@@ -51,14 +42,12 @@ export interface LiveMapRowView {
 
 /** Everything the dispatcher reads for one call. Lazy members are read only when needed. */
 export interface ChunkAuthoritySource {
-  readonly mode: 'shadow' | 'on';
-  readonly compiled: () => CompiledCollisionRuntime | null;
   /** `world_chunk_shadow` for topside, or null when nothing is published. */
   readonly shadow: () => ChunkShadowRowView | null;
   /** `live_map_document` for the live island, or null (seed bootstrap). */
   readonly liveMap: () => LiveMapRowView | null;
   readonly registryContentHash: () => string;
-  /** Whether the CURRENT registry has a traversal policy (compiled derives traversal channels from it). */
+  /** Whether the CURRENT registry has a traversal policy (the publication must carry channels then). */
   readonly traversalPolicyActive: () => boolean;
   readonly readBlob: (contentHash: string) => Uint8Array | undefined;
 }
@@ -94,44 +83,15 @@ export const consoleChunkAuthorityLogger: ChunkAuthorityLogger = {
 
 export interface ChunkAuthorityDispatcherOptions {
   readonly logger?: ChunkAuthorityLogger;
-  /** Compiled guard: the survival world dimensions. Tests may use a small island. */
+  /** Island guard: the survival world dimensions. Tests may use a small island. */
   readonly worldSize?: { readonly width: number; readonly height: number };
-  /** Disagreement samples logged per window (full compare and per-tick sampler each). */
-  readonly sampleLimit?: number;
-  /** Per-tick sampler cadence (20 ticks is 1 Hz at the 20 Hz authority rate). */
-  readonly sampleIntervalTicks?: bigint;
-  /** Player positions compared per sampled tick. */
-  readonly samplePositions?: number;
-  /** Sampler log window: at most `sampleLimit` disagreement samples per window. */
-  readonly sampleWindowTicks?: bigint;
-}
-
-export interface FinalCollisionPair {
-  readonly ground: CollisionMap;
-  readonly water: CollisionMap;
-}
-
-export interface PositionDisagreement {
-  readonly medium: 'ground' | 'water';
-  readonly x: number;
-  readonly y: number;
-  readonly tileX: number;
-  readonly tileY: number;
-  readonly field: string;
-  readonly compiled: unknown;
-  readonly chunks: unknown;
 }
 
 export interface ChunkAuthorityStatus {
   readonly lastResolution: { readonly ok: boolean; readonly reason?: ChunkAuthorityUnavailableReason; readonly key: string;
     readonly lag?: readonly ChunkPublicationLag[] } | null;
+  /** Unservable selects by reason (the server then fails safe). */
   readonly fallbacks: Readonly<Record<string, number>>;
-  readonly compares: number;
-  readonly lastCompare: { readonly key: string; readonly equal: boolean; readonly total: number; readonly fields: Readonly<Record<string, number>> } | null;
-  readonly sampledTicks: number;
-  readonly sampledPositions: number;
-  readonly sampleDisagreements: number;
-  readonly loggedSamples: number;
 }
 
 interface ManifestEntry {
@@ -153,123 +113,25 @@ function message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/** First `limit` samples across all diff fields, each tagged with its field. */
-export function flattenDisagreementSamples(fields: Readonly<Record<string, { readonly samples: readonly LiveIslandRuntimeDisagreement[] }>>,
-  limit: number): (LiveIslandRuntimeDisagreement & { readonly field: string })[] {
-  const out: (LiveIslandRuntimeDisagreement & { readonly field: string })[] = [];
-  for (const [field, entry] of Object.entries(fields)) for (const sample of entry.samples) {
-    if (out.length >= limit) return out;
-    out.push({ field, ...sample });
-  }
-  return out;
-}
-
-function cellValue(values: ArrayLike<number | boolean> | undefined, index: number): number | 'absent' {
-  if (values === undefined) return 'absent';
-  const value = values[index];
-  return value === undefined ? 'absent' : Number(value);
-}
-
-/** Obstacle keys (server order) whose boxes overlap the 3x3 tiles around a tile. */
-function obstacleKeysNear(obstacles: readonly CollisionObstacle[] | undefined, tileX: number, tileY: number): string[] {
-  const left = (tileX - 1) * TILE_SIZE_FIXED, top = (tileY - 1) * TILE_SIZE_FIXED;
-  const right = (tileX + 2) * TILE_SIZE_FIXED - 1, bottom = (tileY + 2) * TILE_SIZE_FIXED - 1;
-  const keys: string[] = [];
-  for (const obstacle of obstacles ?? []) {
-    if (obstacle.right < left || obstacle.left > right || obstacle.bottom < top || obstacle.top > bottom) continue;
-    keys.push(authorityObstacleKey(obstacle));
-  }
-  return keys;
-}
-
-/**
- * Compares two final collision maps at one position: the answers movement uses
- * (terrain collision, full collision, terrain plane) and every per-cell channel of
- * the position's tile, plus the ordered obstacles near it. Pure; exported for tests
- * and the S2c soak.
- */
-export function compareCollisionAtPosition(medium: 'ground' | 'water', position: Vec2Fixed, compiled: CollisionMap,
-  chunks: CollisionMap): PositionDisagreement[] {
-  const tileX = Math.floor(position.x / TILE_SIZE_FIXED), tileY = Math.floor(position.y / TILE_SIZE_FIXED);
-  const out: PositionDisagreement[] = [];
-  const note = (field: string, a: unknown, b: unknown): void => {
-    if (a !== b) out.push({ medium, x: position.x, y: position.y, tileX, tileY, field, compiled: a, chunks: b });
-  };
-  note('positionCollides', positionCollides(position, compiled), positionCollides(position, chunks));
-  note('positionCollidesTerrain', positionCollidesTerrain(position, compiled), positionCollidesTerrain(position, chunks));
-  note('terrainPlane', terrainPlaneAtPosition(position, compiled), terrainPlaneAtPosition(position, chunks));
-  note('width', compiled.width, chunks.width);
-  note('height', compiled.height, chunks.height);
-  if (tileX >= 0 && tileY >= 0 && tileX < compiled.width && tileY < compiled.height) {
-    const index = tileY * compiled.width + tileX, size = compiled.width * compiled.height;
-    note('blocked', cellValue(compiled.blocked, index), cellValue(chunks.blocked, index));
-    note('elevations', cellValue(compiled.elevations, index), cellValue(chunks.elevations, index));
-    note('horseJumpableTerrain', cellValue(compiled.horseJumpableTerrain, index), cellValue(chunks.horseJumpableTerrain, index));
-    const planes = Math.max(compiled.terrainPlaneBlocked?.length ?? 0, chunks.terrainPlaneBlocked?.length ?? 0) / size;
-    for (let plane = 0; plane < planes; plane++) {
-      note(`terrainPlaneBlocked[${plane}]`, cellValue(compiled.terrainPlaneBlocked, plane * size + index), cellValue(chunks.terrainPlaneBlocked, plane * size + index));
-    }
-    note('traversalChannels.medium', cellValue(compiled.traversalChannels?.medium, index), cellValue(chunks.traversalChannels?.medium, index));
-    note('traversalChannels.solidBlocked', cellValue(compiled.traversalChannels?.solidBlocked, index), cellValue(chunks.traversalChannels?.solidBlocked, index));
-  }
-  note('obstaclesNear', obstacleKeysNear(compiled.obstacles, tileX, tileY).join(','), obstacleKeysNear(chunks.obstacles, tileX, tileY).join(','));
-  return out;
-}
-
 export class ChunkAuthorityDispatcher {
   readonly #logger: ChunkAuthorityLogger;
   readonly #worldSize: { readonly width: number; readonly height: number };
-  readonly #sampleLimit: number;
-  readonly #sampleIntervalTicks: bigint;
-  readonly #samplePositions: number;
-  readonly #sampleWindowTicks: bigint;
   #manifestCache: ManifestEntry | null = null;
   #runtimeCache: RuntimeEntry | null = null;
   readonly #loggedOnce = new Set<string>();
-  readonly #compared = new Set<string>();
   readonly #fallbacks: Record<string, number> = {};
   #lastResolution: ChunkAuthorityStatus['lastResolution'] = null;
-  #lastCompare: ChunkAuthorityStatus['lastCompare'] = null;
-  #compares = 0;
-  /** The fresh chunk runtime seen by the latest shadow select, for the per-tick sampler. */
-  #shadowSampleRuntime: ChunkLiveIslandRuntime | null = null;
-  #sampledTicks = 0;
-  #sampledPositions = 0;
-  #sampleDisagreements = 0;
-  #loggedSamples = 0;
-  #window: bigint | null = null;
-  #windowLogged = 0;
-  #windowSuppressed = 0;
-  #windowTicks = 0;
-  #windowPositions = 0;
-  #windowDisagreements = 0;
 
   constructor(options: ChunkAuthorityDispatcherOptions = {}) {
     this.#logger = options.logger ?? consoleChunkAuthorityLogger;
     this.#worldSize = options.worldSize ?? { width: SURVIVAL_WORLD_SIZE, height: SURVIVAL_WORLD_SIZE };
-    this.#sampleLimit = options.sampleLimit ?? 32;
-    this.#sampleIntervalTicks = options.sampleIntervalTicks ?? 20n;
-    this.#samplePositions = options.samplePositions ?? 8;
-    this.#sampleWindowTicks = options.sampleWindowTicks ?? 1_200n;
   }
 
   /**
-   * The collision runtime for this call. `shadow` always returns the compiled
-   * runtime (after comparing, never throwing); `on` returns the chunk runtime only
-   * when it resolves, else the compiled runtime.
+   * The collision runtime for this call: the chunk runtime when it resolves, else null (the island
+   * is unservable: the server fails safe and logs why, once per reason and key).
    */
   select(source: ChunkAuthoritySource): LiveIslandCollisionRuntime | null {
-    if (source.mode === 'shadow') {
-      const compiled = source.compiled();
-      try {
-        this.#shadow(source, compiled);
-      } catch (error) {
-        this.#shadowSampleRuntime = null;
-        this.#warnOnce('shadow_error', { event: 'chunk_authority_shadow_error', detail: message(error) });
-      }
-      return compiled;
-    }
-    this.#shadowSampleRuntime = null;
     let resolution: ChunkRuntimeResolution;
     try {
       resolution = this.resolve(source);
@@ -286,10 +148,10 @@ export class ChunkAuthorityDispatcher {
     }
     this.#fallbacks[resolution.reason] = (this.#fallbacks[resolution.reason] ?? 0) + 1;
     this.#warnOnce(`on:${resolution.reason}:${resolution.key}`, {
-      event: 'chunk_authority_fallback', reason: resolution.reason, key: resolution.key,
+      event: 'chunk_authority_unservable', reason: resolution.reason, key: resolution.key,
       ...(resolution.detail === undefined ? {} : { detail: resolution.detail }),
     });
-    return source.compiled();
+    return null;
   }
 
   /**
@@ -309,8 +171,7 @@ export class ChunkAuthorityDispatcher {
     if (shadow === null) return { ok: false, reason: 'shadow_missing', key: 'none' };
     const preKey = `${shadow.revision}:${shadow.contentHash}`;
     if (shadow.mapId !== LIVE_ISLAND_MAP_ID) return { ok: false, reason: 'shadow_map_mismatch', detail: shadow.mapId, key: preKey };
-    // Compiled guard: with no live map row the compiled runtime is the seed bootstrap,
-    // and a publication always pins an existing row, so the chunks cannot describe it.
+    // A publication always pins an existing live map row; without one there is nothing to describe.
     const liveMap = source.liveMap();
     if (liveMap === null) return { ok: false, reason: 'map_row_missing', key: preKey };
     const manifestEntry = this.#manifestCache?.key === preKey ? this.#manifestCache : this.#readManifest(shadow, preKey);
@@ -324,7 +185,6 @@ export class ChunkAuthorityDispatcher {
     const generator = chunkResourceGeneratorMismatch(manifest);
     if (generator !== undefined) {
       this.#runtimeCache = null;
-      this.#shadowSampleRuntime = null;
       return { ok: false, reason: 'stale_generator', detail: generator, key: preKey };
     }
     // SW-D2 (static world S6): a map or content publication since the chunk publication does NOT stop
@@ -365,7 +225,6 @@ export class ChunkAuthorityDispatcher {
   #readManifest(shadow: ChunkShadowRowView, key: string): ManifestEntry {
     // A new publication: drop the previous runtime first, so only one is ever resident.
     this.#runtimeCache = null;
-    this.#shadowSampleRuntime = null;
     const fail = (reason: ChunkAuthorityUnavailableReason, detail?: string): ManifestEntry =>
       ({ key, result: { ok: false, reason, ...(detail === undefined ? {} : { detail }) } });
     let entry: ManifestEntry;
@@ -408,7 +267,6 @@ export class ChunkAuthorityDispatcher {
   #assemble(source: ChunkAuthoritySource, shadow: ChunkShadowRowView, manifest: WorldChunkManifest, key: string,
     registryContentHash: string): RuntimeEntry {
     this.#runtimeCache = null;
-    this.#shadowSampleRuntime = null;
     let entry: RuntimeEntry;
     try {
       this.#logger.time('chunk_authority.assemble');
@@ -429,123 +287,11 @@ export class ChunkAuthorityDispatcher {
     return entry;
   }
 
-  #shadow(source: ChunkAuthoritySource, compiled: CompiledCollisionRuntime | null): void {
-    this.#shadowSampleRuntime = null;
-    const resolution = this.resolve(source);
-    if (!resolution.ok) {
-      this.#warnOnce(`shadow:${resolution.reason}:${resolution.key}`, {
-        event: 'chunk_authority_shadow_unavailable', reason: resolution.reason, key: resolution.key,
-        ...(resolution.detail === undefined ? {} : { detail: resolution.detail }),
-      });
-      return;
-    }
-    const runtime = resolution.runtime;
-    if (resolution.lag !== undefined) {
-      // The compiled map is newer than the publication (SW-D2 lag): comparing would only report the
-      // un-republished edits. `on` would serve this publication; the lag is the finding.
-      this.#once(`shadow:lag:${runtime.key}:${resolution.lagDetail}`, 'info', { event: 'chunk_authority_shadow_lag', key: runtime.key,
-        lag: resolution.lag, detail: resolution.lagDetail });
-      return;
-    }
-    if (compiled === null) {
-      this.#warnOnce(`shadow:compiled_null:${runtime.key}`, { event: 'chunk_authority_shadow_disagreement', key: runtime.key,
-        detail: 'compiled runtime is null (its guards reject the live map) but the chunk runtime resolves' });
-      return;
-    }
-    this.#shadowSampleRuntime = runtime;
-    const compareKey = `${runtime.key}|${compiled.key}`;
-    if (this.#compared.has(compareKey)) return;
-    if (this.#compared.size >= 64) this.#compared.clear();
-    this.#compared.add(compareKey);
-    this.#logger.time('chunk_authority.compare');
-    let diff;
-    try {
-      diff = compareLiveIslandRuntime(runtime, compiled, this.#sampleLimit);
-    } finally {
-      this.#logger.timeEnd('chunk_authority.compare');
-    }
-    this.#compares += 1;
-    const fields = Object.fromEntries(Object.entries(diff.fields).map(([field, entry]) => [field, entry.count]));
-    this.#lastCompare = { key: compareKey, equal: diff.equal, total: diff.total, fields };
-    const event = { event: 'chunk_authority_shadow_compare', key: compareKey, equal: diff.equal, total: diff.total, fields,
-      samples: flattenDisagreementSamples(diff.fields, this.#sampleLimit) };
-    if (diff.equal) this.#logger.info(event); else this.#logger.warn(event);
-  }
-
-  /** Mode `off`: drop the resident chunk runtime, stop sampling and forget the open sample
-   * window (a few field writes, so it is cheap on every call). Switching back re-assembles once
-   * and starts a fresh window, so a later shadow period never reports stale window counts. */
+    /** Mode `off`: drop the resident chunk runtime (a few field writes, cheap on every call).
+   * Switching back re-assembles once. */
   release(): void {
     this.#manifestCache = null;
     this.#runtimeCache = null;
-    this.#shadowSampleRuntime = null;
-    this.#window = null;
-    this.#windowLogged = 0;
-    this.#windowSuppressed = 0;
-    this.#windowTicks = 0;
-    this.#windowPositions = 0;
-    this.#windowDisagreements = 0;
-  }
-
-  /** The chunk runtime to sample this tick: shadow mode, a fresh runtime, and on cadence. */
-  sampleRuntime(tick: bigint): ChunkLiveIslandRuntime | null {
-    if (this.#shadowSampleRuntime === null || tick % this.#sampleIntervalTicks !== 0n) return null;
-    return this.#shadowSampleRuntime;
-  }
-
-  /**
-   * Compares final collision (live rows included) at up to `samplePositions`
-   * positions, rotating through the players across sampled ticks. `chunkFinal`
-   * builds the same maps with the chunk runtime; it runs only here. Never throws.
-   */
-  recordSample(tick: bigint, positions: readonly Vec2Fixed[], compiledFinal: FinalCollisionPair, chunkFinal: () => FinalCollisionPair): void {
-    if (positions.length === 0) return;
-    try {
-      const chunks = chunkFinal();
-      const count = Math.min(this.#samplePositions, positions.length);
-      const start = Number((tick / this.#sampleIntervalTicks) % BigInt(positions.length));
-      const disagreements: PositionDisagreement[] = [];
-      for (let offset = 0; offset < count; offset++) {
-        const position = positions[(start + offset) % positions.length]!;
-        for (const medium of MEDIA) disagreements.push(...compareCollisionAtPosition(medium, position, compiledFinal[medium], chunks[medium]));
-      }
-      this.#sampledTicks += 1;
-      this.#sampledPositions += count;
-      this.#logSampleDisagreements(tick, disagreements, count);
-    } catch (error) {
-      this.#warnOnce('sample_error', { event: 'chunk_authority_sample_error', detail: message(error) });
-    }
-  }
-
-  #logSampleDisagreements(tick: bigint, disagreements: readonly PositionDisagreement[], positions: number): void {
-    const window = tick / this.#sampleWindowTicks;
-    if (this.#window !== window) {
-      // One summary per finished window (at most once a minute at the defaults), so a soak can
-      // prove the sampler ran: info when clean, warn when anything disagreed or was suppressed.
-      if (this.#window !== null && this.#windowTicks > 0) {
-        const summary = { event: 'chunk_authority_sample_window', window: this.#window.toString(), sampledTicks: this.#windowTicks,
-          sampledPositions: this.#windowPositions, disagreements: this.#windowDisagreements, logged: this.#windowLogged, suppressed: this.#windowSuppressed };
-        if (this.#windowDisagreements > 0) this.#logger.warn(summary); else this.#logger.info(summary);
-      }
-      this.#window = window;
-      this.#windowLogged = 0;
-      this.#windowSuppressed = 0;
-      this.#windowTicks = 0;
-      this.#windowPositions = 0;
-      this.#windowDisagreements = 0;
-    }
-    this.#windowTicks += 1;
-    this.#windowPositions += positions;
-    this.#windowDisagreements += disagreements.length;
-    if (disagreements.length === 0) return;
-    this.#sampleDisagreements += disagreements.length;
-    const room = Math.max(0, this.#sampleLimit - this.#windowLogged);
-    const logged = disagreements.slice(0, room);
-    this.#windowSuppressed += disagreements.length - logged.length;
-    if (logged.length === 0) return;
-    this.#windowLogged += logged.length;
-    this.#loggedSamples += logged.length;
-    this.#logger.warn({ event: 'chunk_authority_sample_disagreement', tick: tick.toString(), key: this.#shadowSampleRuntime?.key ?? null, samples: logged });
   }
 
   #warnOnce(key: string, event: Readonly<Record<string, unknown>>): void {
@@ -564,12 +310,6 @@ export class ChunkAuthorityDispatcher {
     return {
       lastResolution: this.#lastResolution,
       fallbacks: { ...this.#fallbacks },
-      compares: this.#compares,
-      lastCompare: this.#lastCompare,
-      sampledTicks: this.#sampledTicks,
-      sampledPositions: this.#sampledPositions,
-      sampleDisagreements: this.#sampleDisagreements,
-      loggedSamples: this.#loggedSamples,
     };
   }
 }
