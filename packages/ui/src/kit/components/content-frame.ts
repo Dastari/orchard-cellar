@@ -153,6 +153,16 @@ function uiDesignedContentFrame(options: UiContentFrameOptions): UiContentFrameE
   const cells = (pane: Pane) => uiFramePaneCells(definition, pane, bindingsOf(pane));
   const grid = (pane: Pane) => { const bindings = bindingsOf(pane); if (!bindings.length) return null;
     return uiInventoryGrid({ ...common, id: `${definition.id}.pane.${pane.id}`, container: bindings[0]!.containerId, cells: cells(pane), columns: pane.columns ?? 'auto', fixedColumns: true, layout: { width: 'fit' } }); };
+  // A station's multi-cell entity pane with more cells than its authored columns x rows (a barrel bound to its whole
+  // container) scrolls like a chest's contents: the kit panel, with the authored rows in view and its slots recycled
+  // (wiki Roadmap/Uncapped Storage, step 5). A pane that fits, and every single-cell role slot, stays a plain grid.
+  const scrolling = (pane: Pane) => { const bindings = bindingsOf(pane), list = cells(pane);
+    if (!bindings.length || pane.columns === undefined || pane.rows === undefined || list.length <= pane.columns * pane.rows) return null;
+    const controls = options.inventoryControls?.[bindings[0]!.containerId], width = uiFixed(pane.columns * 30 - 2 + 24);
+    // No filter or sort header: the station keeps its own sort glyph beside the pane.
+    return uiInventoryPanel({ ...common, id: `${definition.id}.pane.${pane.id}`, container: bindings[0]!.containerId, cells: list, columns: pane.columns,
+      fixedColumns: true, visibleRows: pane.rows, showFilter: false, ...(controls?.capacity ? { capacity: controls.capacity } : {}),
+      ...(controls?.itemLabel ? { itemLabel: controls.itemLabel } : {}), layout: { width, gap: 0 } }); };
   const panel = (pane: Pane, label: string) => { const bindings = bindingsOf(pane); if (!bindings.length) return null;
     const controls = options.inventoryControls?.[bindings[0]!.containerId];
     return uiPlayerInventoryPane({ ...common, ...controls, label, paneId: `pane:${pane.id}`, id: `${definition.id}.pane.${pane.id}`, container: bindings[0]!.containerId, cells: cells(pane), columns: pane.columns ?? 5, rows: pane.rows }); };
@@ -184,7 +194,7 @@ function uiDesignedContentFrame(options: UiContentFrameOptions): UiContentFrameE
   if (machine || timingPane) {
     const entity = definition.panes.filter(pane => isEntity(pane) && !custom(pane));
     // An entity side with a sort control (the preserving barrel) keeps a touch-reachable sort glyph beside its slots.
-    const slotFor = (pane: Pane) => { const g = grid(pane); if (!g) return null;
+    const slotFor = (pane: Pane) => { const g = scrolling(pane) ?? grid(pane); if (!g) return null;
       const controls = options.inventoryControls?.[bindingsOf(pane)[0]!.containerId];
       const sort = controls?.onSort ? uiGlyphButton({ glyph: 'glyph.sort', id: `${definition.id}.pane.${pane.id}.sort`, label: 'Sort & stack', onPress: () => { if (controls.sortEnabled?.() !== false) controls.onSort!(); } }) : null;
       if (sort && controls?.sortEnabled) refresh.push(() => { const disabled = !controls.sortEnabled!(); if (sort.disabled !== disabled) sort.setDisabled(disabled); });
