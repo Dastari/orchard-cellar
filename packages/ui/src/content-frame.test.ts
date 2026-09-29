@@ -103,6 +103,12 @@ describe('content frame runtime', () => {
     }]);
     expect(resolveFramePaneSlots(backpack, aliases, registry)).toHaveLength(20);
     expect(resolveFramePaneSlots(backpack, aliases, registry)[0]).toMatchObject({ containerId: 'backpack', index: 0 });
+    // Uncapped Storage step 5: with the player's capacity, a backpack pane binds every cell the bag opens, 8 or 1,000;
+    // a preview without a player keeps one authored grid (5 x 4).
+    expect(resolveFramePaneSlots(backpack, aliases, registry, { backpack: 8 })).toHaveLength(8);
+    const thousand = resolveFramePaneSlots(backpack, aliases, registry, { backpack: 1000 });
+    expect(thousand).toHaveLength(1000);
+    expect(thousand[999]).toEqual({ containerId: 'backpack', index: 999 });
   });
 
   it('derives process input, fuel and output allow-lists from the content registry', () => {

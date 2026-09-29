@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { BACKPACK_SLOT_COUNT, BASE_BACKPACK_CAPACITY, bootstrapContentRegistry, type ContentRegistry, type PlayerContainerCellRef, type PlayerContainerId } from '@orchard/sim';
+import { BASE_BACKPACK_CAPACITY, bootstrapContentRegistry, type ContentRegistry, type PlayerContainerCellRef, type PlayerContainerId } from '@orchard/sim';
 import { clientBackpackSlotCapacity, equippedBackpackCapacity, reachableCarriedRows } from './backpack-capacity.js';
 
 const registry = bootstrapContentRegistry();
@@ -19,16 +19,18 @@ describe('BUG-054: the client uses the world\'s backpack capacity rule', () => {
     expect(clientBackpackSlotCapacity(small, worn('pouch'))).toBe(BASE_BACKPACK_CAPACITY);
   });
 
-  it('keeps every other case: no bag, the shipped bag, oversized bags, retired bags and debug slots', () => {
+  it('keeps every other case: no bag, the shipped bag, large bags, retired bags and debug slots', () => {
     expect(clientBackpackSlotCapacity(registry, undefined)).toBe(8);
     expect(clientBackpackSlotCapacity(registry, { itemKind: 'backpack', quantity: 0 })).toBe(8);
     expect(clientBackpackSlotCapacity(registry, worn('backpack'))).toBe(20);
-    expect(clientBackpackSlotCapacity(withBag('trunk', 40), worn('trunk'))).toBe(BACKPACK_SLOT_COUNT);
+    // No 20-cell clamp since Uncapped Storage step 5: the bag alone decides, as the server does.
+    expect(clientBackpackSlotCapacity(withBag('trunk', 40), worn('trunk'))).toBe(40);
+    expect(clientBackpackSlotCapacity(withBag('wagon', 1000), worn('wagon'))).toBe(1000);
     expect(clientBackpackSlotCapacity(withBag('satchel', 12), worn('satchel'))).toBe(12);
     expect(clientBackpackSlotCapacity(withBag('old_pack', 12, true), worn('old_pack'))).toBe(8);
     expect(clientBackpackSlotCapacity(registry, undefined, 14)).toBe(14);
-    // Debug slots are capped at the 20 cells, as the server caps them (the client did not before).
-    expect(clientBackpackSlotCapacity(registry, undefined, 30)).toBe(BACKPACK_SLOT_COUNT);
+    // Debug slots open more cells, as the server's do.
+    expect(clientBackpackSlotCapacity(registry, undefined, 30)).toBe(30);
   });
 
   it('is the one rule: the client model and the world menu containers both call the shared sim function', () => {

@@ -29,9 +29,9 @@ import { renderProtocolAction } from './render-protocol-action.js';
 import type { ContainerSnapshot, ContentRegistry, ItemContainerContentResolver, CraftingStation, FrameDefinitionId, ItemDefinition, ItemStack, MoonPhase, MoveItemRequest, WeatherMode, WindDirectionMode } from '@orchard/sim';
 import { bootstrapContentRegistry } from '@orchard/sim/content/bootstrap-registry';
 import { runtimeRecipeSkillSatisfied } from '@orchard/sim/content/farming-runtime';
-import { runtimeCraftingRecipeOutput, runtimeItemDefinition, runtimeMatchingRecipeId, runtimeMaxStack, runtimeRecipeDefinition } from '@orchard/sim/content/runtime';
+import { runtimeCraftingRecipeOutput, runtimeItemDefinition, runtimeItemInventoryCapacity, runtimeMatchingRecipeId, runtimeMaxStack, runtimeRecipeDefinition } from '@orchard/sim/content/runtime';
 import { MAIN_HAND_EQUIPMENT_INDEX, MAIN_HAND_SELECTED_SLOT, isMainHandSelectedSlot, type PlayerContainerId } from '@orchard/sim/container-addressing';
-import { BACKPACK_SLOT_COUNT, CRAFTING_SLOT_COUNT, EQUIPMENT_SLOTS, HOTBAR_SLOT_COUNT, accessibleBackpackCapacity, hotbarSlotForInputCode, hotbarSlotLabel, inventoryContainerSlotCount } from '@orchard/sim/inventory-layout';
+import { CRAFTING_SLOT_COUNT, EQUIPMENT_SLOTS, HOTBAR_SLOT_COUNT, accessibleBackpackCapacity, hotbarSlotForInputCode, hotbarSlotLabel, inventoryContainerSlotCount } from '@orchard/sim/inventory-layout';
 import { BOOTSTRAP_ITEM_CONTAINER_CONTENT, CHEST_STORAGE_CAPACITY, CHEST_STORAGE_COLUMNS, clickContainerSlot, craftingRecipeOutput, itemContainerContentResolver, itemDefinition, maxStackFor, pickupAllToCursor, quickCraftCursorStack, quickMoveAllMatchingStacks } from '@orchard/sim/item-containers';
 import { recipeDefinition } from '@orchard/sim/recipes';
 import type { LoadedAsset } from './assets.js';
@@ -575,11 +575,17 @@ const SLOT_WIDTH = 30;
 const SLOT_HEIGHT = 31;
 const HOTBAR_RETICLE_SIZE = 60;
 const DEFAULT_INVENTORY_SLOTS = 8;
+/** The legacy frame-less host windows' backpack grid: 5 columns by 4 rows of fixed rects. It is a layout, not a
+ * capacity; cells past it are placed by the kit panes, which scroll over every cell the bag opens. */
+const LEGACY_HOST_BACKPACK_GRID_CELLS = 20;
 
 /** The backpack cells the model opens (BUG-056): its projected capacity, through the world's one rule. A model with
- * no projected capacity (older tests, the UI lab) falls back to a full or base bag. */
-function modelBackpackCapacity(model: Pick<OverworldUiModel, 'backpackSlotCapacity' | 'hasBackpack'>): number {
-  return accessibleBackpackCapacity(model.backpackSlotCapacity ?? (model.hasBackpack ? BACKPACK_SLOT_COUNT : DEFAULT_INVENTORY_SLOTS));
+ * no projected capacity (older tests, the UI lab) falls back to the shipped backpack's authored capacity or the base
+ * bag. */
+function modelBackpackCapacity(model: Pick<OverworldUiModel, 'backpackSlotCapacity' | 'hasBackpack' | 'contentRegistry'>): number {
+  return accessibleBackpackCapacity(model.backpackSlotCapacity ?? (model.hasBackpack
+    ? runtimeItemInventoryCapacity(model.contentRegistry ?? bootstrapContentRegistry(), 'backpack') ?? DEFAULT_INVENTORY_SLOTS
+    : DEFAULT_INVENTORY_SLOTS));
 }
 
 /** The model's stacks by container and cell: the player's carried rows by their own container and index, and the open
@@ -1021,7 +1027,7 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
     progressionWindow: progressionWindowRect(width, height),
     closeButton: { x: window.x + window.width - 24, y: window.y + 8, width: 16, height: 16 },
     equipmentSlots: equipmentCells.map(([column, row]) => ({ x: paperOrigin.x + column * 31, y: paperOrigin.y + row * 34, width: 28, height: 31 })),
-    backpackSlots: Array.from({ length: BACKPACK_SLOT_COUNT }, (_, index) => ({ x: backpackOrigin.x + index % inventoryBackpackColumns * 31, y: backpackOrigin.y + Math.floor(index / inventoryBackpackColumns) * 31, width: 28, height: 31 })),
+    backpackSlots: Array.from({ length: LEGACY_HOST_BACKPACK_GRID_CELLS }, (_, index) => ({ x: backpackOrigin.x + index % inventoryBackpackColumns * 31, y: backpackOrigin.y + Math.floor(index / inventoryBackpackColumns) * 31, width: 28, height: 31 })),
     inventoryHotbarSlots: Array.from({ length: HOTBAR_SLOT_COUNT }, (_, slot) => ({ x: inventoryHotbarX + slot * SLOT_WIDTH, y: inventoryWindow.y + inventoryWindow.height - 48, width: 28, height: 31 })),
     inventorySortButton: { x: backpackOrigin.x + inventoryBackpackGridWidth - 16, y: inventoryWindow.y + 31, width: 16, height: 16 },
     inventoryFilter: { x: backpackOrigin.x, y: inventoryWindow.y + 28, width: Math.max(40, inventoryBackpackGridWidth - 23), height: 20 },
@@ -1053,7 +1059,7 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
       height: 31,
     })),
     craftingResult: { x: craftingGridX + craftingResultOffset, y: craftingWindow.y + 85, width: 28, height: 31 },
-    craftingInventorySlots: Array.from({ length: BACKPACK_SLOT_COUNT }, (_, index) => ({
+    craftingInventorySlots: Array.from({ length: LEGACY_HOST_BACKPACK_GRID_CELLS }, (_, index) => ({
       x: craftingBackpackOrigin.x + index % craftingBackpackColumns * 31,
       y: craftingBackpackOrigin.y + Math.floor(index / craftingBackpackColumns) * 31,
       width: 28,
@@ -1557,9 +1563,12 @@ export class OverworldUi {
   }
 
   /** A retained pane's cells: its laid-out bindings, or, bound to `entitySlots: all`, every slot of the open entity's
-   * container (the layout can't know its size), with the pane's one restriction. */
+   * container, and bound to the backpack, every cell the bag opens (the layout can't know either size), with the
+   * pane's one restriction. */
   private retainedPaneBindings(pane: ContentFrameLayout['panes'][number]): readonly ResolvedFrameSlotBinding[] {
     const bind = pane.definition.bind, first = pane.slots[0];
+    if ('self' in bind && bind.self === 'backpack' && first) return Array.from({ length: modelBackpackCapacity(this.model) },
+      (_, index) => ({ containerId: first.containerId, index, ...(first.restriction ? { restriction: first.restriction } : {}) }));
     if (!('entitySlots' in bind) || bind.entitySlots !== 'all' || !first) return pane.slots;
     return frameEntitySlotIndexes(bind, this.model.openEntityCapacity ?? pane.slots.length)
       .map(index => ({ containerId: first.containerId, index, ...(first.restriction ? { restriction: first.restriction } : {}) }));

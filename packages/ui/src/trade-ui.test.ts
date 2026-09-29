@@ -6,6 +6,7 @@ import type { UiKitArt } from './kit/components/art.js';
 import type { UiElement } from './kit/runtime/element.js';
 import type { CanvasTextEditor } from './kit/runtime/text-editor.js';
 import { uiSlotView } from './kit/components/inventory.js';
+import { scrollUiElement } from './kit/layout/scroll.js';
 
 function callbacks() { return { acceptRequest: vi.fn(), declineRequest: vi.fn(), cancel: vi.fn(),
   offerItem: vi.fn(), removeItem: vi.fn(), offerBronze: vi.fn(), setAccepted: vi.fn() } satisfies TradeUiCallbacks; }
@@ -222,18 +223,35 @@ describe('production retained trade host', () => {
     expect(h.handlers.offerItem).toHaveBeenCalledExactlyOnceWith('trade', backpack(15), 0, 2); h.ui.dispose();
   });
 
-  it('offers exactly the cells the capacity rule opens: a 12-cell bag, a bag below the base 8, never past the backpack (BUG-056)', () => {
+  it('offers exactly the cells the capacity rule opens: a 12-cell bag, a bag below the base 8, never past the bag (BUG-056)', () => {
     const cells = [7, 11, 12, 19].map(index => ({ container: 'backpack' as const, index, itemKind: 'wood', quantity: 1 }));
     const offerable = (backpackSlotCapacity: number) => {
       const h = setup({ ...model(), inventorySlots: [...cells, { container: 'equipment' as const, index: 0, itemKind: 'wood', quantity: 1 }], backpackSlotCapacity });
-      // Equipment never shows, and the pane never goes past the backpack's cells.
-      const shown = [...cells.map(row => row.index), BACKPACK_SLOT_COUNT].filter(index => h.shown(cell('backpack', index))); h.ui.dispose();
+      // Equipment never shows, and the pane never goes past the bag's cells.
+      const shown = [...cells.map(row => row.index), BACKPACK_SLOT_COUNT, 25].filter(index => h.shown(cell('backpack', index))); h.ui.dispose();
       return shown;
     };
     expect(offerable(12)).toEqual([7, 11]);
     expect(offerable(4)).toEqual([7]);
     expect(offerable(20)).toEqual([7, 11, 12, 19]);
-    expect(offerable(25)).toEqual([7, 11, 12, 19]);
+    // No 20-cell clamp since Uncapped Storage step 5: a 25-cell bag opens cell 20 (the legacy numbering's end), not 25.
+    expect(offerable(25)).toEqual([7, 11, 12, 19, 20]);
+  });
+
+  it('offers from cell 999 of a 1,000-cell bag: a bounded pane that scrolls to it (Uncapped Storage step 5)', () => {
+    const h = setup({ ...model(), backpackSlotCapacity: 1000, inventorySlots: [{ container: 'backpack' as const, index: 999, itemKind: 'wood', quantity: 7 }] });
+    const slots = () => h.ui.root.entries().filter(entry => entry.element.id?.startsWith('trade.backpack.slot.'));
+    // (4 visible rows + 1) x 5 columns of slot nodes, whatever the bag's size.
+    expect(slots().length).toBeLessThanOrEqual(25);
+    expect(h.shown(cell('backpack', 0))).toBe(true);
+    expect(h.shown(cell('backpack', 999))).toBe(false);
+    const area = h.ui.root.entries().find(entry => entry.element.kind === 'scroll-area' && entry.element.label === 'backpack slots')!.element;
+    scrollUiElement(area, 0, area.scroll.maxY); h.ui.root.arrange();
+    expect(h.shown(cell('backpack', 999))).toBe(true);
+    expect(h.shown(cell('backpack', 1000))).toBe(false);
+    expect(slots().length).toBeLessThanOrEqual(25);
+    h.click(cell('backpack', 999));
+    expect(h.handlers.offerItem).toHaveBeenCalledExactlyOnceWith('trade', backpack(999), 0, 7); h.ui.dispose();
   });
 
   it.each([[323, 240], [480, 270], [800, 600]])('keeps modal and footer controls within %sx%s logical bounds', (width, height) => {

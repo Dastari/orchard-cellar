@@ -63,7 +63,7 @@ async function fixture(window: OverworldWindow, overrides: Partial<OverworldUiMo
     ui.drawCursorOverlay(context as unknown as CanvasRenderingContext2D);
     return (x: number, y: number, width = 1, height = 1) => { let sum = 0; const data = context.getImageData(x, y, width, height).data; for (let i = 3; i < data.length; i += 4) sum += data[i]!; return sum; };
   };
-  return { ui, root, menus, slot, centre, move, overlay, dispose: () => ui.disposeRetainedInventory() };
+  return { ui, root, menus, model, slot, centre, move, overlay, dispose: () => ui.disposeRetainedInventory() };
 }
 const ore: ItemStack = { itemKind: 'copper_ore', quantity: 12 };
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
@@ -449,6 +449,75 @@ describe('a barrel that outgrows its window (Uncapped Storage step 5)', () => {
       const grid = f.root.entries().find(({ element }) => element.id === 'frame:barrel.pane.contents')!.element;
       expect(grid.kind).not.toBe('inventory-panel');
       expect(grid.props['columns']).toBe(COLUMNS);
+    } finally { f.dispose(); }
+  });
+});
+
+// Uncapped Storage step 5 (wiki Roadmap/Uncapped Storage): the equipped bag alone sizes the backpack, with no 20-cell
+// clamp. The inventory window's backpack pane lists every cell a 1,000-cell bag opens, keeps (4 + 1) x 5 slot nodes as
+// it scrolls, and every shown slot's drop verdict is the authority's.
+describe('a 1,000-slot bag in the inventory window (Uncapped Storage step 5)', () => {
+  const CAPACITY = 1000;
+  const bigBag = (() => {
+    const bag = registry.items.get('item:backpack')!;
+    return { ...registry, items: new Map(registry.items).set(bag.id, { ...bag, equip: { ...bag.equip!, inventoryCapacity: CAPACITY } }) } as typeof registry;
+  })();
+  const inventory = [{ container: 'equipment', index: 4, itemKind: 'backpack', quantity: 1 }, { container: 'backpack', index: 0, itemKind: 'wood', quantity: 8 },
+    { container: 'backpack', index: 500, itemKind: 'apple', quantity: 2 }, { container: 'backpack', index: 999, itemKind: 'wood', quantity: 3 }];
+  const backpackSlots = (root: UiRoot) => root.entries().flatMap(({ element }) => {
+    const ref = element.props['binding'] as { container: string; index: number } | undefined;
+    return ref?.container === 'backpack' ? [{ element, ref }] : [];
+  });
+  const area = (root: UiRoot) => root.entries().find(({ element }) => element.kind === 'scroll-area' && element.label === 'backpack slots')!.element;
+
+  it('scrolls to cell 999 with bounded slots, and every drop verdict is the authority\'s', async () => {
+    const policy = itemPolicyResolver(bigBag);
+    for (const held of ['apple', 'pickaxe']) {
+      const cursor = { itemKind: held, quantity: 1 };
+      const f = await fixture('inventory', { contentRegistry: bigBag, inventory, backpackSlotCapacity: CAPACITY, cursorStack: cursor });
+      try {
+        expect(f.ui.retainedInventoryActive).toBe(true);
+        const stored = new Map(inventory.filter(row => row.container === 'backpack').map(row => [row.index, row]));
+        const containers: Record<string, ContainerSnapshot> = { backpack: { id: 'backpack', capacity: CAPACITY,
+          slots: Array.from({ length: CAPACITY }, (_, index) => { const item = stored.get(index); return item ? { itemKind: item.itemKind, quantity: item.quantity } : null; }) } };
+        f.root.arrange();
+        const scroll = area(f.root);
+        expect(scroll.scroll.maxY).toBe(Math.ceil(CAPACITY / 5) * 33 - 2 - (4 * 33 - 2));
+        const seen = new Set<number>();
+        for (const y of [0, Math.round(scroll.scroll.maxY / 2), scroll.scroll.maxY]) {
+          scrollUiElement(scroll, 0, y); f.root.arrange();
+          const bound = backpackSlots(f.root);
+          expect(bound.length).toBeLessThanOrEqual(25);
+          for (const { element, ref } of bound) {
+            if (!element.visible) continue;
+            seen.add(ref.index);
+            const result = clickContainerSlot(containers, cursor, { container: 'backpack', index: ref.index, button: 'left' }, policy);
+            const refused = !result.ok && result.code === 'slot_rejects_item';
+            expect(uiSlotDropTarget(element), `${held} over backpack/${ref.index}`).toBe(refused ? 'refuse' : 'accept');
+          }
+        }
+        expect(seen.has(0) && seen.has(999) && !seen.has(1000)).toBe(true);
+      } finally { f.dispose(); }
+    }
+  });
+
+  it('clicks cell 999 through the host\'s gesture source, and grows the pane when a bigger bag is equipped', async () => {
+    const click = vi.fn().mockResolvedValue(undefined);
+    const f = await fixture('inventory', { contentRegistry: bigBag, inventory: inventory.filter(row => row.container !== 'equipment'), backpackSlotCapacity: 20 },
+      { inventoryCursorClick: click });
+    try {
+      f.root.arrange();
+      // A 20-cell bag: the pane shows the cells as before, and no slot for cell 20.
+      expect(area(f.root).scroll.maxY).toBe(4 * 33 - 2 - (4 * 33 - 2));
+      expect(backpackSlots(f.root).map(({ ref }) => ref.index)).toEqual(Array.from({ length: 20 }, (_, index) => index));
+      // The bag is equipped while the window is open: the pane lists every cell it opens.
+      f.ui.update({ ...f.model, inventory, backpackSlotCapacity: CAPACITY }); f.root.arrange();
+      const scroll = area(f.root);
+      expect(scroll.scroll.maxY).toBe(Math.ceil(CAPACITY / 5) * 33 - 2 - (4 * 33 - 2));
+      scrollUiElement(scroll, 0, scroll.scroll.maxY); f.root.arrange();
+      expect(backpackSlots(f.root).length).toBeLessThanOrEqual(25);
+      f.root.focus.set(f.slot('backpack', 999), 'keyboard'); f.root.key({ key: 'Enter' });
+      expect(click).toHaveBeenCalledExactlyOnceWith('backpack', 999, 'left');
     } finally { f.dispose(); }
   });
 });

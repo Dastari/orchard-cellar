@@ -68,7 +68,8 @@ export function uiFramePaneCells(definition: Pick<FrameContentDefinition, 'id'>,
  * approved designed layouts (station, storage, pack); the frame designer keeps the per-pane preview. */
 /** The open entity's size, or the frame's default (see frameDefaultEntityCapacity) for a preview. */
 function frameCapacities(options: Pick<UiContentFrameOptions, 'capacities' | 'definition' | 'registry'>) {
-  return { entity: options.capacities?.entity ?? frameDefaultEntityCapacity(options.definition, options.registry) };
+  return { entity: options.capacities?.entity ?? frameDefaultEntityCapacity(options.definition, options.registry),
+    ...(options.capacities?.backpack === undefined ? {} : { backpack: options.capacities.backpack }) };
 }
 export function uiContentFrame(options: UiContentFrameOptions): UiContentFrameElement {
   return options.onPaneSelect ? uiPaneContentFrame(options) : uiDesignedContentFrame(options);

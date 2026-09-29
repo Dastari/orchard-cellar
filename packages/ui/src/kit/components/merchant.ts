@@ -16,7 +16,6 @@ import { uiPurseLabel } from './purse.js';
 import { uiCurrency, uiCurrencyLabel } from './currency.js';
 import { uiItemFrame, uiSetSlotState } from './inventory.js';
 import { UiInventoryFilter, uiPlayerHotbar, uiPlayerInventoryPane } from './inventory-panel.js';
-import { BACKPACK_SLOT_COUNT } from '@orchard/sim/inventory-layout';
 import type { ContentRegistry, ItemStack } from '@orchard/sim';
 import { paintUiSkin, uiElementUpperCase } from './art.js';
 import { uiFolderTabs } from './social.js';
@@ -151,7 +150,8 @@ export function uiMerchant(options: UiMerchantOptions): UiMerchantElement {
         const common = { artwork: options.artwork, allowSecondary: true, activateOn: 'up' as const, contentRegistry: registry,
             iconAnimation: (item: ItemStack) => registry()?.items.get(`item:${item.itemKind}`)?.icon.animation ?? itemDefinition(item.itemKind)?.iconAnimation ?? 'base' };
         const pane = uiPlayerInventoryPane({ ...common, id: 'merchant.backpack', label: 'BACKPACK', container: 'backpack',
-            cells: Array.from({ length: BACKPACK_SLOT_COUNT }, (_, index) => ({ id: String(index), index })), columns: 5, rows: 4,
+            // Every cell the bag opens (Uncapped Storage step 5); a capacity change rebuilds the pane.
+            cells: Array.from({ length: model.sell?.capacity ?? 0 }, (_, index) => ({ id: String(index), index })), columns: 5, rows: 4,
             filterModel: sellFilter, capacity: () => model.sell?.capacity ?? 0, itemLabel: item => registry()?.items.get(`item:${item.itemKind}`)?.displayName ?? itemDefinition(item.itemKind)?.displayName ?? item.itemKind,
             stack: index => carried('backpack', index), onActivate: (index, event) => sellFrom('backpack', index, event.button === 2),
             cellState: index => sellState('backpack', index),

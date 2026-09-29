@@ -1,5 +1,5 @@
 import { coinPurseFromBronze, BRONZE_PER_GOLD, BRONZE_PER_SILVER } from '@orchard/sim/commerce';
-import { BACKPACK_SLOT_COUNT, accessibleBackpackCapacity } from '@orchard/sim/inventory-layout';
+import { accessibleBackpackCapacity } from '@orchard/sim/inventory-layout';
 import { BASE_BACKPACK_CAPACITY } from '@orchard/sim/item-containers';
 import { tradeItemDisplayName, tradeItemIsOfferable, type TradeCarriedContainer, type TradeUiModel, type TradeUiCallbacks } from '../../trade-model.js';
 import type { LoadedAsset } from '../../assets.js';
@@ -195,7 +195,8 @@ export function uiTrade(options: UiTradeOptions): UiTradeElement {
     const pane = uiPlayerInventoryPane({ ...common, id: 'trade.backpack', label: 'BACKPACK', container: 'backpack',
       // The key names the cell too, so a release after a scroll recycled the slot never acts on another cell.
       cellIntercept: index => guardedCell(() => `${index()}:${rowKey('backpack', index())()}`), cellState: index => offerState('backpack', index),
-      cells: Array.from({ length: BACKPACK_SLOT_COUNT }, (_, index) => ({ id: String(index), index })), columns: 5, rows: 4,
+      // Every cell the bag opens (Uncapped Storage step 5); past four rows the pane scrolls and recycles its slots.
+      cells: Array.from({ length: capacity() }, (_, index) => ({ id: String(index), index })), columns: 5, rows: 4,
       filterModel: backpackFilter, capacity, itemLabel: item => tradeItemDisplayName(model.contentRegistry, item.itemKind),
       stack: index => carriedRow('backpack', index),
       onActivate: (index, event) => offerFrom('backpack', index, event.button === 2),

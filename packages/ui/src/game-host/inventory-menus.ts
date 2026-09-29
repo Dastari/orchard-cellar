@@ -69,6 +69,9 @@ export class InventoryMenus {
   private snapshot: InventoryMenuSnapshot | null = null;
   private definition: FrameContentDefinition | null = null;
   private entityCapacity: number | undefined;
+  /** The backpack cells the open window's pane was built with: every cell the bag opened then. A larger bag rebuilds
+   * the window; a smaller one keeps the cells and the pane's capacity hides the rest (Uncapped Storage step 5). */
+  private backpackCells = 0;
   private readonly filter = new UiInventoryFilter();
   /** The entity pane's own filter (a chest's contents), never shared with the backpack (BUG-065). */
   private readonly entityFilter = new UiInventoryFilter();
@@ -145,7 +148,8 @@ export class InventoryMenus {
     if (this.filter.editor.snapshot().value !== snapshot.filter) {
       this.filter.editor.setValue(snapshot.filter); this.filter.refresh();
     }
-    if (this.definition !== snapshot.definition || this.entityCapacity !== snapshot.entityCapacity) this.build(snapshot);
+    if (this.definition !== snapshot.definition || this.entityCapacity !== snapshot.entityCapacity
+      || snapshot.backpackCapacity > this.backpackCells) this.build(snapshot);
     // The slots' rules and membership come from the frame, the content and the backpack's capacity. Only a change
     // there makes the slots re-check their drop verdicts; an ordinary frame re-checks nothing.
     const contentRegistry = this.authority.contentRegistry?.();
@@ -167,7 +171,7 @@ export class InventoryMenus {
     this.root.input.cancelPointers(); this.controller.cancel(); this.controller.clearRefusals();
     for (const child of [...this.root.tree.children]) child.dispose();
     this.root.tree.replaceChildren([]);
-    this.definition = snapshot.definition; this.entityCapacity = snapshot.entityCapacity;
+    this.definition = snapshot.definition; this.entityCapacity = snapshot.entityCapacity; this.backpackCells = snapshot.backpackCapacity;
     // A different frame starts with an empty entity filter (BUG-065 review).
     if (this.entityFilter.editor.snapshot().value) { this.entityFilter.editor.setValue(''); this.entityFilter.refresh(); }
     const chest = snapshot.aliases.entity === 'chest';
@@ -181,7 +185,8 @@ export class InventoryMenus {
     });
     const options = {
       definition: snapshot.definition, aliases: snapshot.aliases, registry: snapshot.registry,
-      ...(snapshot.entityCapacity === undefined ? {} : { capacities: { entity: snapshot.entityCapacity } }),
+      // The backpack pane lists every cell the bag opens and scrolls over them (Uncapped Storage step 5).
+      capacities: { backpack: snapshot.backpackCapacity, ...(snapshot.entityCapacity === undefined ? {} : { entity: snapshot.entityCapacity }) },
       controller: this.controller, artwork: snapshot.artwork, state: snapshot.state, timing: snapshot.timing,
       progress: () => this.snapshot?.progress ?? 0,
       iconAnimation: (item: ItemStack) => this.authority.iconAnimation(item),
