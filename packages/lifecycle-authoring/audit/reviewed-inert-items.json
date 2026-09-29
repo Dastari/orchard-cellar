@@ -1,17 +1,17 @@
 {
   "format": "orchard-reviewed-inert-items-v1",
   "reviewedAgainst": {
-    "bootstrapItemCount": 399,
+    "bootstrapItemCount": 400,
     "lifecycleRevision": 19,
     "lifecycleBundleSha256": "50dd4bbaed6264c3754bb7e82a2b3761113a9cd4a8456cc6eeeba5cd46bfc97f",
     "authoredCallbackCount": 157,
-    "inertItemCount": 140,
+    "inertItemCount": 141,
     "dataGraphItemCount": 69,
     "transactionItemCount": 33
   },
   "reattestation": {
-    "date": "2026-09-24",
-    "note": "Recipe recosting: wool, sand, clay, coal and tin ore gain interim shop sources and move from crafting_material_pending_source to crafting_material. 140 inert; owners unchanged."
+    "date": "2026-09-29",
+    "note": "Uncapped Storage step 5 proposal: item:travellers_pack (a 32-slot bag) joins passive_equipment beside item:backpack; equipping stays an inventory operation with no direct action. 141 inert; owners unchanged."
   },
   "groups": [
     {
@@ -162,6 +162,7 @@
       "reason": "Equipping is an inventory/container operation; these items define no direct equipmentUse action.",
       "itemIds": [
         "item:backpack",
+        "item:travellers_pack",
         "item:watch"
       ]
     },
