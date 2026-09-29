@@ -271,7 +271,10 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // ui/index.ts exports player-cells and the one legacy-slot boundary (legacy-global-slots). overworld-ui, hud,
 // hotbar-empty-slots, player-cells and the player-inventory boundary tests cover it; lab snapshot hashes are unchanged;
 // the other three seams are unchanged.
-const STRUCTURAL_SEAM_DIGEST = '26ed42518ae3b9c5979652fed39bebedf967de3a224573d02aa63ae03d85f623';
+// Uncapped Storage step 5 (wiki Roadmap/Uncapped Storage): ui/index.ts drops the legacy-slot boundary export
+// (legacy-global-slots is deleted); the sim loadout and use_selected's equipmentIndex take container cells directly.
+// player-cells, equipment-description and the player-inventory boundary tests cover it; the other four seams are unchanged.
+const STRUCTURAL_SEAM_DIGEST = '3b17ed44e48a23fd9e192aed9ba23ef19a6565478b0e1b82396384a5af1a6023';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

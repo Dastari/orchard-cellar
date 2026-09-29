@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { bootstrapContentRegistry, compileEquipmentLoadout, MAIN_HAND_SELECTED_SLOT } from '@orchard/sim';
-import { legacyEquipmentUseSlot, legacySlotRows } from './legacy-global-slots.js';
 import { mainHandRow } from './overworld-ui.js';
 import { BACKPACK_EQUIPMENT_INDEX, OFF_HAND_EQUIPMENT_INDEX, isAccessibleCarriedCell, selectedCellRow, type PlayerCellStack } from './player-cells.js';
 
@@ -31,18 +30,15 @@ describe('player cells (Uncapped Storage step 4c)', () => {
     for (const container of ['equipment', 'crafting', 'stash'] as const) expect(isAccessibleCarriedCell({ container, index: 0 }, 20)).toBe(false);
   });
 
-  it('confines the legacy global numbering to the sim loadout and the equipment-use argument', () => {
+  it('feeds the sim loadout the cells themselves, with no legacy global numbering (Uncapped Storage step 5)', () => {
     const cells = [row('hotbar', 0, 'axe'), row('backpack', 25, 'stone'), { ...row('equipment', 3, 'hearth_legendary_sword'), durability: 100 },
       row('crafting', 8, 'plank'), row('stash', 0, 'torch')];
-    // The stash and a backpack cell the frozen layout never had are left out; the rest keep their frozen slots.
-    expect(legacySlotRows(cells).map(({ container, index, slot }) => [container, index, slot]))
-      .toEqual([['hotbar', 0, 0], ['equipment', 3, 33], ['crafting', 8, 48]]);
     const registry = bootstrapContentRegistry();
-    const loadout = (rows: readonly PlayerCellStack[]) => compileEquipmentLoadout({ registry, inventory: legacySlotRows(rows),
+    const loadout = (rows: readonly PlayerCellStack[]) => compileEquipmentLoadout({ registry, inventory: rows,
       selectedSlot: MAIN_HAND_SELECTED_SLOT, trainedRanks: {} }).modifiers;
-    // The Main Hand sword's modifiers apply: the loadout found it at the frozen slot 33.
+    // The Main Hand sword's modifiers apply: the loadout found it at equipment cell 3.
     expect(loadout(cells).length).toBeGreaterThan(loadout(cells.filter(cell => cell.container !== 'equipment')).length);
-    expect(legacyEquipmentUseSlot(OFF_HAND_EQUIPMENT_INDEX)).toBe(35);
-    expect(() => legacyEquipmentUseSlot(10)).toThrow('equipment_cell_index_invalid');
+    // A backpack of any size moves no equipment: a sword in backpack cell 23 (legacy global 33) is not the Main Hand.
+    expect(loadout([row('backpack', 23, 'hearth_legendary_sword')])).toEqual(loadout([]));
   });
 });
