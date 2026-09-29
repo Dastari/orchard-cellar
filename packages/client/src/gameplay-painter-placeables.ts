@@ -1,4 +1,4 @@
-import {terrainElevationAtWorldFoot} from '@orchard/engine/terrain';
+import {terrainElevationAtWorldFoot} from '@orchard/engine/terrain-sampling';
 import {drawConnectedObject} from '@orchard/engine/connected-objects';
 import { connectedObjectDefinitionFamily, connectedObjectCatalogue, connectedObjectIndex } from '@orchard/sim/connected-objects';
 import {seatedFurnitureForPlayer} from './hearth-seating.js';

@@ -14,7 +14,7 @@ import { webglFrameSource, webglWorldBackend } from './webgl/hooks.js';
 import { CelestialReceiverScene, GAMEPLAY_GEOMETRY_TRANSITION, type ReceiverLightRaster } from './receiver-lighting.js';
 import { lightingOwner, terrainLightingOwner } from './lighting-owner.js';
 export { lightingOwner } from './lighting-owner.js';
-import { terrainBaseDatum, type TerrainArray } from './terrain.js';
+import { terrainBaseDatum, type TerrainArray } from './terrain-sampling.js';
 
 interface Upload { readonly canvas: HTMLCanvasElement; image: ImageData | null; pixels: WeakRef<Uint8ClampedArray<ArrayBuffer>> | null; revision: number }
 

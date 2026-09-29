@@ -3,7 +3,7 @@ import type { DirectionalCaster } from '@orchard/engine/directional-shadows';
 import type { CelestialLighting } from '@orchard/engine/celestial-lighting';
 import type { LightOcclusionMap } from '@orchard/engine/light-occlusion';
 import type { TileLightmap } from '@orchard/engine/lighting';
-import type { TerrainArray } from '@orchard/engine/terrain';
+import type { TerrainArray } from '@orchard/engine/terrain-sampling';
 
 const EMPTY_CASTERS: readonly DirectionalCaster[] = [];
 /** Keep occlusion-derived casters and owner membership until the terrain or

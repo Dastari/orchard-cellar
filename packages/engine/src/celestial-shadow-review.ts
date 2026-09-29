@@ -11,7 +11,7 @@ import { setWorldAssetPresentation } from './world-asset-presentation.js';
 import { drawAuthoredOverworldObject } from './overworld-art.js';
 import { compositeBasicLighting } from './lighting-quality.js';
 import { LANTERN_LIGHT, TileLightmap } from './lighting.js';
-import type { TerrainArray } from './terrain.js';
+import type { TerrainArray } from './terrain-sampling.js';
 
 /** Local fixture for the combined shadow + omission + receiver path. The
  * stepped platform is explicit test geometry, not a gameplay map snapshot. */

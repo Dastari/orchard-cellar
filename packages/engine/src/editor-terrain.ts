@@ -20,7 +20,7 @@ import {
   type TerrainTransitionDirection,
   type TerrainTransitionKind,
 } from '@orchard/sim';
-import type { TerrainArray } from './terrain.js';
+import type { TerrainArray } from './terrain-sampling.js';
 
 const EDITOR_SPACE_ID = 4_200_001;
 

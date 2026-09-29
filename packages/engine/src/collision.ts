@@ -22,7 +22,7 @@ import {
   type ContentRegistry,
   type MovementMedium,
 } from '@orchard/sim';
-import { terrainFixedPlane, terrainMinimumElevation, type TerrainArray } from './terrain.js';
+import { terrainFixedPlane, terrainMinimumElevation, type TerrainArray } from './terrain-sampling.js';
 import { terrainIsWindow } from './terrain-index.js';
 
 export interface CollisionWorldResource {

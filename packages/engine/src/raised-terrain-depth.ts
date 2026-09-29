@@ -30,7 +30,7 @@ import {
   terrainProjectedSortOffset,
   terrainVisualProjectionRowsPerLevel,
   type TerrainArray,
-} from './terrain.js';
+} from './terrain-sampling.js';
 import type { WorldDepthItem } from './renderer.js';
 import { terrainContains, terrainIndexAt } from './terrain-index.js';
 import type { LoadedAsset } from '@orchard/ui';

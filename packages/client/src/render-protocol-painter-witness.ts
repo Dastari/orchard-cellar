@@ -1,4 +1,4 @@
-import type { TerrainArray } from '@orchard/engine/terrain';
+import type { TerrainArray } from '@orchard/engine/terrain-sampling';
 
 interface ProtocolPainterWitness {
   begin(terrain: TerrainArray, context: CanvasRenderingContext2D, scale: number): void;

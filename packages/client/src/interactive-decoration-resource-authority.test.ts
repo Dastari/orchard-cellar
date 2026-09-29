@@ -5,7 +5,9 @@ const painter = readFileSync(new URL('./gameplay-painter-decorations.ts', import
 const main = readFileSync(new URL('./overworld-main.ts', import.meta.url), 'utf8');
 const topside = readFileSync(new URL('./topside-map-records.ts', import.meta.url), 'utf8');
 const engineCollision = readFileSync(new URL('../../engine/src/collision.ts', import.meta.url), 'utf8');
-const survival = readFileSync(new URL('../../sim/src/survival-world.ts', import.meta.url), 'utf8');
+// The generator-free rules moved to survival-rules.ts (S6); read both.
+const survival = readFileSync(new URL('../../sim/src/survival-world.ts', import.meta.url), 'utf8')
+  + readFileSync(new URL('../../sim/src/survival-rules.ts', import.meta.url), 'utf8');
 const world = readFileSync(new URL('../../world/src/index.ts', import.meta.url), 'utf8');
 
 describe('authored interactive decoration resource wiring', () => {

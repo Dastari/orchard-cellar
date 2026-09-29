@@ -7,7 +7,7 @@ import { connectedObjectFrame, connectedObjectFamily } from '@orchard/sim';
 import { MAP_BIOME_IDS } from '@orchard/sim';
 import { blob47FrameIndexFor } from './tilemap.js';
 import { farmSoilFrameIndex } from './farmland.js';
-import { beachFrameIndexAt, shorelineInsetFrameIndicesAt, freshwaterFrameIndexAt, freshwaterInsetFrameIndicesAt, desertShoreFrameIndexAt, desertGrassEdgeFrameIndexAt, desertGrassInsetFrameIndicesAt, grassSandTransitionFrameIndexAt, pavingGrassTransitionFrameIndexAt, savannaGrassTransitionFrameIndexAt, waterfallFrameIndexAt, authoredFarmlandFrameIndexAt, type TerrainArray } from './terrain.js';
+import { beachFrameIndexAt, shorelineInsetFrameIndicesAt, freshwaterFrameIndexAt, freshwaterInsetFrameIndicesAt, desertShoreFrameIndexAt, desertGrassEdgeFrameIndexAt, desertGrassInsetFrameIndicesAt, grassSandTransitionFrameIndexAt, pavingGrassTransitionFrameIndexAt, savannaGrassTransitionFrameIndexAt, waterfallFrameIndexAt, authoredFarmlandFrameIndexAt, type TerrainArray } from './terrain-sampling.js';
 const offsets = [[0,-1],[1,0],[0,1],[-1,0],[1,-1],[1,1],[-1,1],[-1,-1]] as const;
 const matches = (mask: number, center = true) => (x: number, y: number) => {
   if (x === 0 && y === 0) return center;

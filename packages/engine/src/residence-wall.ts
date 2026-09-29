@@ -1,4 +1,4 @@
-import type {TerrainArray} from './terrain.js';
+import type {TerrainArray} from './terrain-sampling.js';
 import {terrainIndexAt} from './terrain-index.js';
 /** Native16×48 wall ends at the blocked tile immediately north of a floor.
  * Never project its upper courses across another room or outside the map. */

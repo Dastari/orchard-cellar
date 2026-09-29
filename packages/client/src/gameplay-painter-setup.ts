@@ -10,7 +10,7 @@ import { CAMPFIRE_LIGHT_RADIUS_TILES, type PointLight, type UnifiedLightReceiver
 import { enqueueRaisedTerrainDepth } from '@orchard/engine/raised-terrain-depth';
 import { enqueueMapObjects } from '@orchard/engine/map-object-presentation';
 import { type WindTreeSource } from '@orchard/engine/weather-effects';
-import { terrainElevationAtWorldFoot, terrainBaseDatum, terrainMaximumElevation, terrainMinimumElevation, terrainProjectedDepthAtFoot, terrainProjectedElevationAtFoot, terrainProjectedSortOffset, terrainVisualProjectionRowsPerLevel } from '@orchard/engine/terrain';
+import { terrainElevationAtWorldFoot, terrainBaseDatum, terrainMaximumElevation, terrainMinimumElevation, terrainProjectedDepthAtFoot, terrainProjectedElevationAtFoot, terrainProjectedSortOffset, terrainVisualProjectionRowsPerLevel } from '@orchard/engine/terrain-sampling';
 import { type TargetableWorldEntity } from './entity-targeting.js';
 import type { GameplayPainterInputs } from './gameplay-painter-inputs.js';
 

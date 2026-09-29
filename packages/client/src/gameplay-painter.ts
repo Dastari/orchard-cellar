@@ -7,7 +7,7 @@ import type { DirectionalCaster } from '@orchard/engine/directional-shadows';
 import type { UnifiedLightReceiver } from '@orchard/engine/lighting';
 import { lightingOwner } from '@orchard/engine/world-lighting-renderer';
 import { terrainProjectedElevationAtFoot, terrainProjectedSortOffset,
-  terrainElevationAtWorldFoot, terrainVisualProjectionRowsPerLevel, type TerrainArray } from '@orchard/engine/terrain';
+  terrainElevationAtWorldFoot, terrainVisualProjectionRowsPerLevel, type TerrainArray } from '@orchard/engine/terrain-sampling';
 
 interface GameplayPainterInput {
   readonly terrain: TerrainArray;

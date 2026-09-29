@@ -1,5 +1,5 @@
 import { terrainRuleLayers, ruleNeighbourMask } from '@orchard/sim';
-import { authoredFarmlandRuleLayersAt } from './terrain.js';
+import { authoredFarmlandRuleLayersAt } from './terrain-sampling.js';
 import { terrainContains, terrainIndexAt, terrainTileBounds } from './terrain-index.js';
 import {hearthDoorwayFeatures} from './hearth-doorway.js';
 import {residenceWallAt} from './residence-wall.js';
@@ -50,7 +50,7 @@ import {
   waterfallFrameIndexAt,
   waterfallUsesRaisedCompositionAt,
   type TerrainArray,
-} from "./terrain.js";
+} from './terrain-sampling.js';
 
 export const GROUND_CHUNK_PIXELS = SURVIVAL_CHUNK_TILES * TILE_SIZE_PIXELS;
 

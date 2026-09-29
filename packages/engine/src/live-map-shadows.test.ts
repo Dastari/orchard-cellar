@@ -8,7 +8,7 @@ vi.mock('@orchard/ui',async original=>({...await original<typeof import('@orchar
   metadata:{image:'fixture.png',animations:{sway:frames},states:{base:frames[0]}},anchor:[8,31]})}));
 vi.mock('./light-occlusion.js',async original=>({...await original<typeof import('./light-occlusion.js')>(),
   createFrameLightOccluder:(_asset:unknown,frame:{x:number})=>({left:-8,top:-31,width:16,height:32,opaque:masks[frame.x===0?0:1]!})}));
-vi.mock('./terrain.js',async original=>({...await original<typeof import('./terrain.js')>(),
+vi.mock('./terrain-sampling.js',async original=>({...await original<typeof import('./terrain-sampling.js')>(),
   terrainElevationAtWorldFoot:()=>2,terrainProjectedDepthAtFoot:()=>32,terrainProjectedElevationAtFoot:()=>2}));
 const terrain={} as TerrainArray;
 const baseRegistry=bootstrapContentRegistry();

@@ -8,7 +8,7 @@ import type { WorldVisualBounds } from '@orchard/engine/overworld-art';
 import type { GroundChunkCache } from '@orchard/engine/ground-cache';
 import type { PointLight, UnifiedLightReceiver } from '@orchard/engine/lighting';
 import type { WindTreeSource } from '@orchard/engine/weather-effects';
-import type { TerrainArray } from '@orchard/engine/terrain';
+import type { TerrainArray } from '@orchard/engine/terrain-sampling';
 import type { LocalProjectilePrediction } from './overworld-prediction.js';
 import type { SelectedEntityTarget, TargetableWorldEntity } from './entity-targeting.js';
 import type { LiveObjectPresentationCache } from './content/object-presentation.js';

@@ -1,4 +1,4 @@
-import {terrainElevationAtWorldFoot,type TerrainArray} from './terrain.js';
+import {terrainElevationAtWorldFoot,type TerrainArray} from './terrain-sampling.js';
 import type {PointLight} from './lighting.js';
 /** Source pixels may move sideways under rotation; plane sampling stays at the
  * physical parent contact, independently of the flame/bulb's visual position. */

@@ -7,7 +7,7 @@ import { createLightOcclusionMap, createSpriteLightOccluder, resetSpriteLightMas
 import { celestialLightingAtCalendar } from './celestial-lighting.js';
 import { compositeBasicLighting } from './lighting-quality.js';
 import { setWorldAssetPresentation } from './world-asset-presentation.js';
-import type { TerrainArray } from './terrain.js';
+import type { TerrainArray } from './terrain-sampling.js';
 
 export interface LightingReviewAsset {
   readonly name: string; readonly record: BuiltAssetRecord; readonly png: string; readonly omitPng?: string;
