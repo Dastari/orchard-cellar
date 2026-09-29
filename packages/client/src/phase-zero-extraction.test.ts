@@ -274,7 +274,12 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Uncapped Storage step 5 (wiki Roadmap/Uncapped Storage): ui/index.ts drops the legacy-slot boundary export
 // (legacy-global-slots is deleted); the sim loadout and use_selected's equipmentIndex take container cells directly.
 // player-cells, equipment-description and the player-inventory boundary tests cover it; the other four seams are unchanged.
-const STRUCTURAL_SEAM_DIGEST = '3b17ed44e48a23fd9e192aed9ba23ef19a6565478b0e1b82396384a5af1a6023';
+// Uncapped Storage step 5 part 2 (raise the ceiling): ui/overworld-ui.ts drops BACKPACK_SLOT_COUNT. A retained pane bound
+// to the backpack lists every cell the bag opens (modelBackpackCapacity, no 20 clamp), the legacy frame-less host grid
+// is its own 20-rect layout constant, and a model without a projected capacity falls back to the shipped bag's authored
+// capacity. inventory-menus-held-stack (a 1,000-slot bag) and overworld-ui tests cover it; lab snapshot hashes are
+// unchanged; the other four seams are unchanged.
+const STRUCTURAL_SEAM_DIGEST = 'b6b512f4151696de18713392e8572336a01be4197c4c85cc7256dff5aaed2a9c';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

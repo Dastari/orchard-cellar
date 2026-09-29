@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { createCanvas } from '@napi-rs/canvas';
 import { uiTestArt, uiTestAsset } from './kit/lab/testing/art.js';
 import { drawPixelText } from './pixel-ui.js';
+import { scrollUiElement } from './kit/layout/scroll.js';
 import { beforeAll, afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { bootstrapContentRegistry, buildContentRegistry, bootstrapContentRows, dialogueDefinition, dialogueNode, villageOrderQuote, itemDefinition } from '@orchard/sim';
 import type { OverworldUiItemArt } from './overworld-ui.js';
@@ -74,6 +75,22 @@ describe('production retained merchant', () => {
         // A bag authored below 8 still opens the base 8, as the world does.
         expect(sellable({ contentRegistry: withBag(4), inventory: [bag, ...stones] })).toBe(1);
         expect(sellable({ backpackSlotCapacity: 20, inventory: stones })).toBe(15);
+    });
+    it('sells from cell 999 of a 1,000-cell bag: a bounded pane that scrolls to it (Uncapped Storage step 5)', () => {
+        const backpack = registry.items.get('item:backpack')!;
+        const contentRegistry = { ...registry, items: new Map(registry.items).set('item:wagon_pack', { ...backpack, id: 'item:wagon_pack', equip: { ...backpack.equip!, inventoryCapacity: 1000 } }) };
+        const { ui } = fixture({ contentRegistry, inventory: [{ container: 'equipment', index: 4, itemKind: 'wagon_pack', quantity: 1 }, { container: 'backpack', index: 999, itemKind: 'stone', quantity: 5 }] });
+        press(ui, 'merchant.sell');
+        const slots = () => ui.root.entries().filter(entry => entry.element.id?.startsWith('merchant.backpack.slot.'));
+        expect(slots().length).toBeLessThanOrEqual(25);
+        expect(shownCell(ui, 'merchant.backpack.slot.999')).toBe(false);
+        const area = ui.root.entries().find(entry => entry.element.kind === 'scroll-area' && entry.element.label === 'backpack slots')!.element;
+        scrollUiElement(area, 0, area.scroll.maxY); ui.root.arrange();
+        expect(shownCell(ui, 'merchant.backpack.slot.999')).toBe(true);
+        expect(shownCell(ui, 'merchant.backpack.slot.1000')).toBe(false);
+        expect(slots().length).toBeLessThanOrEqual(25);
+        pick(ui, 'backpack', 999);
+        expect(ui.shopState.lines).toEqual([{ itemKind: 'stone', quantity: 5 }]);
     });
     it('uses equipped authored capacity and excludes quest and unsellable items', () => { const { ui } = fixture({ inventory: [{ container: 'equipment', index: 4, itemKind: 'backpack', quantity: 1 }, { container: 'backpack', index: 19, itemKind: 'stone', quantity: 2 }, { container: 'hotbar', index: 0, itemKind: 'marlow_book', quantity: 1 }] }); press(ui, 'merchant.sell'); pick(ui, 'backpack', 19, true); expect(ui.shopState.lines).toEqual([{ itemKind: 'stone', quantity: 1 }]); expect(node(ui, 'merchant.hotbar.slot.0').disabled).toBe(true); expect(ui.root.entries().some(entry => entry.element.id === 'merchant.plus:marlow_book')).toBe(false); });
     it('fails closed for missing shops, retired offers and live null prices', () => { const rows = bootstrapContentRows().map(row => row.id === 'item:axe' ? { ...row, json: { ...registry.items.get(row.id)!, displayName: 'Moon Axe', maxStack: 2, economy: { buy: 17, sell: 1 } } } : row.id === 'shop:general_tools' ? { ...row, json: { ...registry.shops.get(row.id)!, offers: [{ item: 'item:axe' }] } } : row); const live = buildContentRegistry(rows).registry; const { ui, model } = fixture({ contentRegistry: live }); press(ui, 'merchant.plus:axe', { ctrlKey: true }); expect(ui.shopState).toMatchObject({ totalBronze: 34n, lines: [{ itemKind: 'axe', quantity: 2 }] }); const noPrice = buildContentRegistry(rows.map(row => row.id === 'item:axe' ? { ...row, json: { ...live.items.get(row.id)!, economy: { buy: null, sell: 1 } } } : row)).registry; ui.update({ ...model, contentRegistry: noPrice }); expect(ui.shopState.lines).toEqual([]); ui.update({ ...model, shopId: undefined }); expect(ui.shopState.lines).toEqual([]); ui.update({ ...model, contentRegistry: { ...live, shops: new Map() } }); expect(ui.root.entries().some(entry => entry.element.id === 'merchant.plus:axe')).toBe(false); });

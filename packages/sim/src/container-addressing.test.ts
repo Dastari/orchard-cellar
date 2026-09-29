@@ -90,7 +90,7 @@ describe('container-scoped addressing', () => {
     expect(() => playerContainerCell('crafting', 9)).toThrow('container_cell_index_invalid');
     expect(() => playerContainerCell('backpack', CONTAINER_CELL_CAPACITY_LIMIT)).toThrow('container_cell_index_invalid');
     expect(() => playerContainerCell('pocket' as 'hotbar', 0)).toThrow('container_id_invalid');
-    expect(CONTAINER_CELL_CAPACITY_LIMIT).toBeGreaterThanOrEqual(MAX_CONTAINER_CAPACITY);
+    expect(CONTAINER_CELL_CAPACITY_LIMIT).toBe(MAX_CONTAINER_CAPACITY);
   });
 
   it('builds and parses the planned table keys exactly', () => {

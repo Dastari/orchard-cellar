@@ -91,7 +91,7 @@ import {
   type EnemyDefinitionId,
 } from './outdoor-encounter-definition.js';
 
-import { CONTENT_SCHEMA_VERSION, ContentParseError, type ContentParseErrorCode } from './parse-contract.js';
+import { CONTENT_SCHEMA_VERSION, ContentParseError, MAX_CONTAINER_CAPACITY, type ContentParseErrorCode } from './parse-contract.js';
 export { CONTENT_SCHEMA_VERSION, ContentParseError, MAX_CONTAINER_CAPACITY, type ContentParseErrorCode } from './parse-contract.js';
 
 export const SUPPORTED_CONTENT_KINDS = [
@@ -230,7 +230,8 @@ export interface ItemContentDefinition extends DefinitionBase<'item', ItemDefini
     readonly avatarAction?: string;
     /** Presentation-only sprite asset for the generic action animation. */
     readonly avatarActionAsset?: string;
-    /** Accessible carried slots while this definition is equipped in `slot`. */
+    /** Backpack slots while this bag is worn in the `back` slot, 1 to 65,535 (the shared container ceiling). A player
+     * without a bag has 8; the bag alone decides the rest. */
     readonly inventoryCapacity?: number;
   };
   /** Universal selected-item lifecycle surface. An empty list means the item
@@ -603,10 +604,7 @@ export function parseItemDefinition(json: string | unknown): ItemContentDefiniti
   }
   const inventoryCapacity = equip?.inventoryCapacity === undefined
     ? undefined
-    : integer(equip.inventoryCapacity, '$.equip.inventoryCapacity', 1);
-  if (inventoryCapacity !== undefined && inventoryCapacity > 20) {
-    fail('invalid_type', '$.equip.inventoryCapacity', 'capacity exceeds the 20 allocated carried slots');
-  }
+    : integer(equip.inventoryCapacity, '$.equip.inventoryCapacity', 1, MAX_CONTAINER_CAPACITY);
   if (inventoryCapacity !== undefined && equip?.slot !== 'back') {
     fail('invalid_type', '$.equip.inventoryCapacity', 'inventory capacity requires the back equipment slot');
   }

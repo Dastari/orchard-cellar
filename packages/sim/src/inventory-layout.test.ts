@@ -14,6 +14,7 @@ import {
   inventoryContainerSlotCount,
   inventoryContainerSlotOffset,
 } from './inventory-layout.js';
+import { MAX_CONTAINER_CAPACITY } from './content/parse-contract.js';
 
 describe('shared player inventory layout', () => {
   it('derives the numbered hotbar, including key 0, from one binding list', () => {
@@ -41,20 +42,35 @@ describe('shared player inventory layout', () => {
   });
 });
 
-describe('accessible backpack capacity (BUG-054)', () => {
-  it('is max(8, min(20, bag)), or more debug slots up to 20: exactly the world rule before it was shared', () => {
+describe('accessible backpack capacity (BUG-054, Uncapped Storage step 5)', () => {
+  it('is the bag (at least 8), or more debug slots: the pre-step-5 rule wherever a bag or debug slots stayed within 20', () => {
     // The world's accessibleInventoryContainerCapacity for the backpack, verbatim from before BUG-054.
-    const previousWorldRule = (equipped: number, debug: number) => Math.max(Math.max(8, Math.min(BACKPACK_SLOT_COUNT, equipped)), Math.min(BACKPACK_SLOT_COUNT, debug));
-    for (let equipped = -2; equipped <= 30; equipped++) for (let debug = 0; debug <= 30; debug++) {
+    const previousWorldRule = (equipped: number, debug: number) => Math.max(Math.max(8, Math.min(20, equipped)), Math.min(20, debug));
+    for (let equipped = -2; equipped <= 20; equipped++) for (let debug = 0; debug <= 20; debug++) {
       expect(accessibleBackpackCapacity(equipped, debug), `${equipped}/${debug}`).toBe(previousWorldRule(equipped, debug));
     }
     expect(accessibleBackpackCapacity(6)).toBe(8);
     expect(accessibleBackpackCapacity(20)).toBe(20);
   });
 
+  it('has no 20-cell clamp: the bag alone decides, up to the shared container ceiling', () => {
+    expect(accessibleBackpackCapacity(1000)).toBe(1000);
+    expect(accessibleBackpackCapacity(48)).toBe(48);
+    expect(accessibleBackpackCapacity(8, 1000)).toBe(1000);
+    expect(accessibleBackpackCapacity(1000, 30)).toBe(1000);
+    expect(accessibleBackpackCapacity(MAX_CONTAINER_CAPACITY)).toBe(MAX_CONTAINER_CAPACITY);
+    expect(accessibleBackpackCapacity(MAX_CONTAINER_CAPACITY + 1)).toBe(MAX_CONTAINER_CAPACITY);
+    expect(accessibleBackpackCapacity(8, MAX_CONTAINER_CAPACITY + 1)).toBe(MAX_CONTAINER_CAPACITY);
+    expect(MAX_CONTAINER_CAPACITY).toBe(65_535);
+  });
+
   it('leaves an already accessible capacity unchanged, so the UI can pass a projected capacity back through it (BUG-056)', () => {
-    for (let capacity = 8; capacity <= BACKPACK_SLOT_COUNT; capacity++) expect(accessibleBackpackCapacity(capacity)).toBe(capacity);
-    expect(accessibleBackpackCapacity(BACKPACK_SLOT_COUNT + 5)).toBe(BACKPACK_SLOT_COUNT);
+    for (let capacity = 8; capacity <= 1000; capacity++) expect(accessibleBackpackCapacity(capacity)).toBe(capacity);
+  });
+
+  it('keeps 20 only as the backpack\'s share of the frozen legacy global numbering', () => {
+    expect(BACKPACK_SLOT_COUNT).toBe(20);
+    expect(inventoryContainerSlotCount('backpack')).toBe(BACKPACK_SLOT_COUNT);
   });
 });
 
@@ -69,9 +85,9 @@ describe('accessible carried cells (BUG-068)', () => {
     const backpack = (cells: number) => Array.from({ length: cells }, (_, index) => `backpack:${index}`);
     expect(open(12)).toEqual([...hotbar, ...backpack(12)]);
     expect(open(20)).toEqual([...hotbar, ...backpack(20)]);
-    // Through the one capacity rule: a bag below the base opens 8, and nothing opens past the backpack.
+    // Through the one capacity rule: a bag below the base opens 8, and a larger bag opens every cell it grants.
     expect(open(4)).toEqual([...hotbar, ...backpack(8)]);
-    expect(open(99)).toEqual([...hotbar, ...backpack(BACKPACK_SLOT_COUNT)]);
+    expect(open(99)).toEqual([...hotbar, ...backpack(23)]);
     expect(isAccessibleCarriedCell(cell('crafting', 0), 20)).toBe(false);
     expect(isAccessibleCarriedCell(cell('hotbar', 1.5), 20)).toBe(false);
     expect(isAccessibleCarriedCell(cell('hotbar', HOTBAR_SLOT_COUNT), 20)).toBe(false);

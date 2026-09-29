@@ -20,7 +20,8 @@ export class ContentParseError extends Error {
   }
 }
 
-/** The most slots a stored container may have for now: a placeable's `container.slotCount` and the hearth stash's
- * `stashCapacity`. Storage slot indices are still one byte until the container migration (wiki Roadmap/Uncapped
- * Storage, step 4), so content above this is refused. It is a technical ceiling, not a design cap. */
-export const MAX_CONTAINER_CAPACITY = 256;
+/** The most slots one container may have: a placeable's `container.slotCount`, the hearth stash's `stashCapacity` and
+ * an equipped bag's `inventoryCapacity` (wiki Roadmap/Uncapped Storage, step 5). It is one shared technical and abuse
+ * ceiling that bounds the work per reducer, not a design cap, and it equals the sparse cell layer's
+ * `CONTAINER_CELL_CAPACITY_LIMIT`, so it can be raised without a schema change. Content above it is refused. */
+export const MAX_CONTAINER_CAPACITY = 65_535;

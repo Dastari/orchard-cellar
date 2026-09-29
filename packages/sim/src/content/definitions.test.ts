@@ -155,8 +155,11 @@ describe('content definition parsers', () => {
     expect(() => parseItemDefinition({
       ...item, equip: { slot: 'hand', inventoryCapacity: 20 },
     })).toThrowError(ContentParseError);
-    expect(() => parseItemDefinition({
-      ...item, equip: { slot: 'back', inventoryCapacity: 21 },
+    // A bag may grant any capacity up to the shared container ceiling (Uncapped Storage step 5), and no more.
+    expect(parseItemDefinition({ ...item, equip: { slot: 'back', inventoryCapacity: 1000 } }).equip?.inventoryCapacity).toBe(1000);
+    expect(parseItemDefinition({ ...item, equip: { slot: 'back', inventoryCapacity: 65_535 } }).equip?.inventoryCapacity).toBe(65_535);
+    for (const inventoryCapacity of [0, 65_536, 1.5]) expect(() => parseItemDefinition({
+      ...item, equip: { slot: 'back', inventoryCapacity },
     })).toThrowError(ContentParseError);
   });
 

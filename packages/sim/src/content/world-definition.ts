@@ -310,8 +310,7 @@ export interface HearthLobbyContentDefinition {
     'arrival' | 'exit' | 'stash' | 'descent' | 'counter' | 'practice',
     readonly [tileX: number, tileY: number]
   >>;
-  /** Slots in the hearth stash, 1 to 256 for now: storage slot numbers are one byte until the container migration
-   * (wiki Roadmap/Uncapped Storage). */
+  /** Slots in the hearth stash, 1 to 65,535 (the shared container ceiling, wiki Roadmap/Uncapped Storage). */
   readonly stashCapacity: number;
   readonly floorThresholdY: number;
   readonly carves: readonly (readonly [left: number, top: number, right: number, bottom: number])[];

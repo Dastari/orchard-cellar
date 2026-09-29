@@ -1,4 +1,5 @@
 import { BASE_BACKPACK_CAPACITY, BOOTSTRAP_ITEM_CONTAINER_CONTENT, type ItemContainerContentResolver, type SlotRestriction } from './item-containers.js';
+import { MAX_CONTAINER_CAPACITY } from './content/parse-contract.js';
 
 /**
  * One shared carried-inventory layout contract. Hotbar capacity is derived
@@ -19,6 +20,9 @@ export const HOTBAR_SLOT_BINDINGS = [
 ] as const;
 
 export const HOTBAR_SLOT_COUNT = HOTBAR_SLOT_BINDINGS.length;
+/** The backpack's share of the frozen legacy global slot numbering (the `inventory_slot` table the step-4 migration
+ * read, and the offsets below). It is not a capacity: a player's backpack is as large as the equipped bag makes it
+ * (`accessibleBackpackCapacity`). */
 export const BACKPACK_SLOT_COUNT = 20;
 export const EQUIPMENT_SLOT_COUNT = 10;
 export const CRAFTING_SLOT_COUNT = 9;
@@ -71,18 +75,21 @@ export function inventoryContainerSlotOffset(containerId: PlayerInventoryContain
   return containerId === 'equipment' ? EQUIPMENT_SLOT_OFFSET : CRAFTING_SLOT_OFFSET;
 }
 
+/** A container's cells in the legacy global numbering. The backpack's 20 is that numbering only; its capacity is
+ * `accessibleBackpackCapacity`. */
 export function inventoryContainerSlotCount(containerId: PlayerInventoryContainerId): number {
   if (containerId === 'hotbar') return HOTBAR_SLOT_COUNT;
   if (containerId === 'backpack') return BACKPACK_SLOT_COUNT;
   return containerId === 'equipment' ? EQUIPMENT_SLOT_COUNT : CRAFTING_SLOT_COUNT;
 }
 
-/** The backpack cells a player may use (BUG-054): the equipped bag's authored capacity, never below the base 8 and
- * never above the 20 backpack cells; a developer's debug slots can open more, up to 20. The world's menu containers
- * and the client's inventory both use this one rule, so the client never shows a usable cell as unavailable. */
+/** The backpack cells a player may use (BUG-054, Uncapped Storage step 5): the equipped bag's authored capacity, never
+ * below the base 8; a developer's debug slots can open more. Nothing clamps it but the shared container ceiling
+ * (`MAX_CONTAINER_CAPACITY`, 65,535), which content can't exceed anyway. The world's menu containers and the client's
+ * inventory both use this one rule, so the client never shows a usable cell as unavailable. */
 export function accessibleBackpackCapacity(equippedCapacity: number, debugBackpackSlots = 0): number {
-  const normal = Math.max(BASE_BACKPACK_CAPACITY, Math.min(BACKPACK_SLOT_COUNT, equippedCapacity));
-  return Math.max(normal, Math.min(BACKPACK_SLOT_COUNT, debugBackpackSlots));
+  const normal = Math.max(BASE_BACKPACK_CAPACITY, Math.min(MAX_CONTAINER_CAPACITY, equippedCapacity));
+  return Math.max(normal, Math.min(MAX_CONTAINER_CAPACITY, debugBackpackSlots));
 }
 
 /** The carried cells a player draws from outside a menu (BUG-068): the hotbar and the backpack cells the accessible

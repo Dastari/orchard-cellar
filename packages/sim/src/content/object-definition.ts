@@ -108,8 +108,8 @@ export interface ObjectSlotRestriction {
 }
 
 export interface ObjectContainerComponent {
-  /** Slots in the container, 1 to 256 for now: storage slot numbers are one byte until the container migration
-   * (wiki Roadmap/Uncapped Storage). A frame pane with `entitySlots: all` shows every one and scrolls. */
+  /** Slots in the container, 1 to 65,535 (the shared container ceiling, wiki Roadmap/Uncapped Storage). A frame pane
+   * with `entitySlots: all` shows every one and scrolls. */
   readonly slotCount: number;
   readonly access: 'public' | 'private';
   readonly sortAllowed: boolean;

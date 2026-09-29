@@ -99,7 +99,12 @@ function bindingContainer(binding: FrameBinding, aliases: FrameContainerAliases)
 
 /** The size of the containers a frame shows: the open entity's (a chest's or placeable's `container.slotCount`, the
  * stash's `stashCapacity`), for panes bound to `entitySlots: all`. */
-export interface FrameContainerCapacities { readonly entity?: number }
+export interface FrameContainerCapacities {
+  readonly entity?: number;
+  /** The player's accessible backpack capacity (the sim's one capacity rule), which a pane bound to the backpack shows
+   * in full. A preview without a player shows one grid of it. */
+  readonly backpack?: number;
+}
 
 /** A frame's entity container size when no entity says (a designer or lab preview, a host layout, a test): the active
  * hearth lobby's `stashCapacity` for a stash frame, or the container of the first live object that uses the frame.
@@ -130,12 +135,12 @@ export function resolveFramePaneSlots(
   if (containerId === null) return [];
   const grid = (pane.columns ?? 1) * (pane.rows ?? 1);
   // A pane bound to a whole container binds every slot of it and scrolls (its rows are the rows shown): the open
-  // entity with `entitySlots: all` (a designer preview without an entity shows one grid of it), and the backpack,
-  // whose pane shows the cells the bag opens (Uncapped Storage step 3). Other self panes keep their grid.
+  // entity with `entitySlots: all`, and the backpack, whose pane shows every cell the bag opens (Uncapped Storage steps
+  // 3 and 5). A designer preview without an entity or a player shows one grid of it. Other self panes keep their grid.
   const indices = 'entitySlots' in pane.bind
     ? frameEntitySlotIndexes(pane.bind, pane.bind.entitySlots === 'all' ? capacities.entity ?? grid : 0)
     : Array.from({ length: 'self' in pane.bind
-      ? pane.bind.self === 'backpack' ? inventoryContainerSlotCount('backpack') : Math.min(grid, inventoryContainerSlotCount(pane.bind.self))
+      ? pane.bind.self === 'backpack' ? capacities.backpack ?? grid : Math.min(grid, inventoryContainerSlotCount(pane.bind.self))
       : grid }, (_, index) => index);
   const restriction = resolveFrameSlotRestriction(pane.restriction, registry);
   return indices.map((index) => ({

@@ -20,8 +20,7 @@ export interface PlaceableContainerCellRef {
 }
 
 export const U32_MAX = 0xffff_ffff;
-/** Storage-layer bound on any one container. Content authors below `MAX_CONTAINER_CAPACITY` (256 until step 5 raises
- * it to this value); the sparse cell layer already accepts it so step 5 is a content change only. */
+/** Storage-layer bound on any one container. Content's `MAX_CONTAINER_CAPACITY` equals it (Uncapped Storage step 5). */
 export const CONTAINER_CELL_CAPACITY_LIMIT = 65_535;
 
 /** Fixed sizes stay fixed; backpack and stash sizes come from the equipped bag and the stash content. */
