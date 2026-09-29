@@ -48,6 +48,12 @@ describe('production continuity tooling', { timeout: 60_000 }, () => {
       expect(release.indexOf(gate), gate).toBeGreaterThan(0);
       expect(release.indexOf(gate), gate).toBeLessThan(release.indexOf('release_world_quiescence_started=true'));
     }
+    // The lanes' `npm test` gate runs every test in parallel without coverage (minutes, not an hour); CI enforces
+    // the coverage thresholds on every PR before a release can include it.
+    const scripts = (JSON.parse(packageJson) as { scripts: Record<string, string> }).scripts;
+    expect(scripts['test']).toBe('npm run test:parallel && npm run test:exhaustive');
+    expect(scripts['test:parallel']).not.toMatch(/--coverage|--no-file-parallelism/u);
+    expect(scripts['test:parallel']!.replace('vitest run', 'vitest run --coverage')).toBe(scripts['test:coverage']);
     expect(release).toContain('legacy-cooking-release-gate.ts');
     expect(release).toContain('world-module-source-manifest.sh');
     const operations = readFileSync(new URL('../ops/orchard-runtime/README.md', import.meta.url), 'utf8');

@@ -25,8 +25,8 @@ export default defineConfig({
       include: ['packages/sim/src/**/*.ts'],
       exclude: ['packages/sim/src/**/*.fixture.ts'],
       // CI shards each see part of the suite; thresholds are enforced once, on the
-      // merged report (vitest --merge-reports --coverage). Local runs and release
-      // gates (npm run check) never set ORCHARD_COVERAGE_SHARD.
+      // merged report (vitest --merge-reports --coverage). Local `npm run test:coverage`
+      // runs never set ORCHARD_COVERAGE_SHARD; `npm test` and the release gates skip coverage.
       thresholds: process.env.ORCHARD_COVERAGE_SHARD === '1'
         ? undefined
         : { lines: 80, functions: 80, statements: 80, branches: 70 },
