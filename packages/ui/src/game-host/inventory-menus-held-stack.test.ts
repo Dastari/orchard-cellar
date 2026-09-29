@@ -352,3 +352,103 @@ describe('a 256-slot chest and stash (Uncapped Storage step 3)', () => {
     } finally { f.dispose(); }
   });
 });
+
+// Uncapped Storage step 5 (wiki Roadmap/Uncapped Storage): the barrel's contents pane scrolls like a chest's once the
+// barrel holds more cells than its authored 5 x 2, whether the frame lists its slots or binds the whole container, and
+// keeps its sort glyph and restrictions. At today's 8 cells it is the same plain grid as before.
+describe('a barrel that outgrows its window (Uncapped Storage step 5)', () => {
+  const COLUMNS = 5, ROWS = 2;
+  /** The registry with the barrel holding `capacity` cells, its contents pane listing them or bound to them all. */
+  function barrel(capacity: number, bind: 'listed' | 'all') {
+    const frames = new Map(registry.frames), objects = new Map(registry.objects);
+    const frame = registry.frames.get('frame:barrel')!;
+    frames.set('frame:barrel', { ...frame, panes: frame.panes.map(pane => 'entitySlots' in pane.bind
+      ? { ...pane, bind: { entitySlots: bind === 'all' ? 'all' as const : Array.from({ length: capacity }, (_, index) => index) } } : pane) });
+    const object = registry.objects.get('object:barrel')!;
+    objects.set('object:barrel', { ...object, components: { ...object.components, container: { ...object.components.container!, slotCount: capacity } } });
+    return { ...registry, frames, objects } as typeof registry;
+  }
+  const placeable = (root: UiRoot) => root.entries().flatMap(({ element }) => {
+    const ref = element.props['binding'] as { container: string; index: number } | undefined;
+    return ref?.container === 'placeable' ? [{ element, ref }] : [];
+  });
+  const area = (root: UiRoot) => root.entries().find(({ element }) => element.kind === 'scroll-area' && element.label === 'placeable slots')?.element;
+  const cases = [
+    { capacity: 40, bind: 'listed' as const }, { capacity: 40, bind: 'all' as const },
+    { capacity: 256, bind: 'listed' as const }, { capacity: 256, bind: 'all' as const },
+  ];
+
+  it.each(cases)('$capacity cells bound $bind scroll with bounded slots, and every drop verdict is the authority\'s', async ({ capacity, bind }) => {
+    const variant = barrel(capacity, bind), last = capacity - 1;
+    const items = [{ index: 0, itemKind: 'apple', quantity: 5 }, { index: Math.floor(capacity / 2), itemKind: 'pickaxe', quantity: 1 }, { index: last, itemKind: 'apple', quantity: 3 }];
+    const restrictions = frameRestrictions(variant.frames.get('frame:barrel')!, variant, capacity);
+    expect(Object.keys(restrictions)).toHaveLength(capacity);
+    const policy = itemPolicyResolver(variant);
+    for (const held of ['apple', 'pickaxe']) {
+      const cursor = { itemKind: held, quantity: 1 };
+      const f = await fixture('content', { activeFrameId: 'frame:barrel', contentRegistry: variant, activeFrameState: { sealed: false },
+        openPlaceableInventory: items, openEntityCapacity: capacity, cursorStack: cursor });
+      try {
+        expect(f.ui.retainedInventoryActive).toBe(true);
+        const stored = new Map(items.map(item => [item.index, item]));
+        const containers: Record<string, ContainerSnapshot> = { placeable: { id: 'placeable', capacity, restrictions,
+          slots: Array.from({ length: capacity }, (_, index) => { const item = stored.get(index); return item ? { itemKind: item.itemKind, quantity: item.quantity } : null; }) } };
+        f.root.arrange();
+        // The sort glyph stays beside the pane, and the pane shows the authored two rows over a range covering every row.
+        expect(f.root.entries().some(({ element }) => element.id === 'frame:barrel.pane.contents.sort')).toBe(true);
+        const scroll = area(f.root)!;
+        expect(scroll, 'barrel scroll area').toBeDefined();
+        expect(scroll.rect.height).toBe(ROWS * 33 - 2);
+        expect(scroll.scroll.maxY).toBe(Math.ceil(capacity / COLUMNS) * 33 - 2 - (ROWS * 33 - 2));
+        const seen = new Set<number>();
+        for (const y of [0, Math.round(scroll.scroll.maxY / 2), scroll.scroll.maxY]) {
+          scrollUiElement(scroll, 0, y); f.root.arrange();
+          const bound = placeable(f.root);
+          expect(bound.length).toBeLessThanOrEqual((ROWS + 1) * COLUMNS);
+          for (const { element, ref } of bound) {
+            if (!element.visible) continue;
+            seen.add(ref.index);
+            const result = clickContainerSlot(containers, cursor, { container: 'placeable', index: ref.index, button: 'left' }, policy);
+            const refused = !result.ok && result.code === 'slot_rejects_item';
+            expect(uiSlotDropTarget(element), `${held} over placeable/${ref.index}`).toBe(refused ? 'refuse' : 'accept');
+          }
+        }
+        expect(seen.has(0) && seen.has(Math.floor(capacity / 2)) && seen.has(last)).toBe(true);
+      } finally { f.dispose(); }
+    }
+  });
+
+  it.each(cases)('$capacity cells bound $bind page by keys and pick up from the last cell', async ({ capacity, bind }) => {
+    const click = vi.fn().mockResolvedValue(undefined), last = capacity - 1;
+    const f = await fixture('content', { activeFrameId: 'frame:barrel', contentRegistry: barrel(capacity, bind), activeFrameState: { sealed: false },
+      openPlaceableInventory: [{ index: last, itemKind: 'apple', quantity: 3 }], openEntityCapacity: capacity }, { inventoryCursorClick: click });
+    try {
+      const focused = () => (f.root.focus.current?.props['binding'] as { index: number } | undefined)?.index;
+      const press = (key: string) => { f.root.key({ key }); f.root.arrange(); };
+      f.root.focus.set(f.slot('placeable', 0), 'keyboard');
+      press('PageDown'); expect(focused()).toBe(ROWS * COLUMNS);
+      expect(area(f.root)!.scroll.y).toBeGreaterThan(0);
+      press('End'); expect(focused()).toBe(last);
+      expect(area(f.root)!.scroll.y).toBe(area(f.root)!.scroll.maxY);
+      press('Enter');
+      expect(click).toHaveBeenCalledExactlyOnceWith('placeable', last, 'left');
+      press('Home'); expect(focused()).toBe(0); expect(area(f.root)!.scroll.y).toBe(0);
+      expect(placeable(f.root).length).toBeLessThanOrEqual((ROWS + 1) * COLUMNS);
+    } finally { f.dispose(); }
+  });
+
+  it.each(['listed', 'all'] as const)('at today\'s 8 cells (bound %s) stays the plain 5 x 2 grid, every cell drawn', async bind => {
+    const f = await fixture('content', { activeFrameId: 'frame:barrel', contentRegistry: bind === 'all' ? barrel(8, 'all') : registry,
+      activeFrameState: { sealed: false }, openPlaceableInventory: [{ index: 0, itemKind: 'apple', quantity: 4 }], openEntityCapacity: 8 });
+    try {
+      f.root.arrange();
+      expect(area(f.root)).toBeUndefined();
+      const bound = placeable(f.root);
+      expect(bound.map(({ ref }) => ref.index).sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+      expect(bound.every(({ element }) => element.visible)).toBe(true);
+      const grid = f.root.entries().find(({ element }) => element.id === 'frame:barrel.pane.contents')!.element;
+      expect(grid.kind).not.toBe('inventory-panel');
+      expect(grid.props['columns']).toBe(COLUMNS);
+    } finally { f.dispose(); }
+  });
+});
