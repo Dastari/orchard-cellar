@@ -664,10 +664,40 @@ export function loadCategory(path: string): keyof Omit<LoadBytes, 'websocket' | 
 
 interface Session { readonly label: 'legacy' | 'on'; readonly browser: Browser; readonly page: Page; readonly cdp: CdpSession; identity: string;
   /** Everything downloaded since the session opened (a cold profile). */
-  readonly load: LoadBytes }
+  readonly load: LoadBytes;
+  /** The atlas page files (`/generated/atlas-<hash>.png`) it downloaded. */
+  readonly atlasFiles: Set<string>;
+  /** Cold-load screenshots still being written (see `openSession`'s `filmstrip`). */
+  filmstrip?: Promise<number> }
+
+/** Decoded bytes of the atlas pages a session downloaded, from the served consolidated index and
+ * pack manifests (every page descriptor carries its decoded size). */
+export async function decodedAtlasBytes(origin: string, files: ReadonlySet<string>): Promise<{ readonly pages: number; readonly decodedBytes: number }> {
+  const sizes = new Map<string, number>();
+  const json = async (path: string): Promise<Record<string, unknown> | null> => {
+    const response = await fetch(`${origin}${path}`).catch(() => null);
+    return response?.ok ? await response.json() as Record<string, unknown> : null;
+  };
+  const add = (atlases: unknown, pages: unknown): void => {
+    for (const [key, file] of Object.entries((atlases ?? {}) as Record<string, string>)) {
+      const page = (pages as Record<string, { decodedBytes?: number }> | undefined)?.[key.slice(0, key.lastIndexOf(':'))];
+      if (typeof page?.decodedBytes === 'number') sizes.set(`/generated/${file}`, page.decodedBytes);
+    }
+  };
+  const meta = await json('/generated/atlas.meta.json');
+  add(meta?.['atlases'], meta?.['pages']);
+  const index = await json('/generated/atlas.packs.json');
+  for (const file of Object.values((index?.['packs'] ?? {}) as Record<string, string>)) {
+    const pack = await json(`/generated/${file}`);
+    add(pack?.['atlases'], pack?.['pages']);
+  }
+  let decodedBytes = 0, pages = 0;
+  for (const file of files) { const bytes = sizes.get(file); if (bytes !== undefined) { decodedBytes += bytes; pages += 1; } }
+  return { pages, decodedBytes };
+}
 
 export async function openSession(chromium: any, options: AcceptanceOptions, label: 'legacy' | 'on', url: string, slot: string,
-  extra: { serviceWorkers?: 'allow' | 'block'; delayWorldMs?: number; seam?: 'on' } = {}): Promise<Session> {
+  extra: { serviceWorkers?: 'allow' | 'block'; delayWorldMs?: number; seam?: 'on'; filmstrip?: string } = {}): Promise<Session> {
   const browser = await chromium.launch({ executablePath: options.chromePath, headless: true,
     args: ['--enable-precise-memory-info', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] });
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1, serviceWorkers: extra.serviceWorkers ?? 'allow' });
@@ -680,6 +710,7 @@ export async function openSession(chromium: any, options: AcceptanceOptions, lab
   page.on('pageerror', (error: Error) => console.error(`[s4g:${label}] pageerror ${error.message}`));
   const cdp = await context.newCDPSession(page);
   const load: LoadBytes = { script: 0, atlas: 0, world: 0, websocket: 0, other: 0, requests: 0 };
+  const atlasFiles = new Set<string>();
   const paths = new Map<string, string>();
   await cdp.send('Network.enable');
   cdp.on('Network.requestWillBeSent', (event: { requestId: string; request: { url: string } }) => {
@@ -689,13 +720,28 @@ export async function openSession(chromium: any, options: AcceptanceOptions, lab
     const path = paths.get(event.requestId);
     if (path === undefined) return;
     load[loadCategory(path)] += event.encodedDataLength; load.requests += 1;
+    if (/^\/generated\/atlas-[0-9a-f]{64}\.png$/u.test(path)) atlasFiles.add(path);
   });
   cdp.on('Network.webSocketFrameReceived', (event: { response: { opcode: number; payloadData: string } }) => {
     const data = event.response.payloadData;
     load.websocket += event.response.opcode === 2 ? Math.floor(data.length * 3 / 4) : data.length;
   });
   await page.goto(`${url}/?slot=${slot}`, { waitUntil: 'domcontentloaded' });
-  return { label, browser, page, cdp, identity: '', load };
+  const session: Session = { label, browser, page, cdp, identity: '', load, atlasFiles };
+  // Cold-load filmstrip (static world S6): what a fresh profile shows while it loads, for the owner.
+  if (extra.filmstrip !== undefined) {
+    const directory = extra.filmstrip;
+    session.filmstrip = (async () => {
+      await mkdir(directory, { recursive: true });
+      let shots = 0;
+      for (; shots < 24; shots += 1) {
+        await page.screenshot({ path: join(directory, `${label}-${String(shots).padStart(2, '0')}.png`), type: 'png' }).catch(() => undefined);
+        await sleep(500);
+      }
+      return shots;
+    })();
+  }
+  return session;
 }
 
 async function awaitPlaying(session: Session, timeoutMs = 180_000): Promise<PageProbe> {
@@ -1056,8 +1102,9 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
       + ` (${plan.filter(step => !step.inChunk).length} without walkable ground use the nearest walkable tile)`);
 
     // 2. Sweep.
-    const legacy = await openSession(chromium, options, 'legacy', options.legacyUrl, `Legacy${runTag}`);
-    const on = await openSession(chromium, options, 'on', options.onUrl, `Chunks${runTag}`);
+    const filmstrip = join(options.evidenceDir, 'cold-load');
+    const legacy = await openSession(chromium, options, 'legacy', options.legacyUrl, `Legacy${runTag}`, { filmstrip });
+    const on = await openSession(chromium, options, 'on', options.onUrl, `Chunks${runTag}`, { filmstrip });
     sessions.push(legacy, on);
     legacySession = legacy;
     await Promise.all([awaitPlaying(legacy), awaitPlaying(on)]);
@@ -1070,7 +1117,9 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
         const at = await probe(session.page);
         if (at?.position) await awaitReadyAt(session, at.position, session.label === 'on').catch(() => null);
         await sleep(1_500);
-        coldLoad[session.label] = { bytes: { ...session.load }, memory: await memory(session.cdp) };
+        coldLoad[session.label] = { bytes: { ...session.load }, memory: await memory(session.cdp),
+          atlasPages: await decodedAtlasBytes(session.label === 'on' ? options.onUrl : options.legacyUrl, session.atlasFiles),
+          filmstripFrames: await session.filmstrip };
       }
       evidence.coldLoad = coldLoad;
       log(`cold load: ${JSON.stringify(coldLoad)}`);
