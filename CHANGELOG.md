@@ -2,6 +2,13 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.54.1 / UI 0.54.2 / Sim 0.35.2 / World 0.31.2 / Studio 0.16.21 / Assets 0.24.2 / Lifecycle authoring 0.16.4 — Uncapped Storage step 5 (part 2): 65,535 ceiling, Traveller's Pack
+
+**Routine release: content, client and world code. No reducer signature change, no schema change, no data migration.**
+- **Ceiling raised (#290):** chest and placeable slot counts, stash capacity and bag capacity all accept up to 65,535. The equipped bag alone sets backpack capacity: 8 with no bag, and debug slots still count. Trade, merchant and inventory panes are sized from it and stay virtualised, with at most 25 slot nodes even for a 1,000-slot bag.
+- **Traveller's Pack (#291, owner approved):** a 32-slot uncommon back-slot bag, made at the workbench from the Starter Backpack, 5 leather, 2 rope and 1 chain links, selling for 185. Its pane scrolls.
+- **New-player loadout by container (#289):** the starter kit is placed by container and index rather than the legacy global slot numbers. New characters get the same kit in the same cells. Content may also author `cell` / `selectedCell`.
+
 ## Client 0.54.0 / UI 0.54.1 / Sim 0.35.1 / World 0.31.1 / World bindings 0.20.1 / Studio 0.16.20 / Assets 0.24.1 / Tools 0.24.8 / Lifecycle authoring 0.16.3 — Uncapped Storage step 5 (part 1): whole-container panes, barrel scrolling, no global-slot adapters
 
 **Routine release: content, client and world module together; no schema change or data migration.** Inventory protocol 3: open tabs from before this release get UPDATE REQUIRED for inventory actions and must reload.
