@@ -38,7 +38,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
+      # The activated `on` build (static world S6: an off build of this source is refused).
       - run: npm run build -w @orchard/client -- --mode client-production
+        env:
+          VITE_CHUNK_RUNTIME_MODE: 'on'
+          ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE: s5c-client-activation-20260928
       - run: npm run client:chunks:check
         env:
           ORCHARD_REQUIRE_GENERATOR_FREE: '1'

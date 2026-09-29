@@ -92,7 +92,11 @@ const audit = JSON.parse(readFileSync(resolve('packages/client/dist/chunk-runtim
 if (!validChunkRuntimeBuildAudit(audit, 'production')) throw new Error('Chunk runtime build audit is not a releasable production build (unapproved on mode?)');
 console.log(`Chunk runtime build audit verified: mode ${audit.mode}, activationAllowed ${audit.activationAllowed}.`);
 
-// Explicit future retirement gate; shadow builds intentionally retain the generator.
-if (process.env['ORCHARD_REQUIRE_GENERATOR_FREE'] === '1' && audit.legacyModules.length !== 0) {
-  throw new Error('Chunk generator retirement gate failed; legacy runtime modules remain');
+// Static world S6: the generator-free client has no whole-map path, so a releasable build must be the
+// activated `on` build; an `off` or `shadow` one would only show "world updating".
+if (process.env['ORCHARD_REQUIRE_GENERATOR_FREE'] === '1') {
+  if (audit.legacyModules.length !== 0) throw new Error('Chunk generator retirement gate failed; legacy runtime modules remain');
+  if (audit.mode !== 'on' || audit.activationAllowed !== true) {
+    throw new Error(`Generator-free client builds must be the activated on build (mode ${audit.mode}, activationAllowed ${audit.activationAllowed})`);
+  }
 }

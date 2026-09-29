@@ -172,10 +172,11 @@ describe('routine same-schema release', () => {
         .toThrow('release_chunk_rollback_with_on');
       for (const mode of ['off', 'shadow']) {
         expect(() => plan({ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: mode }, 'r1')).toThrow('release_chunk_deactivation_requires_rollback');
-        expect(plan({ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: mode, WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK: '1' }, 'r1'))
-          .toEqual({ mode, activationRelease: null, approvedRelease: 'r1', rollback: true });
+        // Static world S6: an off or shadow build only shows "world updating"; roll back with the pre-S6 dist.
+        expect(() => plan({ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: mode, WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK: '1' }, 'r1'))
+          .toThrow('release_chunk_deactivation_refused_after_s6');
         expect(() => plan({ WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: mode, WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK: '1', WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION: 'r1' }, 'r1'))
-          .toThrow('release_chunk_activation_with_deactivation');
+          .toThrow('release_chunk_deactivation_refused_after_s6');
       }
     });
 

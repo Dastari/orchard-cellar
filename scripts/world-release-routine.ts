@@ -311,8 +311,10 @@ export function clientChunkRuntimePlan(env: Readonly<Record<string, string | und
     return { mode, activationRelease: approved, approvedRelease: approved, rollback: false };
   }
   if (!rollback) throw new Error('release_chunk_deactivation_requires_rollback');
-  if (activation !== '') throw new Error('release_chunk_activation_with_deactivation');
-  return { mode, activationRelease: null, approvedRelease: approved, rollback: true };
+  // Static world S6: the client has no whole-map path any more, so an `off` or `shadow` build of this
+  // source only shows "world updating". Rolling back is server `off` plus the last pre-S6 client dist
+  // (runbook 5.1), never a rebuild.
+  throw new Error('release_chunk_deactivation_refused_after_s6');
 }
 
 export function parseClientChunkRuntimePlan(value: unknown): ClientChunkRuntimePlan {

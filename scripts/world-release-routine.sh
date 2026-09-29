@@ -190,7 +190,7 @@ fi
 printf '%s\n' "$studio_mode" > "$evidence/studio-mode"
 "${helper[@]}" static "$evidence/staged/packages/client/dist"
 "${helper[@]}" static "$evidence/staged/packages/studio/dist"
-(cd "$evidence/staged" && "$repository/node_modules/.bin/tsx" "$repository/scripts/check-client-build-chunks.ts")
+(cd "$evidence/staged" && ORCHARD_REQUIRE_GENERATOR_FREE=1 "$repository/node_modules/.bin/tsx" "$repository/scripts/check-client-build-chunks.ts")
 # Keep immutable URLs for already connected browsers loading old lazy chunks.
 # Clean candidate chunk checks above run before this collision-checked union.
 for app in client studio; do

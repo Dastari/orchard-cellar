@@ -105,6 +105,12 @@ describe('vite config wiring',()=>{
   await expect(run({VITE_CHUNK_RUNTIME_MODE:undefined,ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE:undefined},'build','client-production')).resolves.toMatchObject({build:{outDir:'dist'}});
   await expect(run({VITE_CHUNK_RUNTIME_MODE:'live'},'serve','development')).rejects.toThrow(/mode_invalid/);
  });
+ it('CI builds the activated on client with the committed activation id (S6)',async()=>{
+  const {readFileSync}=await import('node:fs');
+  const ci=readFileSync(new URL('../../../.github/workflows/ci.yml',import.meta.url),'utf8');
+  expect(ci).toContain(`ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE: ${CHUNK_RUNTIME_ACTIVATION_RELEASE}`);
+  expect(ci).toContain("VITE_CHUNK_RUNTIME_MODE: 'on'");
+ });
  it('audits only legacy modules that render code (a barrel-reached, fully tree-shaken module ships nothing, S6)',async()=>{
   const config=await run({VITE_CHUNK_RUNTIME_MODE:undefined,ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE:undefined},'build','client-production') as {plugins:{name?:string;generateBundle?:(...args:unknown[])=>void}[]};
   const plugin=config.plugins.find(entry=>entry?.name==='orchard-chunk-runtime-audit')!;
