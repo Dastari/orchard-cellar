@@ -46,6 +46,7 @@ function fixture() {
     liveMapRuntimeGeneratedResourceSuppressed:()=>false,
     activeSpaceDefinition:(_ctx:unknown,space:number,row:typeof home)=>sim.runtimeSpaceDefinition(registry,space,row),
     collisionWithinChunkScope:(collision:unknown)=>collision,
+    homesteadIslandSource:()=>undefined, // static world S6: residences never sample the island
   };
   const collisionSource=source.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text==='collisionForSpace')!.getText(source);
   const actualCollision=new Function(...Object.keys(collisionDependencies),ts.transpile(collisionSource+'; return collisionForSpace;', {target:ts.ScriptTarget.ES2022}))(...Object.values(collisionDependencies));
