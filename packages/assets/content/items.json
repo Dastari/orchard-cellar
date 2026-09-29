@@ -12902,6 +12902,30 @@
     }
   },
   {
+    "id": "item:travellers_pack",
+    "kind": "item",
+    "schemaVersion": 1,
+    "displayName": "Traveller's Pack",
+    "icon": {
+      "asset": "item_cf_backpack"
+    },
+    "quality": "uncommon",
+    "maxStack": 1,
+    "tags": [
+      "item.equipment",
+      "gear.back",
+      "container.backpack"
+    ],
+    "economy": {
+      "buy": null,
+      "sell": 185
+    },
+    "equip": {
+      "slot": "back",
+      "inventoryCapacity": 32
+    }
+  },
+  {
     "id": "item:tunic",
     "kind": "item",
     "schemaVersion": 1,

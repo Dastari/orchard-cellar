@@ -5232,6 +5232,39 @@
     ]
   },
   {
+    "id": "recipe:travellers_pack",
+    "kind": "recipe",
+    "schemaVersion": 1,
+    "output": {
+      "item": "item:travellers_pack",
+      "count": 1
+    },
+    "stationRequirement": {
+      "objectTag": "station.workbench"
+    },
+    "unlockHint": {
+      "book": "item:marlow_book"
+    },
+    "recipeKind": "shaped",
+    "pattern": [
+      [
+        "item:rope",
+        "item:leather",
+        "item:rope"
+      ],
+      [
+        "item:leather",
+        "item:backpack",
+        "item:leather"
+      ],
+      [
+        "item:leather",
+        "item:chain_links",
+        "item:leather"
+      ]
+    ]
+  },
+  {
     "id": "recipe:watch",
     "kind": "recipe",
     "schemaVersion": 1,

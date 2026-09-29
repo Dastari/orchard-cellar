@@ -311,7 +311,7 @@ describe('shared container stacking rules', () => {
   it('uses equipment tags as slot acceptance types', () => {
     expect(Object.entries(ITEM_DEFINITIONS)
       .filter(([, definition]) => (definition.tags as readonly string[]).includes('item.equipment'))
-      .map(([itemKind]) => itemKind).sort()).toEqual(['backpack', 'lantern', 'torch', 'watch']);
+      .map(([itemKind]) => itemKind).sort()).toEqual(['backpack', 'lantern', 'torch', 'travellers_pack', 'watch']);
     expect(EQUIPMENT_SLOTS).toHaveLength(10);
     expect(ACTIVE_EQUIPMENT_SLOTS.map((slot) => slot.id)).toContain('body');
     expect(activeEquipmentSlotAccepts(9, 'hearth_common_body')).toBe(true);
