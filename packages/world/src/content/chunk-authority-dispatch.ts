@@ -68,8 +68,14 @@ export type ChunkAuthorityUnavailableReason =
   | 'guard_space' | 'guard_size' | 'guard_base' | 'incomplete' | 'stale_content' | 'stale_map' | 'stale_generator' | 'traversal_policy_mismatch'
   | 'ground_fields_missing';
 
+/** Why a served publication is behind the live map or content (SW-D2: it keeps serving until republished). */
+export type ChunkPublicationLag = 'content' | 'map';
+
 export type ChunkRuntimeResolution =
-  | { readonly ok: true; readonly runtime: ChunkLiveIslandRuntime }
+  | { readonly ok: true; readonly runtime: ChunkLiveIslandRuntime;
+    /** SW-D2 (static world S6): the live map or content moved on since this publication. The pinned
+     * publication keeps serving (clients serve exactly the same chunks) until the heads are republished. */
+    readonly lag?: readonly ChunkPublicationLag[]; readonly lagDetail?: string }
   | { readonly ok: false; readonly reason: ChunkAuthorityUnavailableReason; readonly detail?: string; readonly key: string };
 
 export interface ChunkAuthorityLogger {
@@ -117,7 +123,8 @@ export interface PositionDisagreement {
 }
 
 export interface ChunkAuthorityStatus {
-  readonly lastResolution: { readonly ok: boolean; readonly reason?: ChunkAuthorityUnavailableReason; readonly key: string } | null;
+  readonly lastResolution: { readonly ok: boolean; readonly reason?: ChunkAuthorityUnavailableReason; readonly key: string;
+    readonly lag?: readonly ChunkPublicationLag[] } | null;
   readonly fallbacks: Readonly<Record<string, number>>;
   readonly compares: number;
   readonly lastCompare: { readonly key: string; readonly equal: boolean; readonly total: number; readonly fields: Readonly<Record<string, number>> } | null;
@@ -271,6 +278,10 @@ export class ChunkAuthorityDispatcher {
     }
     if (resolution.ok) {
       this.#once(`on:serving:${resolution.runtime.key}`, 'info', { event: 'chunk_authority_serving', key: resolution.runtime.key });
+      if (resolution.lag !== undefined) {
+        this.#once(`on:lag:${resolution.runtime.key}:${resolution.lagDetail}`, 'info', { event: 'chunk_authority_serving_pinned',
+          key: resolution.runtime.key, lag: resolution.lag, detail: resolution.lagDetail });
+      }
       return resolution.runtime;
     }
     this.#fallbacks[resolution.reason] = (this.#fallbacks[resolution.reason] ?? 0) + 1;
@@ -289,7 +300,7 @@ export class ChunkAuthorityDispatcher {
     const shadow = source.shadow();
     const resolution = this.#resolveUnchecked(source, shadow);
     this.#lastResolution = resolution.ok
-      ? { ok: true, key: resolution.runtime.key }
+      ? { ok: true, key: resolution.runtime.key, ...(resolution.lag === undefined ? {} : { lag: resolution.lag }) }
       : { ok: false, reason: resolution.reason, key: resolution.key };
     return resolution;
   }
@@ -305,28 +316,29 @@ export class ChunkAuthorityDispatcher {
     const manifestEntry = this.#manifestCache?.key === preKey ? this.#manifestCache : this.#readManifest(shadow, preKey);
     const read = manifestEntry.result;
     if (!read.ok) return { ok: false, reason: read.reason, key: preKey, ...(read.detail === undefined ? {} : { detail: read.detail }) };
-    // Cheap staleness before any blob is decoded: a content or map publication since the
-    // chunk publication refuses without paying for an assembly (0.2-0.7 s on the island).
     const registryContentHash = source.registryContentHash();
     const manifest = read.manifest;
     // The resource records also depend on generator code: a module that bumps SURVIVAL_WORLD_VERSION
     // (the reconcile trigger) must not reconcile from records an older generator produced (#230 review).
+    // That is refused before any blob is decoded; only a republish (the release lane does it) serves again.
     const generator = chunkResourceGeneratorMismatch(manifest);
-    const stale: ChunkRuntimeResolution | null = shadow.contentHash !== registryContentHash
-      ? { ok: false, reason: 'stale_content', detail: `published ${shadow.contentHash}, live ${registryContentHash}`, key: preKey }
-      : manifest.sourceRevision !== liveMap.revision || manifest.sourceHash !== liveMap.contentHash
-        ? { ok: false, reason: 'stale_map', detail: `published ${manifest.sourceRevision}:${manifest.sourceHash}, live ${liveMap.revision}:${liveMap.contentHash}`, key: preKey }
-        : generator !== undefined
-          ? { ok: false, reason: 'stale_generator', detail: generator, key: preKey }
-          : null;
-    if (stale !== null) {
-      // Nothing can serve until a republish: free the resident runtime.
+    if (generator !== undefined) {
       this.#runtimeCache = null;
       this.#shadowSampleRuntime = null;
-      return stale;
+      return { ok: false, reason: 'stale_generator', detail: generator, key: preKey };
     }
-    const cacheKey = `${preKey}:${registryContentHash}`;
-    const entry = this.#runtimeCache?.key === cacheKey ? this.#runtimeCache : this.#assemble(source, shadow, manifest, cacheKey, registryContentHash);
+    // SW-D2 (static world S6): a map or content publication since the chunk publication does NOT stop
+    // serving. The pinned publication keeps serving, exactly what every client draws and collides with,
+    // until the heads are republished; the lag is reported, never a fallback to the compiled map.
+    const lag: ChunkPublicationLag[] = [];
+    if (shadow.contentHash !== registryContentHash) lag.push('content');
+    if (manifest.sourceRevision !== liveMap.revision || manifest.sourceHash !== liveMap.contentHash) lag.push('map');
+    const lagDetail = lag.length === 0 ? undefined
+      : `published ${manifest.sourceRevision}:${manifest.sourceHash} content ${shadow.contentHash}, live ${liveMap.revision}:${liveMap.contentHash} content ${registryContentHash}`;
+    // Assembled against the publication's own content hash: the pinned runtime (and its cache key) is the
+    // same whatever the live content does, so a content publication never re-assembles or unpins it.
+    const cacheKey = `${preKey}:${shadow.contentHash}`;
+    const entry = this.#runtimeCache?.key === cacheKey ? this.#runtimeCache : this.#assemble(source, shadow, manifest, cacheKey, shadow.contentHash);
     const resolution = entry.resolution;
     if (!resolution.ok) return resolution;
     const runtime = resolution.runtime;
@@ -334,7 +346,6 @@ export class ChunkAuthorityDispatcher {
       const issues = runtime.issues.slice(0, 4).map(issue => `${issue.kind}${issue.cx === undefined ? '' : `@${issue.cx},${issue.cy}`}${issue.detail === undefined ? '' : `:${issue.detail}`}`);
       return { ok: false, reason: 'incomplete', detail: `${runtime.issues.length} issue(s): ${issues.join('; ')}`, key: runtime.key };
     }
-    if (runtime.stale) return { ok: false, reason: 'stale_content', detail: `published ${shadow.contentHash}, live ${registryContentHash}`, key: runtime.key };
     // Compiled always sets both. Without them liveMapCollisionForSpace's `{ ...base, ...authored }`
     // keeps the generated base's value, whose transitions could open ramps compiled blocks.
     const missingGround = (['terrainMinimumElevation', 'terrainTransitions', 'elevations', 'terrainPlaneBlocked'] as const)
@@ -346,7 +357,7 @@ export class ChunkAuthorityDispatcher {
     if (mismatched.length > 0) {
       return { ok: false, reason: 'traversal_policy_mismatch', detail: `${mismatched.join(',')}: chunks ${!active}, registry ${active}`, key: runtime.key };
     }
-    return resolution;
+    return lag.length === 0 ? resolution : { ...resolution, lag, lagDetail: lagDetail! };
   }
 
   /** Parse, validate and guard the published manifest once per shadow key. Every throw,
@@ -429,6 +440,13 @@ export class ChunkAuthorityDispatcher {
       return;
     }
     const runtime = resolution.runtime;
+    if (resolution.lag !== undefined) {
+      // The compiled map is newer than the publication (SW-D2 lag): comparing would only report the
+      // un-republished edits. `on` would serve this publication; the lag is the finding.
+      this.#once(`shadow:lag:${runtime.key}:${resolution.lagDetail}`, 'info', { event: 'chunk_authority_shadow_lag', key: runtime.key,
+        lag: resolution.lag, detail: resolution.lagDetail });
+      return;
+    }
     if (compiled === null) {
       this.#warnOnce(`shadow:compiled_null:${runtime.key}`, { event: 'chunk_authority_shadow_disagreement', key: runtime.key,
         detail: 'compiled runtime is null (its guards reject the live map) but the chunk runtime resolves' });

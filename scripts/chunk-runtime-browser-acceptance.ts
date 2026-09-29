@@ -1206,10 +1206,12 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
         const tileX = editChunk.cx * WORLD_CHUNK_SIZE + offset, tileY = editChunk.cy * WORLD_CHUNK_SIZE + offset;
         current = editedDocumentJson(current, tileX, tileY);
         const map = await owner.publishMap(current);
-        // The gate is synchronous: collision falls back to legacy (stale_map) until the heads follow the map.
-        const stale = await waitForAsync('client_gates_stale_map', async () => {
+        // SW-D2: until the heads follow the map the client reports the lag and keeps serving the pinned
+        // chunks, collision included (the server does the same), never a legacy fallback.
+        const stale = await waitForAsync('client_reports_map_lag', async () => {
           const value = await probe(on.page);
-          return value?.collision?.fallbackReason === 'stale_map' ? { gate: (value.store as { gate?: unknown } | null)?.gate ?? null, collision: value.collision.fallbackReason } : null;
+          return value?.runtime?.staleReasons.includes('map') === true && value.collision?.fallbackReason === null
+            ? { staleReasons: value.runtime.staleReasons, gate: (value.store as { gate?: unknown } | null)?.gate ?? null, collision: value.collision.fallbackReason } : null;
         }, 30_000).catch(() => null);
         const swapsBefore = (await probe(on.page))?.runtime?.swaps ?? 0;
         evidence.pipeline.push(await runPipeline(options, `edit-${index}`));
@@ -1225,11 +1227,11 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
         const hashes = new Set(entries.map(entry => entry.hash));
         const keepSet = new Set([...next.chunks, ...revisions.at(-2)!.manifest.chunks].map(head => head.contentHash));
         const outside = entries.filter(entry => !keepSet.has(entry.hash)).length;
-        edits.push({ index, tile: `${tileX},${tileY}`, map, gatedStaleMap: stale, swapped: swapped !== null, swapsBefore, swapsAfter: swapped?.swaps ?? null,
+        edits.push({ index, tile: `${tileX},${tileY}`, map, lagWhileServing: stale, swapped: swapped !== null, swapsBefore, swapsAfter: swapped?.swaps ?? null,
           servingRevision: swapped?.servingRevision ?? null, editedHashChanged: revisions.at(-1)!.editedHash !== revisions.at(-2)!.editedHash,
           idbEntries: entries.length, idbHasNewHash: hashes.has(revisions.at(-1)!.editedHash), idbHasPreviousHash: hashes.has(revisions.at(-2)!.editedHash),
           idbHasRevisionOneHash: hashes.has(revisions[0]!.editedHash), idbEntriesOutsideCurrentAndPrevious: outside });
-        if (stale === null) fail(`invalidation edit ${index}: the on client never gated its collision as stale_map`);
+        if (stale === null) fail(`invalidation edit ${index}: the on client never reported the map lag while serving its pinned chunks`);
         if (swapped === null) fail(`invalidation edit ${index}: the on client did not swap to head revision ${revision} and serve chunk collision again`);
         if (!hashes.has(revisions.at(-1)!.editedHash)) fail(`invalidation edit ${index}: the new chunk blob is not in IndexedDB`);
         if (outside > 0) fail(`invalidation edit ${index}: ${outside} IndexedDB entr(ies) outside the current and previous manifests`);

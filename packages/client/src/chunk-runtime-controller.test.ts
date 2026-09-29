@@ -120,36 +120,37 @@ describe('on mode',()=>{
   }finally{h.controller.dispose();}
  });
 
- it('gates authority use like the server: superseded, stale content or map, never the atlas (S4d)',async()=>{
+ it('gates authority use like the server: superseded, never a lagging map or content (SW-D2) or the atlas (S4d)',async()=>{
   const h=harness({authority:'on'}),rev1=revision(0);
   try{
-   expect(h.controller.authorityGate(source)).toBe('not_on');
+   expect(h.controller.authorityGate()).toBe('not_on');
    h.publish(1,rev1);h.controller.update(h.connection,0n,view,source);
    await vi.waitFor(()=>expect(h.controller.status.state).toBe('on'));
-   expect(h.controller.authorityGate(source)).toBeNull();
+   expect(h.controller.authorityGate()).toBeNull();
    // BUG-055: the connection passes a serving controller's null through (chunk collision serves).
    const connectionGate=(runtimeSource:ChunkRuntimeSource)=>OverworldConnection.prototype.chunkAuthorityGate
     .call({chunkRuntime:h.controller,chunkRuntimeSource:()=>runtimeSource} as unknown as OverworldConnection);
    expect(connectionGate(source)).toBeNull();
-   expect(connectionGate({...source,mapRevision:4})).toBe('stale_map');
-   expect(h.controller.authorityGate({...source,contentHash:'content-9'})).toBe('stale_content');
-   expect(h.controller.authorityGate({...source,mapRevision:4})).toBe('stale_map');
-   expect(h.controller.authorityGate({...source,mapHash:'map-9'})).toBe('stale_map');
+   // SW-D2: a live map or content ahead of the publication is not a gate; the server keeps serving the
+   // pinned publication, so the client keeps using it too (the lag shows in status.staleReasons).
+   expect(connectionGate({...source,mapRevision:4})).toBeNull();
+   expect(connectionGate({...source,contentHash:'content-9'})).toBeNull();
+   expect(connectionGate({...source,mapHash:'map-9'})).toBeNull();
    // A newer publication loading behind the serving store: the server already reads it.
    const rev2=revision(1),release=h.hold(rev2.hash);h.publish(2,rev2);
    await vi.waitFor(()=>expect(h.controller.status.state).toBe('loading'));
-   expect(h.controller.authorityGate(source)).toBe('superseded');
+   expect(h.controller.authorityGate()).toBe('superseded');
    release();
    await vi.waitFor(()=>expect(h.controller.status.servingRevision).toBe('0:2'));
-   expect(h.controller.authorityGate(source)).toBeNull();
+   expect(h.controller.authorityGate()).toBeNull();
    // An atlas (asset) mismatch is stale for rendering only; authority is unaffected.
    const rev3=revision(0,'assets-other');h.publish(3,rev3);
    await vi.waitFor(()=>expect(h.controller.status.servingRevision).toBe('0:3'));
    expect(h.controller.status.staleReasons).toEqual(['asset']);
-   expect(h.controller.authorityGate(source)).toBeNull();
+   expect(h.controller.authorityGate()).toBeNull();
   }finally{h.controller.dispose();}
   const shadow=harness({authority:'shadow'});
-  try{expect(shadow.controller.authorityGate(source)).toBe('not_on');}finally{shadow.controller.dispose();}
+  try{expect(shadow.controller.authorityGate()).toBe('not_on');}finally{shadow.controller.dispose();}
  });
 
  it('keeps serving through heads that lag the manifest and through failing fetches of the next revision',async()=>{

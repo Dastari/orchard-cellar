@@ -99,7 +99,9 @@ export interface ChunkAuthorityAuditReport {
     readonly issues: readonly string[];
   };
   /** What `on` would do with this publication right now. */
-  readonly servable: { readonly ok: boolean; readonly reason?: ChunkAuthorityUnavailableReason | 'compiled_null'; readonly detail?: string };
+  readonly servable: { readonly ok: boolean; readonly reason?: ChunkAuthorityUnavailableReason | 'compiled_null'; readonly detail?: string;
+    /** SW-D2: servable, but the live map or content moved on since publication (republish to catch up). */
+    readonly lag?: readonly ('content' | 'map')[]; readonly lagDetail?: string };
   readonly manifestError: string | null;
   readonly disagreements: {
     /** Whether the compare ran (it needs both runtimes). */
@@ -233,11 +235,12 @@ export function runChunkAuthorityAudit(input: ChunkAuthorityAuditInput): ChunkAu
     : compiled === null
       // `on` would serve chunks, but the live compiled guards reject the map: report it, never treat it as parity.
       ? { ok: false, reason: 'compiled_null', detail: 'the compiled runtime is null for the live map' }
-      : { ok: true };
+      : { ok: true, ...(resolution.lag === undefined ? {} : { lag: resolution.lag, lagDetail: resolution.lagDetail }) };
 
   const report: ChunkAuthorityAuditReport = {
     schema: CHUNK_AUTHORITY_AUDIT_SCHEMA,
-    ok: servable.ok && complete && disagreements.compared && disagreements.equal,
+    // A lagging publication serves (SW-D2) but is not audit-clean: republish, then audit again.
+    ok: servable.ok && servable.lag === undefined && complete && disagreements.compared && disagreements.equal,
     mode: input.mode,
     keys: {
       shadowRevision: shadow?.revision ?? null,

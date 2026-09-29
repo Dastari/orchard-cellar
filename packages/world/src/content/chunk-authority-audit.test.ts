@@ -171,14 +171,15 @@ describe('runChunkAuthorityAudit', () => {
     expect(report.timings.diagnosticAssembleMs).toBeGreaterThan(0);
   });
 
-  it('reports stale content as not servable and compares the published chunks anyway', () => {
+  it('reports lagging content as servable with a lag (SW-D2) but not audit-clean, and compares the published chunks', () => {
     const report = runChunkAuthorityAudit(auditHarness({ shadow: { contentHash: 'older-content' } }).input);
-    expect(report.servable).toMatchObject({ ok: false, reason: 'stale_content' });
+    expect(report.servable).toMatchObject({ ok: true, lag: ['content'] });
     expect(report.ok).toBe(false);
-    // Freshness is a serving guard, not a completeness gap: the chunks themselves are whole and equal.
+    // Lag is not a completeness gap: the chunks themselves are whole and equal, and the served runtime
+    // is compared directly (no separate diagnostic assembly).
     expect(report.completeness.complete).toBe(true);
     expect(report.disagreements).toMatchObject({ compared: true, equal: true, count: 0 });
-    expect(report.timings.diagnosticAssembleMs).not.toBeNull();
+    expect(report.timings.diagnosticAssembleMs).toBeNull();
   });
 
   it('is incomplete when heads are missing or not at the pinned shadow revision', () => {

@@ -362,7 +362,7 @@ export class OverworldConnection {
   chunkAuthorityGate(): ChunkAuthorityGate | null {
     // BUG-055: `not_on` only without a controller. The controller's `null` (no gate: the serving
     // revision may stand in for the server) must pass through, or chunk collision never serves.
-    return this.chunkRuntime === undefined ? 'not_on' : this.chunkRuntime.authorityGate(this.chunkRuntimeSource());
+    return this.chunkRuntime === undefined ? 'not_on' : this.chunkRuntime.authorityGate();
   }
   private chunkRuntimeSource(): ChunkRuntimeSource {
     return { mapRevision: this.liveMapDocument?.revision ?? 0, mapHash: this.liveMapDocument?.contentHash ?? '', contentHash: this.content.state.registry.contentHash };

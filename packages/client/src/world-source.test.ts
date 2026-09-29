@@ -212,9 +212,9 @@ describe('WorldSource collision (static world S4d)', () => {
     expect(off.authority(registry)).toBeUndefined();
     expect(off.suppressesGeneratedResource(42n, registry)).toBeUndefined();
     expect(off.collisionStatus.fallbackReason).toBeNull();
-    // The gate: a newer publication still loading here, or stale content or map (never the atlas).
+    // The gate: a newer publication still loading here, or nothing published (never a lag or the atlas).
     const { source, state } = onSource();
-    for (const gate of ['superseded', 'stale_content', 'stale_map']) {
+    for (const gate of ['superseded', 'shadow_missing'] as const) {
       state.gate = gate;
       expect(source.collision(registry), gate).toBeUndefined();
       expect(source.suppressesGeneratedResource(42n, registry), gate).toBeUndefined();
@@ -299,7 +299,7 @@ describe('WorldSource map records (static world S4e)', () => {
     const source = new WorldSource({ store: () => serving.store, pin: serving.pin, authorityGate: () => state.gate, worldSize: FIXTURE_SIZE });
     source.setView(VIEW);
     expect(source.mapRecords(registry)).toBeDefined();
-    for (const gate of ['superseded', 'stale_content', 'stale_map']) {
+    for (const gate of ['superseded', 'shadow_missing'] as const) {
       state.gate = gate;
       expect(source.mapRecords(registry), gate).toBeUndefined();
     }
