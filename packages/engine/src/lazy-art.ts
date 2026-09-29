@@ -68,22 +68,34 @@ export function setLazyArtLoaderForTests(next: Loader | null): void {
   loader = next ?? ((name, season) => loadGeneratedAsset(name, season));
 }
 
+/** A failed load is retried by a later read only after this long (never every frame). */
+const RETRY_AFTER_MS = 5_000;
+const now = (): number => (typeof performance === 'undefined' ? Date.now() : performance.now());
+
 /** One lazily loaded sprite (shared by every field naming it: see `artSlot`). */
 export class ArtSlot {
   #value: LoadedAsset | undefined;
   #pending: Promise<LoadedAsset> | undefined;
-  constructor(readonly name: string, readonly season = 'summer') { register(this); }
+  #failedAt = -Infinity;
+  constructor(readonly name: string, readonly season = 'summer',
+    readonly transform?: (asset: LoadedAsset) => LoadedAsset) { register(this); }
   /** The sprite, or the stand-in while it loads (reading starts the load). */
   get value(): LoadedAsset {
     if (this.#value !== undefined) return this.#value;
-    void this.load().catch(() => undefined);
+    if (now() - this.#failedAt >= RETRY_AFTER_MS) void this.load().catch(() => undefined);
     standInReads += 1;
     return loadingArtAsset();
+  }
+  /** The sprite if it has loaded, else `undefined` (reading starts the load). */
+  get loaded(): LoadedAsset | undefined {
+    const value = this.value;
+    return value === loadingArt ? undefined : value;
   }
   get ready(): boolean { return this.#value !== undefined; }
   load(): Promise<LoadedAsset> {
     if (this.#value !== undefined) return Promise.resolve(this.#value);
-    this.#pending ??= loader(this.name, this.season).then((asset) => {
+    this.#pending ??= loader(this.name, this.season).then((loaded) => {
+      const asset = this.transform === undefined ? loaded : this.transform(loaded);
       this.#value = asset;
       readyGeneration += 1;
       pendingSlots.delete(this);
@@ -93,6 +105,7 @@ export class ArtSlot {
       // loadGeneratedAsset already falls back to the placeholder sprite; this is a network or
       // decode failure of that too. Stay the stand-in, and let a later read retry.
       this.#pending = undefined;
+      this.#failedAt = now();
       throw error;
     });
     return this.#pending;
@@ -101,10 +114,11 @@ export class ArtSlot {
 
 const slotsByKey = new Map<string, ArtSlot>();
 /** The shared slot of an asset and season, so aliases load and hold one sprite. */
-export function artSlot(name: string, season = 'summer'): ArtSlot {
-  const key = `${season}:${name}`;
+export function artSlot(name: string, season = 'summer',
+  variant?: { readonly key: string; readonly transform: (asset: LoadedAsset) => LoadedAsset }): ArtSlot {
+  const key = `${season}:${name}${variant === undefined ? '' : `#${variant.key}`}`;
   let slot = slotsByKey.get(key);
-  if (slot === undefined) { slot = new ArtSlot(name, season); slotsByKey.set(key, slot); }
+  if (slot === undefined) { slot = new ArtSlot(name, season, variant?.transform); slotsByKey.set(key, slot); }
   return slot;
 }
 const pendingSlots = new Set<ArtSlot>();
@@ -149,10 +163,26 @@ export async function loadAllLazyArt(): Promise<void> {
 /** Diagnostics: lazy assets not loaded yet. */
 export function pendingLazyArtCount(): number { return pendingSlots.size; }
 
+const definedSlots = new WeakMap<object, Map<string, ArtSlot>>();
 /** Defines `key` on `target` as a lazy asset (an enumerable getter). */
 export function defineLazyAsset<T extends object>(target: T, key: string, name: string, season = 'summer'): void {
-  const slot = artSlot(name, season);
+  defineLazySlot(target, key, artSlot(name, season));
+}
+/** Defines `key` on `target` as the given slot's asset (an enumerable getter). */
+export function defineLazySlot<T extends object>(target: T, key: string, slot: ArtSlot): void {
+  let slots = definedSlots.get(target);
+  if (slots === undefined) { slots = new Map(); definedSlots.set(target, slots); }
+  slots.set(key, slot);
   Object.defineProperty(target, key, { get: () => slot.value, enumerable: true, configurable: false });
+}
+
+/** The slot behind a lazy member (a defined field, or a content record's kind), so a caller can
+ * await it: the loading screen's own art, for one. */
+export function lazyArtSlot(record: object, key: string, season = 'summer'): ArtSlot | undefined {
+  const defined = definedSlots.get(record)?.get(key);
+  if (defined !== undefined) return defined;
+  const name = lazyContentArtName(record, key);
+  return name === undefined ? undefined : artSlot(name, season);
 }
 
 /** A record whose members are lazy assets. */
@@ -167,4 +197,73 @@ export function lazyAssetList(names: readonly string[], season = 'summer'): read
   const list: LoadedAsset[] = new Array<LoadedAsset>(names.length);
   names.forEach((name, index) => defineLazyAsset(list, String(index), name, season));
   return Object.freeze(list);
+}
+
+/** Reads every lazy member of a value (a field, record, list or nested record), so its loads
+ * start before anything draws it: a player's outfit on the loading screen, a creature whose
+ * row has arrived, tools the player may swing next. */
+export function warmLazyArt(value: unknown, depth = 3): void {
+  if (depth < 0 || value === null || typeof value !== 'object') return;
+  if (isLoadingArt(value as LoadedAsset) || 'image' in (value as object)) return;
+  for (const key of Object.keys(value)) warmLazyArt((value as Record<string, unknown>)[key], depth - 1);
+}
+
+const CONTENT_ART = Symbol('lazy content art');
+interface ContentArtNames {
+  readonly names: Map<string, string>;
+  readonly overrides: Map<string, LoadedAsset>;
+}
+
+/**
+ * A record of content art by runtime kind (item icons, crop sprites) whose asset names follow
+ * the live content registry. Reading a kind loads only that sprite; `renameLazyContentArt` points
+ * kinds at new assets when content changes (nothing loads until drawn). A written sprite (tests,
+ * an explicit override) wins over the name.
+ */
+export function lazyContentArt(names: Readonly<Record<string, string>>, season = 'summer'): Record<string, LoadedAsset> {
+  const state: ContentArtNames = { names: new Map(Object.entries(names)), overrides: new Map() };
+  return new Proxy({} as Record<string, LoadedAsset>, {
+    get: (_target, key) => {
+      if (key === CONTENT_ART) return state;
+      if (typeof key !== 'string') return undefined;
+      const override = state.overrides.get(key);
+      if (override !== undefined) return override;
+      const name = state.names.get(key);
+      return name === undefined ? undefined : artSlot(name, season).value;
+    },
+    set: (_target, key, value: LoadedAsset) => {
+      if (typeof key !== 'string') return false;
+      state.overrides.set(key, value);
+      return true;
+    },
+    has: (_target, key) => typeof key === 'string' && (state.names.has(key) || state.overrides.has(key)),
+    ownKeys: () => [...new Set([...state.names.keys(), ...state.overrides.keys()])],
+    getOwnPropertyDescriptor: (_target, key) => typeof key === 'string' && (state.names.has(key) || state.overrides.has(key))
+      ? { enumerable: true, configurable: true, writable: true } : undefined,
+  });
+}
+
+/** Whether a record is lazy content art (see `lazyContentArt`). */
+export function isLazyContentArt(record: object): boolean {
+  return (record as Record<symbol, unknown>)[CONTENT_ART] !== undefined;
+}
+
+/** The asset a lazy content record names for a kind (undefined when it names none). */
+export function lazyContentArtName(record: object, kind: string): string | undefined {
+  return ((record as Record<symbol, unknown>)[CONTENT_ART] as ContentArtNames | undefined)?.names.get(kind);
+}
+
+/** Points a lazy content record's kinds at new assets (live content changed). Kinds not listed
+ * keep their asset: content art never disappears mid-session. */
+export function renameLazyContentArt(record: object, names: Readonly<Record<string, string>>): number {
+  const state = (record as Record<symbol, unknown>)[CONTENT_ART] as ContentArtNames | undefined;
+  if (state === undefined) return 0;
+  let changed = 0;
+  for (const [kind, name] of Object.entries(names)) {
+    if (state.names.get(kind) === name && !state.overrides.has(kind)) continue;
+    state.names.set(kind, name);
+    state.overrides.delete(kind);
+    changed += 1;
+  }
+  return changed;
 }

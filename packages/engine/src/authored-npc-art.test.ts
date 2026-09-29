@@ -1,4 +1,4 @@
-import {describe,it,expect} from 'vitest';
+import {describe,it,expect,vi} from 'vitest';
 import {bootstrapContentRegistry} from '@orchard/sim';
 import type {LoadedAsset} from '@orchard/ui';
 import {authoredNpcArt,loadAuthoredNpcArt} from './authored-npc-art.js';
@@ -33,5 +33,27 @@ describe('authored NPC artwork',()=>{
     const old=loadAuthoredNpcArt(owner,[supplier],()=>new Promise(resolve=>{resolveOld=resolve;}));
     await loadAuthoredNpcArt(owner,[{...supplier,actorAsset:'replacement'}],async()=>newAsset);
     resolveOld(oldAsset);await old;expect(authoredNpcArt(owner,'delve_quartermaster')).toBe(newAsset);
+  });
+});
+
+describe('lazily bound authored NPC art (static world S6)', () => {
+  it('loads an NPC sprite only when first drawn, and follows rebinding at once', async () => {
+    const lazy = await import('./lazy-art.js');
+    const { bindAuthoredNpcArt, authoredNpcArt } = await import('./authored-npc-art.js');
+    const requested: string[] = [];
+    lazy.setLazyArtLoaderForTests(async name => { requested.push(name); return { name } as never; });
+    try {
+      const owner = {};
+      const npc = (id: string, actorAsset: string, extra: object = {}) => ({ id: `npc:${id}`, actorAsset, ...extra }) as never;
+      bindAuthoredNpcArt(owner, [npc('bruno', 'npc_cf_bruno'), npc('retired', 'npc_cf_old', { retired: true })]);
+      expect(requested).toEqual([]);
+      expect(authoredNpcArt(owner, 'bruno')).toBeUndefined();
+      await vi.waitFor(() => expect(authoredNpcArt(owner, 'bruno')?.name).toBe('npc_cf_bruno'));
+      expect(authoredNpcArt(owner, 'retired')).toBeUndefined();
+      bindAuthoredNpcArt(owner, [npc('bruno', 'npc_cf_bruno_2')]);
+      expect(authoredNpcArt(owner, 'bruno')).toBeUndefined();
+      await vi.waitFor(() => expect(authoredNpcArt(owner, 'bruno')?.name).toBe('npc_cf_bruno_2'));
+      expect(requested).toEqual(['npc_cf_bruno', 'npc_cf_bruno_2']);
+    } finally { lazy.setLazyArtLoaderForTests(null); }
   });
 });

@@ -1,7 +1,8 @@
 export { hearthResourceVisualAsset } from './hearth-resource-art.js';
 import { loadHearthResourceArt, hearthResourceVisualAsset } from './hearth-resource-art.js';
 import {LEGACY_LANDMARK_ASSET_NAMES} from './legacy-landmark-assets.js';
-import { defineLazyAsset, lazyAssetList, lazyAssetRecord } from './lazy-art.js';
+import { defineLazyAsset, lazyAssetList, lazyAssetRecord, lazyContentArt } from './lazy-art.js';
+import { lazyHearthResourceArt } from './hearth-resource-art.js';
 import {authoredNpcArt} from './authored-npc-art.js';
 import { saveSpriteTransform, restoreSpriteTransform } from './painter-context.js';
 import { worldAssetFrameSource } from './world-asset-presentation.js';
@@ -30,7 +31,7 @@ import {
   type GeneratedContentAssetLoader,
   type LoadedAsset,
 } from '@orchard/ui';
-import { loadCuteFantasyActor } from './cute-fantasy-actor-library.js';
+import { cuteFantasyActor, loadCuteFantasyActor } from './cute-fantasy-actor-library.js';
 import {
   PLAYER_RIG_CORE_ASSETS,
   PLAYER_RIG_HAIR_ASSETS,
@@ -446,19 +447,6 @@ function oreNodeAssetNames(): Readonly<Record<string, string>> {
  * ground drop keeps its small Kenmi prop sprite in the world (owner decision
  * 2026-09-26, wiki Roadmap/Item Slot Component). Landed arrows draw `itemArrow`. */
 export const GROUND_DROP_PROP_ITEMS = ["apple", "pear", "peach", "cherry", "pebble", "arrow"] as const;
-
-async function loadGroundItemArt(): Promise<
-  Readonly<Record<string, LoadedAsset>>
-> {
-  return Object.fromEntries(
-    await Promise.all(
-      GROUND_DROP_PROP_ITEMS.map(async (kind) => [
-        kind,
-        await loadGeneratedAsset(`item_cf_${kind}`, "summer"),
-      ]),
-    ),
-  );
-}
 
 export interface OverworldContentArtRequests {
   item(itemKind: string): Promise<LoadedAsset | null>;
@@ -922,6 +910,147 @@ function lazyTerrainAssets(): Readonly<Record<string, LoadedAsset>> {
   });
 }
 
+/** Gameplay art other than the world (static world S6): loaded the first time it is needed. */
+export const GAMEPLAY_ART_ASSET_NAMES = {
+  avatar: 'avatar_cf_farmer',
+  avatarAxe: 'avatar_cf_farmer_axe',
+  horse: 'horse_cf_bramble',
+  mountedHorse: 'horse_cf_bramble_mounted',
+  merchantNpc: 'npc_cf_bartender_bruno',
+  farmerBobNpc: 'npc_cf_farmer_bob',
+  fishermanFinNpc: 'npc_cf_fisherman_fin',
+  itemStone: 'item_cf_stone',
+  iconAxe: 'icon_tool_wood_axe',
+  iconHoe: 'icon_tool_wood_hoe',
+  iconPickaxe: 'icon_tool_wood_pickaxe',
+  iconWateringCan: 'icon_cf_watering_can',
+  iconBow: 'icon_cf_bow',
+  iconShovel: 'icon_tool_wood_shovel',
+  iconHammer: 'icon_cf_hammer',
+  iconSword: 'icon_cf_sword',
+  itemArrow: 'item_cf_arrow',
+  itemWood: 'item_cf_wood',
+  itemPlank: 'item_cf_plank',
+  itemStick: 'item_cf_stick',
+  itemTorch: 'item_cf_torch',
+  itemLantern: 'item_cf_lantern',
+  itemOrchardTea: 'icon_cf_effect_orchard_tea',
+  rainStreak: 'effect_cf_rain_streak',
+  rainSplash: 'effect_cf_rain_splash',
+  cloudShadow: 'effect_cf_cloud_shadow',
+  windGust: 'effect_cf_wind_gust',
+  oakLeaf: 'effect_cf_leaf_oak',
+  birchLeaf: 'effect_cf_leaf_birch',
+  spruceLeaf: 'effect_cf_leaf_spruce',
+  cropTimer: 'ui_cf_crop_timer',
+} as const satisfies Partial<Record<keyof OverworldArt, string>>;
+
+/** Swing, cast and water sheets by character action (what the player's tool draws). */
+export const ACTION_TOOL_ASSET_NAMES = {
+  swing_axe: 'tool_cf_iron_axe_action',
+  swing_sword: 'tool_cf_iron_sword_action',
+  swing_pickaxe: 'tool_cf_iron_pickaxe_action',
+  swing_hoe: 'tool_cf_iron_hoe_action',
+  water: 'tool_cf_watering_can_action',
+  ranged_weapon: 'tool_cf_wooden_bow_action',
+  fish_cast: 'tool_cf_wooden_fishing_rod_action',
+  fish_reel: 'tool_cf_wooden_fishing_rod_action',
+} as const;
+
+const WILDLIFE_BANKS: readonly (readonly [string, number])[] = [
+  ["horse", 5], ["cow", 9], ["sheep", 9], ["pig", 16], ["chicken", 18], ["rooster", 1], ["duck", 5], ["goose", 6],
+  ["swan", 3], ["frog", 6], ["mouse", 4], ["butterfly", 1], ["bee", 1], ["camel", 3], ["scarab", 4], ["vulture", 4], ["snail", 4],
+];
+
+function lazyWildlifeArt(): Readonly<Record<string, readonly LoadedAsset[]>> {
+  const numbered = (prefix: string, count: number, suffix = ''): readonly LoadedAsset[] =>
+    lazyAssetList(Array.from({ length: count }, (_, variant) => `${prefix}${String(variant + 1).padStart(2, "0")}${suffix}`));
+  return Object.fromEntries([
+    ...WILDLIFE_BANKS.map(([species, count]) => [species, numbered(`wildlife_cf_${species}_`, count)] as const),
+    ...["idle", "look", "submerged", "dive", "emerge", "bubbles"].map(animation =>
+      [`capybara_${animation}`, numbered('wildlife_cf_capybara_', 2, `_${animation}`)] as const),
+  ]);
+}
+
+function lazyCharacterPart(standing: string, mounted: string, action: string): CharacterPartArt {
+  const part = {} as CharacterPartArt;
+  defineLazyAsset(part, 'standing', standing);
+  defineLazyAsset(part, 'mounted', mounted);
+  defineLazyAsset(part, 'action', action);
+  return Object.freeze(part);
+}
+
+function lazyCharacterPartMap(entries: readonly (readonly [string, string, string, string])[]): Readonly<Record<string, CharacterPartArt>> {
+  return Object.freeze(Object.fromEntries(entries.map(([kind, standing, mounted, action]) =>
+    [kind, lazyCharacterPart(standing, mounted, action)])));
+}
+
+function lazyHeldLight(kind: 'torch' | 'lantern'): HeldLightArt {
+  const light = {} as HeldLightArt;
+  defineLazyAsset(light, 'idle', `tool_cf_${kind}_idle`);
+  defineLazyAsset(light, 'running', `tool_cf_${kind}_running`);
+  defineLazyAsset(light, 'idleHands', `hands_cf_${kind}_idle`);
+  defineLazyAsset(light, 'runningHands', `hands_cf_${kind}_running`);
+  return Object.freeze(light);
+}
+
+const ROGUE_ENEMY_ACTORS = [
+  ['skeleton', 'enemy_cf_skeleton'], ['skeleton_bowman', 'enemy_cf_skeleton_bowman'], ['skeleton_mage', 'enemy_cf_skeleton_mage'],
+  ['skeleton_swordman', 'enemy_cf_skeleton_swordman'], ['slime_small', 'enemy_cf_slime_small_blue'], ['slime_small_red', 'enemy_cf_slime_small_red'],
+  ['slime_big', 'enemy_cf_slime_big_blue'], ['cowling', 'enemy_cf_cowling_01'], ['cowling_mage', 'enemy_cf_cowling_mage_01'],
+  ['flying_skull', 'enemy_cf_flying_skull'],
+] as const;
+
+/** Item icons and crop sprites by runtime kind, named by the content registry (static world S6:
+ * each loads when first drawn; `renameLazyContentArt` follows live content changes). */
+export function contentArtNames(registry: Pick<ContentRegistry, 'items' | 'crops'>): { readonly items: Record<string, string>; readonly crops: Record<string, string> } {
+  const items: Record<string, string> = {};
+  for (const definition of registry.items.values()) {
+    if (definition.retired !== true) items[definition.id.slice('item:'.length)] = definition.icon.asset;
+  }
+  for (const [kind, asset] of [
+    ["fence_horizontal", "prop_cf_fence_horizontal"], ["fence_connected", "prop_cf_willow_boundary_wood_large_connected"],
+    ["fence_vertical", "prop_cf_fence_vertical"], ["fence_corner", "prop_cf_fence_corner"], ["fence_left_end", "prop_cf_fence_left_end"],
+    ['quest_offer', 'icon_cf_quest_offer'], ['quest_complete', 'icon_cf_quest_complete'],
+  ] as const) items[kind] = asset;
+  const crops: Record<string, string> = {};
+  for (const definition of registry.crops.values()) {
+    if (definition.retired !== true) crops[definition.id.slice('crop:'.length)] = definition.asset;
+  }
+  return { items, crops };
+}
+
+type LazyGameplayArtKey = keyof typeof GAMEPLAY_ART_ASSET_NAMES | 'wildlife' | 'rogueEnemies' | 'mountedHorses' | 'heldLights'
+  | 'actionAssets' | 'hearthResources' | 'oreItems' | 'itemIcons' | 'crops' | 'groundItems';
+
+/** Adds the lazily loaded gameplay art (static world S6). */
+function withLazyGameplayArt(eager: Omit<OverworldArt, LazyWorldArtKey | LazyGameplayArtKey>,
+  registry: Pick<ContentRegistry, 'items' | 'crops'>): Omit<OverworldArt, LazyWorldArtKey> {
+  const content = contentArtNames(registry);
+  const art = {
+    ...eager,
+    wildlife: lazyWildlifeArt(),
+    rogueEnemies: lazyAssetRecord(Object.fromEntries(ROGUE_ENEMY_ACTORS.map(([kind, actorId]) => {
+      const entry = cuteFantasyActor(actorId);
+      if (entry === undefined) throw new Error(`Unknown Cute Fantasy actor: ${actorId}`);
+      return [kind, entry.asset];
+    }))),
+    mountedHorses: lazyAssetList(Array.from({ length: 5 }, (_, variant) => `wildlife_cf_horse_mounted_${String(variant + 1).padStart(2, "0")}`)),
+    heldLights: Object.freeze({ torch: lazyHeldLight('torch'), lantern: lazyHeldLight('lantern') }),
+    actionAssets: lazyAssetRecord(ACTION_TOOL_ASSET_NAMES),
+    hearthResources: lazyHearthResourceArt(),
+    oreItems: lazyAssetRecord(Object.fromEntries(SURVIVAL_ORE_KINDS.map(resourceKind => {
+      const oreKind = resourceKind.slice("ore_".length);
+      return [`${oreKind}_ore`, `item_cf_${oreKind}_ore`];
+    }))),
+    itemIcons: lazyContentArt(content.items),
+    crops: lazyContentArt(content.crops),
+    groundItems: lazyAssetRecord(Object.fromEntries(GROUND_DROP_PROP_ITEMS.map(kind => [kind, `item_cf_${kind}`]))),
+  };
+  for (const [key, name] of Object.entries(GAMEPLAY_ART_ASSET_NAMES)) defineLazyAsset(art, key, name);
+  return art as unknown as Omit<OverworldArt, LazyWorldArtKey>;
+}
+
 type LazyWorldArtKey = keyof typeof WORLD_ART_ASSET_NAMES | 'terrainAssets' | 'poiDecorations' | 'natureDecorations'
   | 'oceanSurfaceDecorations' | 'fruitTrees' | 'oreNodes';
 
@@ -943,201 +1072,29 @@ function withLazyWorldArt(eager: Omit<OverworldArt, LazyWorldArtKey>): Overworld
 export async function loadOverworldArt(
   registry: Pick<ContentRegistry, 'items' | 'crops' | 'skillTrees'> = bootstrapContentRegistry(),
 ): Promise<OverworldArt> {
-  const contentArt = createOverworldContentArtRequests(registry);
-  const [
-    avatar,
-    avatarAxe,
-    axeActionTool,
-    swordActionTool,
-    pickaxeActionTool,
-    hoeActionTool,
-    wateringCanActionTool,
-    bowActionTool,
-    fishingRodActionTool,
-    horse,
-    mountedHorse,
-    wildlife,
-    groundItems,
-    mountedHorses,
-    playerRig,
-    merchantNpc,
-    farmerBobNpc,
-    fishermanFinNpc,
-    torchIdle,
-    torchRunning,
-    torchIdleHands,
-    torchRunningHands,
-    lanternIdle,
-    lanternRunning,
-    lanternIdleHands,
-    lanternRunningHands,
-    oreItems,
-    itemStone,
-    iconAxe,
-    iconHoe,
-    iconPickaxe,
-    iconWateringCan,
-    iconBow,
-    iconShovel,
-    iconHammer,
-    iconSword,
-    itemArrow,
-    itemWood,
-    itemPlank,
-    itemStick,
-    itemTorch,
-    itemLantern,
-    itemOrchardTea,
-    missingItem,
-    rainStreak,
-    rainSplash,
-    cloudShadow,
-    windGust,
-    oakLeaf,
-    birchLeaf,
-    spruceLeaf,
-    rogueEnemies,
-    ui,
-    uiSkin,
-    itemIcons,
-    crops,
-    cropTimer,
-  ] = await Promise.all([
-    loadGeneratedAsset("avatar_cf_farmer", "summer"),
-    loadGeneratedAsset("avatar_cf_farmer_axe", "summer"),
-    loadGeneratedAsset("tool_cf_iron_axe_action", "summer"),
-    loadGeneratedAsset("tool_cf_iron_sword_action", "summer"),
-    loadGeneratedAsset("tool_cf_iron_pickaxe_action", "summer"),
-    loadGeneratedAsset("tool_cf_iron_hoe_action", "summer"),
-    loadGeneratedAsset("tool_cf_watering_can_action", "summer"),
-    loadGeneratedAsset("tool_cf_wooden_bow_action", "summer"),
-    loadGeneratedAsset("tool_cf_wooden_fishing_rod_action", "summer"),
-    loadGeneratedAsset("horse_cf_bramble", "summer"),
-    loadGeneratedAsset("horse_cf_bramble_mounted", "summer"),
-    loadWildlifeArt(),
-    loadGroundItemArt(),
-    Promise.all(
-      Array.from({ length: 5 }, (_, variant) =>
-        loadGeneratedAsset(
-          `wildlife_cf_horse_mounted_${String(variant + 1).padStart(2, "0")}`,
-          "summer",
-        ),
-      ),
-    ),
-    loadPlayerRig(),
-    loadGeneratedAsset("npc_cf_bartender_bruno", "summer"),
-    loadGeneratedAsset("npc_cf_farmer_bob", "summer"),
-    loadGeneratedAsset("npc_cf_fisherman_fin", "summer"),
-    loadGeneratedAsset("tool_cf_torch_idle", "summer"),
-    loadGeneratedAsset("tool_cf_torch_running", "summer"),
-    loadGeneratedAsset("hands_cf_torch_idle", "summer"),
-    loadGeneratedAsset("hands_cf_torch_running", "summer"),
-    loadGeneratedAsset("tool_cf_lantern_idle", "summer"),
-    loadGeneratedAsset("tool_cf_lantern_running", "summer"),
-    loadGeneratedAsset("hands_cf_lantern_idle", "summer"),
-    loadGeneratedAsset("hands_cf_lantern_running", "summer"),
-    loadOreArt("item_cf_", "_ore"),
-    loadGeneratedAsset("item_cf_stone", "summer"),
-    loadGeneratedAsset("icon_tool_wood_axe", "summer"),
-    loadGeneratedAsset("icon_tool_wood_hoe", "summer"),
-    loadGeneratedAsset("icon_tool_wood_pickaxe", "summer"),
-    loadGeneratedAsset("icon_cf_watering_can", "summer"),
-    loadGeneratedAsset("icon_cf_bow", "summer"),
-    loadGeneratedAsset("icon_tool_wood_shovel", "summer"),
-    loadGeneratedAsset("icon_cf_hammer", "summer"),
-    loadGeneratedAsset("icon_cf_sword", "summer"),
-    loadGeneratedAsset("item_cf_arrow", "summer"),
-    loadGeneratedAsset("item_cf_wood", "summer"),
-    loadGeneratedAsset("item_cf_plank", "summer"),
-    loadGeneratedAsset("item_cf_stick", "summer"),
-    loadGeneratedAsset("item_cf_torch", "summer"),
-    loadGeneratedAsset("item_cf_lantern", "summer"),
-    loadGeneratedAsset("icon_cf_effect_orchard_tea", "summer"),
+  // Static world S6: only the UI, the player's body and the missing-item icon load at startup.
+  // Everything else is lazy (see `lazy-art.ts`): world art from the chunks' packs, and the rest
+  // (outfits, tools, creatures, NPCs, items, crops, weather) the first time it is needed.
+  const [base, hands, missingItem, ui, uiSkin] = await Promise.all([
+    loadCharacterPart(...PLAYER_RIG_CORE_ASSETS.base),
+    loadCharacterPart(...PLAYER_RIG_CORE_ASSETS.hands),
     loadGeneratedAsset("system_missing_asset", "summer"),
-    loadGeneratedAsset("effect_cf_rain_streak", "summer"),
-    loadGeneratedAsset("effect_cf_rain_splash", "summer"),
-    loadGeneratedAsset("effect_cf_cloud_shadow", "summer"),
-    loadGeneratedAsset("effect_cf_wind_gust", "summer"),
-    loadGeneratedAsset("effect_cf_leaf_oak", "summer"),
-    loadGeneratedAsset("effect_cf_leaf_birch", "summer"),
-    loadGeneratedAsset("effect_cf_leaf_spruce", "summer"),
-    loadRogueEnemyArt(),
     loadPixelUi(),
     loadGameplayUiSkin(registry),
-    loadItemIconArt(registry, contentArt),
-    loadCropArt(registry, contentArt),
-    loadGeneratedAsset('ui_cf_crop_timer', 'summer')]);
-  const art: Omit<OverworldArt, LazyWorldArtKey> = {
-    hearthResources: await loadHearthResourceArt(),
-    avatar,
-    avatarAxe,
-    horse,
-    mountedHorse,
-    wildlife,
-    rogueEnemies,
-    mountedHorses,
-    playerRig,
-    merchantNpc,
-    farmerBobNpc,
-    fishermanFinNpc,
-    heldLights: {
-      torch: {
-        idle: torchIdle,
-        running: torchRunning,
-        idleHands: torchIdleHands,
-        runningHands: torchRunningHands,
-      },
-      lantern: {
-        idle: lanternIdle,
-        running: lanternRunning,
-        idleHands: lanternIdleHands,
-        runningHands: lanternRunningHands,
-      },
+  ]);
+  const art: Omit<OverworldArt, LazyWorldArtKey | LazyGameplayArtKey> = {
+    playerRig: {
+      base, hands,
+      hair: lazyCharacterPartMap(PLAYER_RIG_HAIR_ASSETS),
+      shirts: lazyCharacterPartMap(PLAYER_RIG_SHIRT_ASSETS),
+      pants: lazyCharacterPartMap(PLAYER_RIG_PANTS_ASSETS),
+      shoes: lazyCharacterPartMap(PLAYER_RIG_SHOE_ASSETS),
     },
-    actionAssets: {
-      swing_axe: axeActionTool,
-      swing_sword: swordActionTool,
-      swing_pickaxe: pickaxeActionTool,
-      swing_hoe: hoeActionTool,
-      water: wateringCanActionTool,
-      ranged_weapon: bowActionTool,
-      fish_cast: fishingRodActionTool,
-      fish_reel: fishingRodActionTool,
-    },
-    oreItems,
-    itemIcons,
-    crops,
-    cropTimer,
-
-    groundItems,
-    iconAxe,
-    iconHoe,
-    iconPickaxe,
-    iconWateringCan,
-    iconBow,
-    iconShovel,
-    iconHammer,
-    iconSword,
-    itemArrow,
-    itemWood,
-    itemPlank,
-    itemStick,
-    itemStone,
-    itemTorch,
-    itemLantern,
-    itemOrchardTea,
     missingItem,
-    rainStreak,
-    rainSplash,
-    cloudShadow,
-    windGust,
-    oakLeaf,
-    birchLeaf,
-    spruceLeaf,
     ui,
     uiSkin,
   };
-  return withLazyWorldArt(art);
+  return withLazyWorldArt(withLazyGameplayArt(art, registry));
 }
 
 export function isOverworldRoad(tileX: number, tileY: number): boolean {

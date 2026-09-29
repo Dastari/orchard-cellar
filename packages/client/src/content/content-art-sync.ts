@@ -1,4 +1,6 @@
 import { createOverworldContentArtRequests } from '@orchard/engine';
+import { contentArtNames } from '@orchard/engine/overworld-art';
+import { isLazyContentArt, renameLazyContentArt } from '@orchard/engine/lazy-art';
 import type { ContentRegistry } from '@orchard/sim';
 import {
   createGeneratedContentAssetRequests,
@@ -128,6 +130,22 @@ export class ClientContentArtSynchronizer {
     return asset;
   }
 
+  /** Static world S6: lazy item and crop records only change which asset a kind names; the
+   * sprite loads when it is first drawn. Returns how many kinds changed. */
+  #renameLazy(registry: ArtRegistry): number {
+    const names = contentArtNames(registry);
+    let changed = 0;
+    if (isLazyContentArt(this.#target.itemIcons)) {
+      changed += renameLazyContentArt(this.#target.itemIcons, names.items);
+      for (const [kind, asset] of Object.entries(names.items)) this.#itemAssetKeys.set(kind, asset);
+    }
+    if (isLazyContentArt(this.#target.crops)) {
+      changed += renameLazyContentArt(this.#target.crops, names.crops);
+      for (const [kind, asset] of Object.entries(names.crops)) this.#cropAssetKeys.set(kind, asset);
+    }
+    return changed;
+  }
+
   #plans(registry: ArtRegistry): readonly AssetPlan[] {
     const loadAsset = async (assetKey: string) => await this.#loadAsset(assetKey);
     const overworld = createOverworldContentArtRequests(registry, loadAsset);
@@ -159,6 +177,7 @@ export class ClientContentArtSynchronizer {
   }
 
   async #synchronize(key: string, registry: ArtRegistry): Promise<ContentArtSyncResult> {
+    const renamed = this.#renameLazy(registry);
     const plans = this.#plans(registry);
     const resolved = await Promise.all(plans.map(async (plan): Promise<ResolvedAssetPlan> => {
       try {
@@ -171,7 +190,7 @@ export class ClientContentArtSynchronizer {
       return { key, status: 'stale', requested: plans.length, applied: 0,
         failed: resolved.filter(({ asset }) => asset === null).length };
     }
-    let applied = 0;
+    let applied = renamed;
     let failed = 0;
     for (const plan of resolved) {
       if (plan.asset === null) {
@@ -193,7 +212,7 @@ export class ClientContentArtSynchronizer {
     const result: ContentArtSyncResult = {
       key,
       status: failed > 0 ? 'partial' : applied > 0 ? 'applied' : 'unchanged',
-      requested: plans.length,
+      requested: plans.length + renamed,
       applied,
       failed,
     };
@@ -203,7 +222,9 @@ export class ClientContentArtSynchronizer {
   }
 
   #seed(registry: ArtRegistry): void {
-    for (const definition of registry.items.values()) {
+    // Lazy records already name the initial registry's assets: seed from it, loading nothing.
+    this.#renameLazy(registry);
+    for (const definition of isLazyContentArt(this.#target.itemIcons) ? [] : registry.items.values()) {
       if (definition.retired === true) continue;
       const runtimeKey = runtimeKind(definition.id, 'item:');
       const asset = this.#target.itemIcons[runtimeKey];
@@ -211,7 +232,7 @@ export class ClientContentArtSynchronizer {
       this.#itemAssetKeys.set(runtimeKey, definition.icon.asset);
       this.#knownAssets.set(definition.icon.asset, asset);
     }
-    for (const definition of registry.crops.values()) {
+    for (const definition of isLazyContentArt(this.#target.crops) ? [] : registry.crops.values()) {
       if (definition.retired === true) continue;
       const runtimeKey = runtimeKind(definition.id, 'crop:');
       const asset = this.#target.crops[runtimeKey];

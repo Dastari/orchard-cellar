@@ -1,9 +1,20 @@
 import type {NpcContentDefinition} from '@orchard/sim';
 import {loadGeneratedAsset,type LoadedAsset} from '@orchard/ui';
+import {artSlot} from './lazy-art.js';
 
 const states=new WeakMap<object,{generation:number;assets:ReadonlyMap<string,LoadedAsset>}>();
+const bindings=new WeakMap<object,ReadonlyMap<string,string>>();
 export function authoredNpcArt(owner:object,kind:string):LoadedAsset|undefined{
+  const name=bindings.get(owner)?.get(kind);
+  if(name!==undefined)return artSlot(name).loaded;
   return states.get(owner)?.assets.get(kind);
+}
+/** Static world S6: binds each authored NPC kind to its actor sprite without loading any. A
+ * sprite loads when its NPC is first drawn (`authoredNpcArt` is undefined until then, so the
+ * painter keeps its fallback for that moment). Rebinding follows a new content head at once. */
+export function bindAuthoredNpcArt(owner:object,definitions:Iterable<NpcContentDefinition>):void{
+  bindings.set(owner,new Map([...definitions].filter(d=>d.retired!==true&&d.mount===undefined)
+    .map(d=>[d.runtimeKind??d.id.slice('npc:'.length),d.actorAsset])));
 }
 /** Commit a complete asset mapping atomically; an older content head finishing
  * its downloads later must not replace the current head's character artwork. */
