@@ -7,12 +7,17 @@ import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import { CHUNK_RUNTIME_ACTIVATION_RELEASE } from '../packages/client/src/chunk-shadow-build-gate.js';
 
-/** The environment for spawned lane scripts: the caller's own client chunk inputs never leak in (a release lane runs
- * this suite with them set), so each test states the chunk mode it exercises. */
-function laneTestEnv(): NodeJS.ProcessEnv {
-  const env = { ...process.env };
-  for (const name of ['WORLD_RELEASE_CLIENT_CHUNK_RUNTIME', 'WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION', 'WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK',
-    'VITE_CHUNK_RUNTIME_MODE', 'ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE']) delete env[name];
+/** The environment for spawned lane scripts. A release lane runs this suite with its own inputs exported (migration
+ * kind, container-cell migration, backup and snapshot paths, client chunk mode), so none of them leak in: each test
+ * states the lane inputs it exercises. */
+const LANE_INPUT_PREFIXES = ['WORLD_RELEASE_', 'WORLD_RESTORE_', 'WORLD_ROUTINE_RELEASE_', 'WORLD_FINALIZE_', 'WORLD_RETIREMENT_',
+  'CONTAINER_CELL_'];
+const LANE_INPUT_NAMES = ['WORLD_REJOIN_TOKENS_FILE', 'VITE_CHUNK_RUNTIME_MODE', 'ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE'];
+function laneTestEnv(source: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const env = { ...source };
+  for (const name of Object.keys(env)) {
+    if (LANE_INPUT_NAMES.includes(name) || LANE_INPUT_PREFIXES.some((prefix) => name.startsWith(prefix))) delete env[name];
+  }
   return env;
 }
 
@@ -133,6 +138,18 @@ describe('production continuity tooling', { timeout: 60_000 }, () => {
     expect(operations).toContain('restore the pre-publish backup');
     expect(operations).toContain('The batches and the status accept a world owner or admin');
     expect(operations).not.toContain('CONTAINER_CELL_MIGRATION_OWNER_LABEL');
+  });
+
+  it('never passes the running lane\'s own inputs to the lane scripts it spawns', () => {
+    // The step-4 migration release's gate ran this suite with WORLD_RELEASE_MIGRATION_KIND=schema-only exported, so the
+    // "outside a schema-only lane" case reached the chunk plan instead of the refusal it checks.
+    const lane = { PATH: '/usr/bin', HOME: '/home/example', WORLD_RELEASE_MIGRATION_KIND: 'schema-only',
+      WORLD_RELEASE_CONTAINER_CELL_MIGRATION: 'run', WORLD_RELEASE_BACKUP_DIRECTORY: '/backups/new',
+      WORLD_RELEASE_CONTENT_CANDIDATE: '/release/content-candidate.json', WORLD_RELEASE_CLIENT_CHUNK_RUNTIME: 'on',
+      WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION: CHUNK_RUNTIME_ACTIVATION_RELEASE, WORLD_RESTORE_MIGRATION_KIND: 'schema-only',
+      WORLD_ROUTINE_RELEASE_DIRECTORY: '/release', CONTAINER_CELL_EXPECTED_LEGACY_FINGERPRINT: 'x',
+      WORLD_REJOIN_TOKENS_FILE: '/dev/shm/rejoin.json', VITE_CHUNK_RUNTIME_MODE: 'on' };
+    expect(laneTestEnv(lane)).toEqual({ PATH: '/usr/bin', HOME: '/home/example' });
   });
 
   it('refuses the container-cell migration outside a schema-only publishing lane or with an unknown value', () => {
