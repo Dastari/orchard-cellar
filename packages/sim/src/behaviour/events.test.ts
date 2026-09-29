@@ -44,7 +44,7 @@ describe('behaviour lifecycle event contract', () => {
       { type: 'use', actor, target: object },
       { type: 'frameAction', actor, frameId: 'frame:custom', actionId: 'collect', target: object },
       { type: 'secondary', actor, selectedItem: item, target: tile },
-      { type: 'equipmentUse', actor, equipmentItem: item, equipmentSlot: 35 },
+      { type: 'equipmentUse', actor, equipmentItem: item, equipmentIndex: 5 },
       { type: 'worldItemUse', actor, worldItem: item, target: object },
       { type: 'useWith', actor, selectedItem: item, target: object },
       {

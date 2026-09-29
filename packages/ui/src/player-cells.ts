@@ -1,4 +1,6 @@
-import { EQUIPMENT_SLOTS, HOTBAR_SLOT_COUNT, accessibleBackpackCapacity, type ActiveEquipmentSlotId } from '@orchard/sim/inventory-layout';
+import {
+  EQUIPMENT_SLOTS, accessibleBackpackCapacity, isAccessibleCarriedCell as isAccessibleCarriedCellForCapacity, type ActiveEquipmentSlotId,
+} from '@orchard/sim/inventory-layout';
 import { selectedSlotCell, type PlayerContainerCellRef, type PlayerContainerId } from '@orchard/sim/container-addressing';
 
 /**
@@ -51,10 +53,9 @@ export function isOccupiedCell(row: { readonly itemKind: string; readonly quanti
 }
 
 /** The carried cells a player draws from outside a menu (BUG-068): the hotbar and the backpack cells the accessible
- * capacity opens. Never equipment, the crafting grid, the stash, or cells stranded past a smaller bag. The cell form of
- * the world's rule (`isAccessibleCarriedSlot`); bow ammunition, crafting and selling all use it. */
+ * capacity opens. Never equipment, the crafting grid, the stash, or cells stranded past a smaller bag. The world's rule
+ * (the sim's `isAccessibleCarriedCell`), with `backpackCapacity` passed through `accessibleBackpackCapacity` first, which
+ * leaves an already accessible capacity unchanged; bow ammunition, crafting and selling all use it. */
 export function isAccessibleCarriedCell(cell: PlayerContainerCellRef, backpackCapacity: number): boolean {
-  if (!Number.isInteger(cell.index) || cell.index < 0) return false;
-  if (cell.container === 'hotbar') return cell.index < HOTBAR_SLOT_COUNT;
-  return cell.container === 'backpack' && cell.index < accessibleBackpackCapacity(backpackCapacity);
+  return isAccessibleCarriedCellForCapacity(cell, accessibleBackpackCapacity(backpackCapacity));
 }

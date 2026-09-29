@@ -6,7 +6,7 @@ import {
   HOTBAR_SLOT_COUNT,
   INVENTORY_SLOT_COUNT,
   accessibleBackpackCapacity,
-  isAccessibleCarriedSlot,
+  isAccessibleCarriedCell,
   BACKPACK_SLOT_COUNT,
   hotbarSlotForInputCode,
   hotbarSlotLabel,
@@ -59,17 +59,28 @@ describe('accessible backpack capacity (BUG-054)', () => {
 });
 
 describe('accessible carried cells (BUG-068)', () => {
+  const cell = (container: string, index: number) => ({ container, index });
   it('are the hotbar and the backpack cells the accessible capacity opens, never equipment or the crafting grid', () => {
-    const open = (capacity: number) => Array.from({ length: INVENTORY_SLOT_COUNT + 2 }, (_, slot) => slot - 1)
-      .filter(slot => isAccessibleCarriedSlot(slot, capacity));
-    const hotbar = Array.from({ length: HOTBAR_SLOT_COUNT }, (_, slot) => slot);
-    const backpack = (cells: number) => Array.from({ length: cells }, (_, cell) => BACKPACK_SLOT_OFFSET + cell);
+    const open = (capacity: number) => ['hotbar', 'backpack', 'equipment', 'crafting', 'stash']
+      .flatMap(container => Array.from({ length: 24 }, (_, index) => cell(container, index - 1)))
+      .filter(candidate => isAccessibleCarriedCell(candidate, accessibleBackpackCapacity(capacity)))
+      .map(({ container, index }) => `${container}:${index}`);
+    const hotbar = Array.from({ length: HOTBAR_SLOT_COUNT }, (_, index) => `hotbar:${index}`);
+    const backpack = (cells: number) => Array.from({ length: cells }, (_, index) => `backpack:${index}`);
     expect(open(12)).toEqual([...hotbar, ...backpack(12)]);
     expect(open(20)).toEqual([...hotbar, ...backpack(20)]);
-    // Through the one rule: a bag below the base opens 8, and nothing opens past the backpack.
+    // Through the one capacity rule: a bag below the base opens 8, and nothing opens past the backpack.
     expect(open(4)).toEqual([...hotbar, ...backpack(8)]);
     expect(open(99)).toEqual([...hotbar, ...backpack(BACKPACK_SLOT_COUNT)]);
-    expect(isAccessibleCarriedSlot(CRAFTING_SLOT_OFFSET, 20)).toBe(false);
-    expect(isAccessibleCarriedSlot(1.5, 20)).toBe(false);
+    expect(isAccessibleCarriedCell(cell('crafting', 0), 20)).toBe(false);
+    expect(isAccessibleCarriedCell(cell('hotbar', 1.5), 20)).toBe(false);
+    expect(isAccessibleCarriedCell(cell('hotbar', HOTBAR_SLOT_COUNT), 20)).toBe(false);
+  });
+
+  it('adds no ceiling of its own: the resolved capacity alone bounds the backpack (Uncapped Storage step 5)', () => {
+    expect(isAccessibleCarriedCell(cell('backpack', 30), 31)).toBe(true);
+    expect(isAccessibleCarriedCell(cell('backpack', 300), 301)).toBe(true);
+    expect(isAccessibleCarriedCell(cell('backpack', 300), 300)).toBe(false);
+    expect(isAccessibleCarriedCell(cell('equipment', 3), 1000)).toBe(false);
   });
 });

@@ -614,8 +614,8 @@ export class OverworldConnection {
         }
         if (localProfilesEnabled && oidcSession === null && savedToken === undefined) localStorage.setItem(tokenKey, token);
         try {
-          // Inventory protocol 2 (Uncapped Storage step 4): this client reads container cells and sends container +
-          // u32 index; the world refuses a client that cannot.
+          // Inventory protocol 3 (Uncapped Storage steps 4 and 5): this client reads container cells and sends container +
+          // u32 index, and names an equipment cell by its index; the world refuses a client that cannot.
           await connection.reducers.acknowledgeInventoryProtocol({ version: CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION });
         } catch (error) {
           if (!this.recovery.isCurrent(generation)) return;
@@ -1060,7 +1060,7 @@ export class OverworldConnection {
   }
   useSelected(
     verb: 'secondary' | 'equipment_use' | 'use_with' | 'use_at' | 'aimed_use' | 'place' | 'frame_action',
-    options: { readonly targetKind?: string; readonly entityId?: bigint; readonly tileX?: number; readonly tileY?: number; readonly actionId?: string; readonly quantity?: number; readonly phase?: 'begin' | 'cancel' | 'fire'; readonly aimX?: number; readonly aimY?: number; readonly chargeMs?: number; readonly equipmentSlot?: number } = {},
+    options: { readonly targetKind?: string; readonly entityId?: bigint; readonly tileX?: number; readonly tileY?: number; readonly actionId?: string; readonly quantity?: number; readonly phase?: 'begin' | 'cancel' | 'fire'; readonly aimX?: number; readonly aimY?: number; readonly chargeMs?: number; readonly equipmentIndex?: number } = {},
   ): Promise<void> {
     return this.reducer((connection) => connection.reducers.useSelected({
       verb,
@@ -1074,7 +1074,7 @@ export class OverworldConnection {
       aimX: options.aimX ?? 0,
       aimY: options.aimY ?? 0,
       chargeMs: options.chargeMs ?? 0,
-      equipmentSlot: options.equipmentSlot ?? 0,
+      equipmentIndex: options.equipmentIndex ?? 0,
     }));
   }
   frameAction(actionId: string): Promise<void> {

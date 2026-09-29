@@ -55,6 +55,7 @@ class FakeConnection {
   readonly tableMap = new Map<string, FakeTable>();
   readonly db = new Proxy({}, { get: (_target, key) => this.table(String(key)) });
   readonly reducers = { acknowledgeInventoryProtocol:vi.fn(async(args:unknown)=>{ void args; }), setInput: vi.fn(async (input: unknown) => { void input; }), heartbeat: vi.fn(async () => undefined),
+    useSelected: vi.fn(async (args: unknown) => { void args; }),
     ...Object.fromEntries(CONTAINER_REDUCERS.map(name => [name, vi.fn(async (args: unknown) => { void args; })])) as Record<ContainerReducer, ReturnType<typeof vi.fn>> };
   readonly disconnect = vi.fn();
   readonly connectionId = { isEqual: () => true,toHexString:()=> 'test-connection' };
@@ -369,9 +370,10 @@ describe('container cells (Uncapped Storage step 4c)', () => {
   }
   const key = (row: { readonly container: string; readonly index: number }) => `${row.container}:${row.index}`;
 
-  it('acknowledges inventory protocol 2 and subscribes to the container-cell views, never the legacy slot views', async () => {
+  it('acknowledges inventory protocol 3 and subscribes to the container-cell views, never the legacy slot views', async () => {
     const { connection } = await ready();
-    expect(CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION).toBe(2);
+    // Protocol 3 (Uncapped Storage step 5): use_selected names the equipment cell by index, not its legacy global slot.
+    expect(CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION).toBe(3);
     expect(connection.reducers.acknowledgeInventoryProtocol).toHaveBeenCalledWith({ version: CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION });
     const queries = connection.subscriptions.flatMap(subscription => Array.isArray(subscription.queries) ? subscription.queries as unknown[] : [subscription.queries]);
     expect(queries).toContain(tables.ownPlayerContainerCells);
@@ -462,6 +464,18 @@ describe('container cells (Uncapped Storage step 4c)', () => {
     expect(live.container('backpack').map(row => [row.index, row.quantity])).toEqual([[300, 5], [70_000, 4]]);
     expect(live.get({ container: 'crafting', index: 8 })).toBeUndefined();
     expect(network.snapshot().playerCells.map(key)).toEqual(['hotbar:0', 'backpack:300', 'backpack:70000', 'equipment:3', 'stash:3']);
+  });
+
+  it('names an equipment cell by its index in use_selected (protocol 3), never by its legacy global slot', async () => {
+    const { network, connection } = await ready();
+    const call = network.useSelected('equipment_use', { equipmentIndex: 5 }); await flush(); await call;
+    const args = connection.reducers.useSelected.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(args).toMatchObject({ verb: 'equipment_use', equipmentIndex: 5 });
+    expect(args).not.toHaveProperty('equipmentSlot');
+    // The generated binding carries exactly these arguments.
+    const type = { tag: 'Product', value: (bindingReducers as unknown as Record<string, { paramsType: unknown }>).useSelected!.paramsType } as unknown as AlgebraicType;
+    const writer = new BinaryWriter(64); AlgebraicType.serializeValue(writer, type, args);
+    expect(AlgebraicType.deserializeValue(new BinaryReader(writer.getBuffer()), type)).toEqual(args);
   });
 
   it('sends a container and a u32 index on every container reducer call, a backpack index past 255 included', async () => {

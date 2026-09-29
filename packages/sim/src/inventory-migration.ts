@@ -4,9 +4,11 @@
  */
 export const CURRENT_EQUIPMENT_LAYOUT_VERSION = 1;
 export const CURRENT_INVENTORY_PROTOCOL_VERSION = 1;
-/** Protocol of container-scoped addressing (Uncapped Storage step 4): u32 cell indices per container instead of global
- * slots. Defined ahead of use; the world adopts it as current when it moves rows to container cells. */
-export const CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION = 2;
+/** Protocol of container-scoped addressing: u32 cell indices per container instead of global slots. Version 2
+ * (Uncapped Storage step 4) moved the tables and the container reducers; version 3 (step 5) removed the last global slot
+ * from the wire: `use_selected`'s `equipmentIndex` names an equipment cell (0-9) where protocol 2 sent its legacy global
+ * slot (30-39). The world refuses a tab still speaking an older protocol with the UPDATE REQUIRED screen. */
+export const CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION = 3;
 export interface InventoryMigrationSlot {
   readonly slot: number;
   readonly itemKind: string;

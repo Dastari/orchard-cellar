@@ -3,7 +3,6 @@ import {
   CURRENT_EQUIPMENT_LAYOUT_VERSION,
   HOTBAR_SLOT_COUNT,
   LEGACY_CONTAINER_LAYOUT_VERSION,
-  cellToLegacyGlobalSlot,
   containerCellStack,
   isPlayerContainerId,
   isVacantCellStack,
@@ -127,25 +126,6 @@ export function applyPlayerContainerWrites(
     else db.player_container_cell.id.update(next);
   }
   return writes.deletes.length > 0 || writes.upserts.length > 0;
-}
-
-/** A carried cell with its frozen legacy global slot. */
-export type CarriedSlotRow = PlayerCellRow & { readonly slot: number };
-
-/**
- * Transitional: carried cells numbered by the frozen legacy global layout, for the sim helpers that still take global
- * slots (loadouts, expedition readiness, carried-slot rules). Every carried cell a current capacity allows has a legacy
- * slot (the backpack is at most 20 until step 5 lifts the ceiling); a cell without one is left out, as the legacy
- * table could not have held it.
- */
-export function legacySlotRows(cells: readonly PlayerCellRow[]): CarriedSlotRow[] {
-  const rows: CarriedSlotRow[] = [];
-  for (const cell of cells) {
-    if (!isPlayerContainerId(cell.container)) continue;
-    const slot = cellToLegacyGlobalSlot({ container: cell.container, index: cell.index });
-    if (slot !== null) rows.push({ ...cell, slot });
-  }
-  return rows.sort((left, right) => left.slot - right.slot);
 }
 
 export interface PlayerCellSpill {

@@ -234,7 +234,7 @@ import {
 import { CharacterNamePrompt } from '@orchard/ui';
 import { NpcInteractionUi } from '@orchard/ui';
 import { TradeUi } from '@orchard/ui';
-import { BACKPACK_EQUIPMENT_INDEX, OFF_HAND_EQUIPMENT_INDEX, legacyEquipmentUseSlot, legacySlotRows } from '@orchard/ui';
+import { BACKPACK_EQUIPMENT_INDEX, OFF_HAND_EQUIPMENT_INDEX } from '@orchard/ui';
 import { QuestTracker, type QuestTrackerEntry } from '@orchard/ui';
 import { HomesteadBuildPalette, type HomesteadBuildPaletteModel } from '@orchard/ui';
 import type { QuestLogEntry } from '@orchard/ui';
@@ -2777,7 +2777,7 @@ function snapshotEffectModifiers(snapshot: OverworldView) {
 
 function snapshotPlayerModifiers(snapshot: OverworldView) {
   const loadout = compileEquipmentLoadout({
-    registry:snapshot.content.registry, inventory:legacySlotRows(snapshot.playerCells.carried()),
+    registry:snapshot.content.registry, inventory:snapshot.playerCells.carried(),
     selectedSlot:optimisticSelectedSlot ?? snapshot.survival?.selectedSlot ?? 0,
     skillPriority:snapshot.equipmentSkillPriority??[],
     trainedRanks:Object.fromEntries([...snapshot.skillNodes].map(({nodeId,rank})=>[nodeId,rank])),
@@ -5608,7 +5608,7 @@ function renderFrame(alpha = 1): void {
       nodes: snapshot.content.registry.compiled.skillNodes,
       tracks: skillTracks,
       ranks: skillRanks,
-      equipmentSkills:compileEquipmentLoadout({registry:snapshot.content.registry,inventory:legacySlotRows(snapshot.playerCells.carried()),skillPriority:snapshot.equipmentSkillPriority??[],
+      equipmentSkills:compileEquipmentLoadout({registry:snapshot.content.registry,inventory:snapshot.playerCells.carried(),skillPriority:snapshot.equipmentSkillPriority??[],
         selectedSlot:optimisticSelectedSlot??snapshot.survival?.selectedSlot??0,
         trainedRanks:Object.fromEntries(skillRanks.map(({nodeId,rank})=>[nodeId,rank])),bowDrawn:bowChargeStartedAtMs!==null}).skills,
       balanceBronze: snapshot.wallet?.balanceBronze ?? 0n,
@@ -6836,7 +6836,7 @@ window.addEventListener('keydown', (event) => {
     const equipLight = selectedLightEquipRequest(selectedUseDefinition, hotbarLight);
     if (equipLight !== null && hotbarLight !== undefined) {
       showResult(network.moveInventoryItem(equipLight).then(() => hotbarLight.lit === false
-        ? network.useSelected('equipment_use', { equipmentSlot: legacyEquipmentUseSlot(OFF_HAND_EQUIPMENT_INDEX) }) : undefined),
+        ? network.useSelected('equipment_use', { equipmentIndex: OFF_HAND_EQUIPMENT_INDEX }) : undefined),
         `${liveItemLabel(snapshot, hotbarLight.itemKind)} EQUIPPED AND LIT`);
       event.preventDefault();
       return;
@@ -6848,7 +6848,7 @@ window.addEventListener('keydown', (event) => {
     );
     if (selectedLight !== null && equippedLightUseAction !== null) {
       showResult(
-        network.useSelected('equipment_use', { equipmentSlot: legacyEquipmentUseSlot(selectedLight.index) }),
+        network.useSelected('equipment_use', { equipmentIndex: selectedLight.index }),
         `${liveItemLabel(snapshot, selectedLight.itemKind)} TURNED ${selectedLight.lit === false ? 'ON' : 'OFF'}`,
       );
       event.preventDefault();

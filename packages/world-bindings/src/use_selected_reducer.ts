@@ -22,5 +22,5 @@ export default {
   aimX: __t.i16(),
   aimY: __t.i16(),
   chargeMs: __t.u16(),
-  equipmentSlot: __t.u8(),
+  equipmentIndex: __t.u8(),
 };
