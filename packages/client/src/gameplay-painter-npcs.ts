@@ -3,7 +3,8 @@ import {authoredNpcArt} from '@orchard/engine/authored-npc-art';
 import { profilePainterProducer } from './painter-producer-profile.js';
 import { drawWildlifeHitFlash } from './gameplay-painter-effects.js';
 import { authoredWildlifeShadowBody, humanoidShadowContactY, horseShadowBody, rogueEnemyShadowBody } from '@orchard/engine/overworld-art';
-import { AUTHORITY_HZ, FIXED_UNITS_PER_PIXEL, SURVIVAL_WORLD_SEED, runtimeCreaturePresentation, runtimeNpcDefinition, survivalBiomeAt, type Direction } from '@orchard/sim';
+import { AUTHORITY_HZ, FIXED_UNITS_PER_PIXEL, runtimeCreaturePresentation, runtimeNpcDefinition, type Direction } from '@orchard/sim';
+import { terrainBiomeAt } from '@orchard/engine/terrain-sampling';
 import { drawAuthoredOverworldWildlife, drawOverworldHorse, drawOverworldBoat, drawOverworldMerchant, drawOverworldRogueEnemy, authoredWildlifeWorldBounds, horseWorldBounds, merchantWorldBounds, rogueEnemyWorldBounds } from '@orchard/engine/overworld-art';
 import { worldPointVisible } from '@orchard/engine/camera';
 import type { GameplayPainterInputs } from './gameplay-painter-inputs.js';
@@ -14,7 +15,7 @@ type Inputs = Pick<GameplayPainterInputs,
   'projectedWorldY' | 'targetableEntities' | 'projectTargetable' | 'enqueueWorldDepth' | 'context' |
   'art' | 'horseAnimationFrame' | 'cameraX' | 'cameraY' | 'scale' |
   'targetableFromVisualBounds' | 'nameplates' | 'frameLightingModel' | 'drawSouthFacingReceiver' | 'wildlifeProfile' |
-  'NPC_HIT_FLASH_MS'
+  'NPC_HIT_FLASH_MS' | 'terrain'
 >;
 
 /** Mechanically extracted painter producer; command order and draw bodies are unchanged. */
@@ -25,7 +26,7 @@ function buildEnqueueGameplayNpcs(input: Inputs): void {
     projectedWorldY, targetableEntities, projectTargetable, enqueueWorldDepth, context,
     art, horseAnimationFrame, cameraX, cameraY, scale,
     targetableFromVisualBounds, nameplates, frameLightingModel, drawSouthFacingReceiver, wildlifeProfile,
-    NPC_HIT_FLASH_MS,
+    NPC_HIT_FLASH_MS, terrain,
   } = input;
   if (!debugEntitiesHidden) for (const npc of snapshot.npcs) {
     const rogueEnemyProfile = snapshot.rogueEnemyProfiles.get(npc.id) ?? snapshot.outdoorEnemyProfiles?.get(npc.id);
@@ -130,11 +131,8 @@ function buildEnqueueGameplayNpcs(input: Inputs): void {
     if (presentation?.hiddenActivities.includes(npc.wanderDirection) === true) continue;
     if (npc.displayName.trim()) nameplates.push({ x, y: projectedWorldY(x, y), name: npc.displayName });
     const animationFrame = horseAnimationFrame + Number(npc.id % 19n);
-    const biome = survivalBiomeAt(
-      snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED,
-      Math.floor(x / 16),
-      Math.floor(y / 16),
-    );
+    // The drawn terrain (static world S6: the chunk window on topside), never the generator.
+    const biome = terrainBiomeAt(terrain, Math.floor(x / 16), Math.floor(y / 16));
     const inWater = biome === 'freshwater' || biome === 'oasis_water';
     const moving = sleeping ? false : npc.moving;
     const visualBounds = horseAdapter

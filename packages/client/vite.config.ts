@@ -81,7 +81,10 @@ export default defineConfig(({ command, mode }) => {
     // /world/<space>/<hash>.bin from ORCHARD_WORLD_CHUNK_DIR (never dist): see ops/orchard-runtime/README.md.
     worldChunkServing(),
     { name: 'orchard-chunk-runtime-audit', apply: 'build', generateBundle(_options, bundle) {
-      const audit = chunkRuntimeBuildAudit(chunkMode, Object.values(bundle).flatMap(output => output.type === 'chunk' ? output.moduleIds : []), chunkBuildOptions);
+      // Modules that render code: a module reached only through a barrel whose exports are all
+      // tree-shaken ships nothing (rolldown still lists it, with renderedLength 0). Static world S6.
+      const audit = chunkRuntimeBuildAudit(chunkMode, Object.values(bundle).flatMap(output => output.type === 'chunk'
+        ? output.moduleIds.filter(id => (output.modules[id]?.renderedLength ?? 1) > 0) : []), chunkBuildOptions);
       this.emitFile({type:'asset',fileName:'chunk-runtime-audit.json',source:JSON.stringify(audit)});
     } },
     ...(command === 'serve' ? [{

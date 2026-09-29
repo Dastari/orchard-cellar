@@ -96,15 +96,25 @@ export const PROCEDURAL_WATER_KINDS = [
 ] as const;
 export type ProceduralWaterKind = (typeof PROCEDURAL_WATER_KINDS)[number];
 
+// Plain constants, so the neighbour tables below read no properties at module load (a bundle that
+// reaches this module only through the `@orchard/sim` barrel drops it; static world S6).
+const BIT_NORTH = 1;
+const BIT_NORTH_EAST = 2;
+const BIT_EAST = 4;
+const BIT_SOUTH_EAST = 8;
+const BIT_SOUTH = 16;
+const BIT_SOUTH_WEST = 32;
+const BIT_WEST = 64;
+const BIT_NORTH_WEST = 128;
 export const TERRAIN_NEIGHBOR_BITS = {
-  north: 1,
-  north_east: 2,
-  east: 4,
-  south_east: 8,
-  south: 16,
-  south_west: 32,
-  west: 64,
-  north_west: 128,
+  north: BIT_NORTH,
+  north_east: BIT_NORTH_EAST,
+  east: BIT_EAST,
+  south_east: BIT_SOUTH_EAST,
+  south: BIT_SOUTH,
+  south_west: BIT_SOUTH_WEST,
+  west: BIT_WEST,
+  north_west: BIT_NORTH_WEST,
 } as const;
 
 export type TerrainCardinalDirection = "north" | "east" | "south" | "west";
@@ -283,14 +293,14 @@ interface NeighborDefinition {
 }
 
 const NEIGHBORS: readonly NeighborDefinition[] = [
-  { deltaX: 0, deltaY: -1, bit: TERRAIN_NEIGHBOR_BITS.north },
-  { deltaX: 1, deltaY: -1, bit: TERRAIN_NEIGHBOR_BITS.north_east },
-  { deltaX: 1, deltaY: 0, bit: TERRAIN_NEIGHBOR_BITS.east },
-  { deltaX: 1, deltaY: 1, bit: TERRAIN_NEIGHBOR_BITS.south_east },
-  { deltaX: 0, deltaY: 1, bit: TERRAIN_NEIGHBOR_BITS.south },
-  { deltaX: -1, deltaY: 1, bit: TERRAIN_NEIGHBOR_BITS.south_west },
-  { deltaX: -1, deltaY: 0, bit: TERRAIN_NEIGHBOR_BITS.west },
-  { deltaX: -1, deltaY: -1, bit: TERRAIN_NEIGHBOR_BITS.north_west },
+  { deltaX: 0, deltaY: -1, bit: BIT_NORTH },
+  { deltaX: 1, deltaY: -1, bit: BIT_NORTH_EAST },
+  { deltaX: 1, deltaY: 0, bit: BIT_EAST },
+  { deltaX: 1, deltaY: 1, bit: BIT_SOUTH_EAST },
+  { deltaX: 0, deltaY: 1, bit: BIT_SOUTH },
+  { deltaX: -1, deltaY: 1, bit: BIT_SOUTH_WEST },
+  { deltaX: -1, deltaY: 0, bit: BIT_WEST },
+  { deltaX: -1, deltaY: -1, bit: BIT_NORTH_WEST },
 ];
 
 const CARDINAL_NEIGHBORS: readonly (NeighborDefinition & {
@@ -300,16 +310,16 @@ const CARDINAL_NEIGHBORS: readonly (NeighborDefinition & {
     direction: "north",
     deltaX: 0,
     deltaY: -1,
-    bit: TERRAIN_NEIGHBOR_BITS.north,
+    bit: BIT_NORTH,
   },
-  { direction: "east", deltaX: 1, deltaY: 0, bit: TERRAIN_NEIGHBOR_BITS.east },
+  { direction: "east", deltaX: 1, deltaY: 0, bit: BIT_EAST },
   {
     direction: "south",
     deltaX: 0,
     deltaY: 1,
-    bit: TERRAIN_NEIGHBOR_BITS.south,
+    bit: BIT_SOUTH,
   },
-  { direction: "west", deltaX: -1, deltaY: 0, bit: TERRAIN_NEIGHBOR_BITS.west },
+  { direction: "west", deltaX: -1, deltaY: 0, bit: BIT_WEST },
 ];
 
 const NOISE_QUANTIZATION = 32_767;
@@ -637,7 +647,7 @@ export const PROCEDURAL_BIOME_TABLE = [
 // unreachable (and eliminated desert entirely).
 export const V7_TEMPERATURE_QUANTILE_EDGES = [-0.19, -0.05, 0.06, 0.28] as const;
 export const V7_MOISTURE_QUANTILE_EDGES = [-0.21, -0.07, 0, 0.09] as const;
-const V7_TABLE_BIOMES = new Set<ProceduralTerrainBiome>(PROCEDURAL_BIOME_TABLE.flat());
+const V7_TABLE_BIOMES = /* @__PURE__ */ new Set<ProceduralTerrainBiome>(/* @__PURE__ */ PROCEDURAL_BIOME_TABLE.flat());
 
 function quantileBin(value: number, edges: readonly number[]): number {
   const index = edges.findIndex((edge) => value < edge);
