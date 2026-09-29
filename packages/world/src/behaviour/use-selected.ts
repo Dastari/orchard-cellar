@@ -25,7 +25,8 @@ export interface UseSelectedRequest {
   readonly tileY: number;
   readonly actionId?: string;
   readonly quantity?: number;
-  readonly equipmentSlot?: number;
+  /** The equipment cell's index (0-9) for `equipment_use` (inventory protocol 3). */
+  readonly equipmentIndex?: number;
   readonly phase?: string;
   readonly aimX?: number;
   readonly aimY?: number;
@@ -47,7 +48,7 @@ export interface UseSelectedAuthority extends BehaviourActionAuthority {
   ) => void;
   readonly equipmentItem: (
     ctx: WorldReducerContext,
-    slot: number,
+    equipmentIndex: number,
   ) => { readonly ref: ItemRef; readonly snapshot: BehaviourItemSnapshot } | null;
   readonly carriedObject: (ctx: WorldReducerContext) => ObjectRef | null;
   /** Authored frame controls cross one command boundary. The authority resolves
@@ -113,14 +114,14 @@ export function useSelectedBehaviour(
     if (request.targetKind.length > 0 || request.entityId !== 0n) {
       authority.reject('behaviour_equipment_target_invalid');
     }
-    if (request.equipmentSlot === undefined) authority.reject('behaviour_equipment_slot_required');
-    const equipment = authority.equipmentItem(ctx, request.equipmentSlot);
+    if (request.equipmentIndex === undefined) authority.reject('behaviour_equipment_slot_required');
+    const equipment = authority.equipmentItem(ctx, request.equipmentIndex);
     if (equipment === null) authority.reject('behaviour_equipment_item_required');
     const result = raiseEvent(authority.handlers(ctx), {
       type: 'equipmentUse',
       actor,
       equipmentItem: equipment.ref,
-      equipmentSlot: request.equipmentSlot,
+      equipmentIndex: request.equipmentIndex,
     }, authority.snapshot(ctx, undefined, equipment.snapshot));
     if (isBlockedHandlerResult(result)) authority.reject(result.blocked);
     authority.apply(ctx, result.effects, undefined, equipment.ref);

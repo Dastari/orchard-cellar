@@ -61,7 +61,6 @@ import {
   CURRENT_EQUIPMENT_LAYOUT_VERSION,
   migrateEquipmentLayout,
   EQUIPMENT_SLOT_COUNT,
-  EQUIPMENT_SLOT_OFFSET,
   EQUIPMENT_SLOT_RESTRICTIONS,
   activeEquipmentSlotAccepts,
   CHEST_INTERACTION_REACH_FIXED,
@@ -174,7 +173,7 @@ import {
   UNIQUE_QUEST_ITEM_TAG,
   inventoryContainerSlotCount,
   accessibleBackpackCapacity,
-  isAccessibleCarriedSlot,
+  isAccessibleCarriedCell,
   isHotbarSlot,
   itemStacksCompatible,
   runtimePlaceableDefinition,
@@ -430,13 +429,13 @@ import { farmingSkillEffects, farmingCropDefinition, farmingHarvestReward, first
 import { authoredHookApproved, authoredHookRegistrations, type AuthoredHookAuthority } from '@orchard/sim';
 import {
   CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION, CURRENT_CONTAINER_LAYOUT_VERSION, buildDenseContainer, diffDenseContainer,
-  cellToLegacyGlobalSlot, isPlayerContainerId, legacyGlobalSlotToCell, runtimeStoredStackCodec, selectedSlotCell,
+  isPlayerContainerId, legacyGlobalSlotToCell, runtimeStoredStackCodec, selectedSlotCell,
   type SparseContainerBuild,
 } from '@orchard/sim';
 import {
   CARRIED_CONTAINERS, CURRENT_HOTBAR_LAYOUT_VERSION, applyPlaceableContainerWrites, applyPlayerContainerWrites, carriedPlayerCellRows,
   containerCellMigrationStatus, copyPlaceableToContainerCells, deletePlaceableCells, hotbarSlotCountForLayoutVersion,
-  hasUnmovedLegacyStorage, isCarriedContainer, legacyPlayerStorage, legacySlotRows,
+  hasUnmovedLegacyStorage, isCarriedContainer, legacyPlayerStorage,
   movePlayerToContainerCells, playerCellId, placeableCellRows, planLegacyPlayerContainerMove, playerCellOrVacant, playerContainerCellsCurrent, playerContainerRows,
   putPlaceableCell, putPlayerCell, spillPlayerCells,
   type CarriedContainerId, type PlaceableCellRow, type PlayerCellRow,
@@ -822,21 +821,22 @@ type CarriedInventoryReadContext = ContentReadContext & { readonly db: {
   readonly player_survival: { readonly identity: Pick<WorldReducerContext['db']['player_survival']['identity'], 'find'> };
 } };
 
-/** A player's carried cells (numbered by the frozen legacy layout for the sim rules that still use it) and accessible
- * backpack capacity: the equipped bag and debug slots through the one rule the menus use. Bow ammunition and
- * expedition readiness both read carried cells through it (BUG-068). Views call it too, so it only reads. */
+/** A player's carried cells, container addressed, and accessible backpack capacity: the equipped bag and debug slots
+ * through the one rule the menus use. Bow ammunition and expedition readiness both read carried cells through it
+ * (BUG-068). Views call it too, so it only reads. */
 function carriedInventoryFor(ctx: CarriedInventoryReadContext, identity: WorldReducerContext['sender']) {
   const cells = [...ctx.db.player_container_cell.by_identity.filter(identity)].filter(row => isCarriedContainer(row.container));
   const debugBackpackSlots = ctx.db.player_survival.identity.find(identity)?.debugBackpackSlots ?? 0;
-  return { rows: legacySlotRows(cells), backpackCapacity: accessibleInventoryContainerCapacity('backpack', equippedInventoryCapacity(ctx, cells), debugBackpackSlots) };
+  return { cells, backpackCapacity: accessibleInventoryContainerCapacity('backpack', equippedInventoryCapacity(ctx, cells), debugBackpackSlots) };
 }
 
-/** The ammunition a bow may draw, lowest slot first (BUG-068): the hotbar and the accessible backpack only, as
- * expedition readiness counts it; never the crafting grid or cells stranded past a smaller bag. */
+/** The ammunition a bow may draw, hotbar first and then the backpack, each by index (BUG-068): the hotbar and the
+ * accessible backpack only, as expedition readiness counts it; never the crafting grid or cells stranded past a smaller
+ * bag. */
 function carriedAmmunitionRows(ctx: CarriedInventoryReadContext, identity: WorldReducerContext['sender'], itemKind: string) {
-  const { rows, backpackCapacity } = carriedInventoryFor(ctx, identity);
-  return rows.filter(row => row.itemKind === itemKind && row.quantity > 0 && isAccessibleCarriedSlot(row.slot, backpackCapacity))
-    .sort((left, right) => left.slot - right.slot);
+  const { cells, backpackCapacity } = carriedInventoryFor(ctx, identity);
+  return cells.filter(row => row.itemKind === itemKind && row.quantity > 0 && isAccessibleCarriedCell(row, backpackCapacity))
+    .sort((left, right) => left.container === right.container ? left.index - right.index : left.container === 'hotbar' ? -1 : 1);
 }
 
 function facingTile(x: number, y: number, facing: string): { readonly tileX: number; readonly tileY: number } {
@@ -4281,9 +4281,9 @@ function rogueRunForIdentity(
   return member === null ? null : ctx.db.rogue_run.id.find(member.runId);
 }
 
-/** Inventory protocol 2 (Uncapped Storage step 4, `CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION`): container-scoped cells
- * with u32 indices. A tab still speaking protocol 1 (global slots) is refused by every inventory reducer until it
- * reloads. */
+/** Inventory protocol 3 (`CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION`): container-scoped cells with u32 indices (step 4,
+ * protocol 2) and `use_selected`'s equipment cell by index (step 5, protocol 3). A tab still speaking an older protocol
+ * is refused by every inventory reducer until it reloads. */
 function requireInventoryProtocol(ctx: WorldReducerContext): void {
   const acknowledgement = ctx.connectionId === null ? null
     : ctx.db.inventory_protocol.connectionId.find(ctx.connectionId);
@@ -5293,7 +5293,7 @@ function residenceFurnishingFor(ctx:ContentReadContext & {readonly db:{
 
 function expeditionPreparationFor(ctx:CarriedInventoryReadContext,identity:WorldReducerContext['sender']){
   const carried=carriedInventoryFor(ctx,identity);
-  return hearthExpeditionPreparation(contentRegistry(ctx),carried.rows,carried.backpackCapacity);
+  return hearthExpeditionPreparation(contentRegistry(ctx),carried.cells,carried.backpackCapacity);
 }
 
 function questProgressSourceFor(
@@ -5787,7 +5787,7 @@ function activePlayerModifiers(
 ): readonly Modifier[] {
   const registry = contentRegistry(ctx);
   const effects = [...ctx.db.player_effect.by_identity.filter(identity)];
-  const inventory = legacySlotRows(carriedPlayerCellRows(ctx.db, identity));
+  const inventory = carriedPlayerCellRows(ctx.db, identity);
   const selectedSlot = ctx.db.player_survival.identity.find(identity)?.selectedSlot ?? 0;
   const loadout = compileEquipmentLoadout({
     registry, inventory, selectedSlot,
@@ -6164,13 +6164,6 @@ function carriedCellsInSlotOrder(ctx: Pick<WorldReducerContext, 'db'>, identity:
     .sort((left, right) => (order.get(left.container)! - order.get(right.container)!) || left.index - right.index);
 }
 
-/** The frozen legacy global slot of a carried cell: `selectedSlot` values, behaviour item refs and the global-slot sim
- * rules still speak it. */
-function legacySlotOfCell(cell: { readonly container: string; readonly index: number }): number {
-  return isPlayerContainerId(cell.container)
-    ? cellToLegacyGlobalSlot({ container: cell.container, index: cell.index }) ?? -1 : -1;
-}
-
 /** Stores one player cell exactly as given (a vacant value deletes the row), without loadout side effects. */
 function putInventoryCell(ctx: Pick<WorldReducerContext, 'db'>, row: PlayerCellRow): void {
   requirePlayerContainerCells(ctx, row.identity);
@@ -6220,9 +6213,9 @@ function wearInventoryTool(
   }
 }
 
-/** Dense snapshots of the four carried containers, built only from their occupied cells. `rows` numbers the carried
- * cells by the frozen legacy layout for the sim rules that still take global slots. Cells at or past a container's
- * capacity (a smaller bag, fewer debug slots) are left out of the snapshot and spill to overflow on the next write. */
+/** Dense snapshots of the four carried containers, built only from their occupied cells; `cells` is every carried cell
+ * as stored. Cells at or past a container's capacity (a smaller bag, fewer debug slots) are left out of the snapshot and
+ * spill to overflow on the next write. */
 function loadPlayerInventory(
   ctx: Pick<WorldReducerContext, 'db'>,
   identity: WorldReducerContext['sender'],
@@ -6243,7 +6236,7 @@ function loadPlayerInventory(
   const builds = { hotbar: build('hotbar'), backpack: build('backpack'), equipment: build('equipment'), crafting: build('crafting') };
   return {
     identity,
-    rows: legacySlotRows(cells),
+    cells,
     builds,
     containers: {
       hotbar: builds.hotbar.container,
@@ -10515,10 +10508,9 @@ function settleActiveObjectRegion(ctx: WorldReducerContext, player: PlayerPositi
   }
 }
 
-/** Behaviour item refs keep the frozen legacy slot numbering (`selectedSlot` values, equipment 30-39) authored
- * behaviours compare against; the instance id is the cell's row key. */
+/** A carried cell as a behaviour item: `containerId` is the cell's container and `slot` its index (Uncapped Storage
+ * step 5), so a backpack cell at any index is addressed; the instance id is the cell's row key. */
 function behaviourItemSnapshot(ctx: WorldReducerContext, row: PlayerCellRow): BehaviourItemSnapshot {
-  const slot = legacySlotOfCell(row);
   const definition = runtimeItemDefinition(contentRegistry(ctx), row.itemKind);
   const durability = runtimeDurabilityDefinition(contentRegistry(ctx), row.itemKind);
   return {
@@ -10528,8 +10520,8 @@ function behaviourItemSnapshot(ctx: WorldReducerContext, row: PlayerCellRow): Be
     tags: definition?.tags ?? [],
     count: row.quantity,
     durability: row.durability,
-    containerId: row.container === 'hotbar' ? 'hotbar' : 'inventory',
-    slot,
+    containerId: row.container,
+    slot: row.index,
     state: {
       lit: row.lit,
       ...(runtimeFoodRestoreCenti(contentRegistry(ctx), row.itemKind) === null ? {} : {
@@ -11031,7 +11023,7 @@ function playerBehaviourSnapshot(
       },
       bronze: wallet.balanceBronze,
       vitals: { hunger: survival.hungerCenti, vigour: stats.vigourCenti },
-      inventory: legacySlotRows(carriedPlayerCellRows(ctx.db, identity))
+      inventory: carriedPlayerCellRows(ctx.db, identity)
         .filter((row) => row.itemKind !== 'empty' && row.quantity > 0)
         .map((row) => behaviourItemSnapshot(ctx, row)),
       worldRoles: member === null ? [] : [member.role],
@@ -11132,23 +11124,26 @@ function selectedBehaviourItem(ctx: WorldReducerContext): {
   if (row === null || row.itemKind === 'empty' || row.quantity === 0) return null;
   const snapshot = behaviourItemSnapshot(ctx, row);
   return {
-    ref: { kind: row.itemKind, instanceId: row.id, containerId: row.container === 'equipment' ? 'equipment' : 'hotbar', slot: survival.selectedSlot },
+    // Container addressed (Uncapped Storage step 5): the selected cell's container and index, so the Main Hand is
+    // equipment 3 and a hotbar selection is its hotbar index.
+    ref: { kind: row.itemKind, instanceId: row.id, containerId: row.container, slot: row.index },
     snapshot,
   };
 }
 
+/** The item in one equipment cell, by its equipment index (0-9, `EQUIPMENT_SLOTS`); `use_selected`'s `equipmentIndex`
+ * (inventory protocol 3, Uncapped Storage step 5). */
 function equipmentBehaviourItem(
   ctx: WorldReducerContext,
-  slot: number,
+  equipmentIndex: number,
 ): { readonly ref: ItemRef; readonly snapshot: BehaviourItemSnapshot } | null {
   requirePersistentInventoryAvailable(ctx, ctx.sender);
-  if (!Number.isSafeInteger(slot) || slot < EQUIPMENT_SLOT_OFFSET
-    || slot >= EQUIPMENT_SLOT_OFFSET + EQUIPMENT_SLOT_COUNT) return null;
-  const row = equipmentInventorySlot(ctx, ctx.sender, slot - EQUIPMENT_SLOT_OFFSET);
+  if (!Number.isSafeInteger(equipmentIndex) || equipmentIndex < 0 || equipmentIndex >= EQUIPMENT_SLOT_COUNT) return null;
+  const row = equipmentInventorySlot(ctx, ctx.sender, equipmentIndex);
   if (row === null || row.itemKind === 'empty' || row.quantity === 0
-    || !activeEquipmentSlotAccepts(slot - EQUIPMENT_SLOT_OFFSET, row.itemKind, activeItemContainerContent(ctx))) return null;
+    || !activeEquipmentSlotAccepts(equipmentIndex, row.itemKind, activeItemContainerContent(ctx))) return null;
   return {
-    ref: { kind: row.itemKind, instanceId: row.id, containerId: 'equipment', slot },
+    ref: { kind: row.itemKind, instanceId: row.id, containerId: 'equipment', slot: equipmentIndex },
     snapshot: behaviourItemSnapshot(ctx, row),
   };
 }
@@ -11174,13 +11169,13 @@ function worldBehaviourEffectWriter(
     requireActor();
     const survival = ctx.db.player_survival.identity.find(ctx.sender);
     if (survival === null) throw new SenderError('player_not_ready');
-    if (subjectItem !== undefined && ((subjectItem.containerId !== 'hotbar'
-      && !(subjectItem.containerId === 'equipment' && subjectItem.slot === MAIN_HAND_INVENTORY_SLOT))
-      || subjectItem.slot === undefined || subjectItem.slot !== survival.selectedSlot)) {
+    // A subject item must address the selected cell by container and index (a hotbar cell or the Main Hand).
+    const selectedCell = selectedSlotCell(survival.selectedSlot);
+    if (subjectItem !== undefined && (selectedCell === null || subjectItem.containerId !== selectedCell.container
+      || subjectItem.slot !== selectedCell.index)) {
       throw new SenderError('behaviour_selected_item_required');
     }
-    const slot = subjectItem?.slot ?? survival.selectedSlot;
-    const row = selectedInventorySlot(ctx, ctx.sender, slot);
+    const row = selectedInventorySlot(ctx, ctx.sender, survival.selectedSlot);
     if (row === null || row.itemKind === 'empty' || row.quantity === 0
       || (subjectItem !== undefined
         && (row.id !== subjectItem.instanceId || row.itemKind !== subjectItem.kind))) {
@@ -11261,11 +11256,12 @@ function worldBehaviourEffectWriter(
     if (subjectItem?.containerId !== 'equipment' || subjectItem.slot === undefined) {
       throw new SenderError('equipment_light_required');
     }
-    const row = subjectItem.slot < EQUIPMENT_SLOT_OFFSET || subjectItem.slot >= EQUIPMENT_SLOT_OFFSET + EQUIPMENT_SLOT_COUNT
-      ? null : equipmentInventorySlot(ctx, ctx.sender, subjectItem.slot - EQUIPMENT_SLOT_OFFSET);
+    // Equipment item refs carry the equipment index (Uncapped Storage step 5).
+    const row = !Number.isSafeInteger(subjectItem.slot) || subjectItem.slot < 0 || subjectItem.slot >= EQUIPMENT_SLOT_COUNT
+      ? null : equipmentInventorySlot(ctx, ctx.sender, subjectItem.slot);
     if (row === null || row.id !== subjectItem.instanceId || row.itemKind !== subjectItem.kind
       || row.quantity <= 0
-      || !activeEquipmentSlotAccepts(subjectItem.slot - EQUIPMENT_SLOT_OFFSET, row.itemKind, activeItemContainerContent(ctx))
+      || !activeEquipmentSlotAccepts(subjectItem.slot, row.itemKind, activeItemContainerContent(ctx))
       || !runtimeItemHasTag(contentRegistry(ctx), row.itemKind, 'emits.light')
       || !runtimeItemHasTag(contentRegistry(ctx), row.itemKind, 'gear.off_hand')) {
       throw new SenderError('equipment_light_required');
@@ -17575,7 +17571,9 @@ export const useSelected = spacetimedb.reducer(
     verb: t.string(), targetKind: t.string(), entityId: t.u64(),
     tileX: t.i16(), tileY: t.i16(), actionId: t.string(), quantity: t.u8(),
     phase: t.string(), aimX: t.i16(), aimY: t.i16(), chargeMs: t.u16(),
-    equipmentSlot: t.u8(),
+    // The equipment cell's index (0-9) for `equipment_use`; inventory protocol 3 (Uncapped Storage step 5). Protocol 2
+    // sent the cell's legacy global slot here as `equipmentSlot`; such tabs are refused until they reload.
+    equipmentIndex: t.u8(),
   },
   (ctx, request) => {
     useSelectedBehaviour(ctx, request, useSelectedAuthority);
@@ -21128,7 +21126,7 @@ function purchaseMerchantCart(ctx: WorldReducerContext, lines: readonly Merchant
       || ctx.db.homestead_deed_claim.identity.find(ctx.sender) !== null) {
       throw new SenderError('homestead_deed_unavailable');
     }
-    if (inventory.rows.some((slot) => slot.quantity > 0
+    if (inventory.cells.some((slot) => slot.quantity > 0
       && runtimeItemPurchaseGrant(registry, slot.itemKind) === 'homestead_claim')) {
       throw new SenderError('homestead_deed_already_owned');
     }

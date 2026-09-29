@@ -43,7 +43,7 @@ const vacant = (row: { itemKind: string; quantity: number }) => row.itemKind ===
 /** The index.ts helpers most authority tests extract alongside the reducer under test. */
 export const PLAYER_CELL_HELPER_NAMES = Object.freeze([
   'withSenderErrors', 'requirePlayerContainerCells', 'selectedInventorySlot', 'equipmentInventorySlot',
-  'hotbarAndBackpackCells', 'carriedCellsInSlotOrder', 'legacySlotOfCell', 'putInventoryCell',
+  'hotbarAndBackpackCells', 'carriedCellsInSlotOrder', 'putInventoryCell',
 ] as const);
 
 /** Module functions and constants the extracted index.ts helpers call: pass them with `...sim`. */
