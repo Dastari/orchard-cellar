@@ -23,6 +23,34 @@ describe('immutable pack loader', () => {
     expect(fetch).toHaveBeenCalledWith('/generated/atlas.meta.json');
   });
 
+  it('turns pack delivery on for the game build (VITE_ATLAS_PACK_DELIVERY), with a query override either way (S6)', async () => {
+    vi.stubGlobal('location', { search: '' });
+    vi.stubEnv('VITE_ATLAS_PACK_DELIVERY', '1');
+    try {
+      const fetch = vi.fn(async (url: string) => new Response(JSON.stringify(url.endsWith('atlas.packs.json') ? index : pack)));
+      vi.stubGlobal('fetch', fetch);
+      const { loadGeneratedAsset, atlasPackDeliveryEnabled, atlasPackIdForAsset } = await import('./assets.js');
+      expect(atlasPackDeliveryEnabled()).toBe(true);
+      expect(atlasPackIdForAsset('oak')).toBeUndefined();
+      expect((await loadGeneratedAsset('oak')).name).toBe('oak');
+      expect(fetch).toHaveBeenCalledWith('/generated/atlas.packs.json');
+      expect(atlasPackIdForAsset('oak')).toBe('trees-oak');
+      vi.stubGlobal('location', { search: '?atlasPacks=0' });
+      expect(atlasPackDeliveryEnabled()).toBe(false);
+    } finally { vi.unstubAllEnvs(); }
+  });
+
+  it('tells listeners which packs finished loading (lazy art warms their assets, S6)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(url.endsWith('atlas.packs.json') ? index : pack))));
+    const { loadAtlasPacks, onAtlasPacksLoaded } = await import('./assets.js');
+    const loaded: string[] = [];
+    const stop = onAtlasPacksLoaded(ids => loaded.push(...ids));
+    await loadAtlasPacks(['trees-oak']);
+    stop();
+    await loadAtlasPacks(['trees-oak']);
+    expect(loaded).toEqual(['trees-oak']);
+  });
+
   it('loads only the requested pack, deduplicates requests and omits release query strings', async () => {
     const fetch = vi.fn(async (url: string) => new Response(JSON.stringify(url.endsWith('atlas.packs.json') ? index : pack)));
     vi.stubGlobal('fetch', fetch);

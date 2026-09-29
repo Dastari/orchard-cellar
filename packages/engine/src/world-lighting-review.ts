@@ -1,6 +1,7 @@
 import { worldAtlasVariants } from '@orchard/ui';
 import { FIXED_UNITS_PER_PIXEL } from '@orchard/sim';
 import { loadOverworldArt, drawAuthoredOverworldObject } from './overworld-art.js';
+import { loadAllLazyArt } from './lazy-art.js';
 import { celestialLightingAtCalendar } from './celestial-lighting.js';
 import { WorldLightingRenderer, celestialCastersFromOcclusion } from './world-lighting-renderer.js';
 import { setWorldAssetPresentation } from './world-asset-presentation.js';
@@ -19,6 +20,7 @@ const yieldFrame = () => new Promise<void>((resolve) => { const channel = new Me
  * policy, local solve and receiver renderer. No server mutations or test login. */
 export async function runWorldLightingReview() {
   const art = await loadOverworldArt();
+  await loadAllLazyArt(); // a review draws everything at once (static world S6: world art is lazy)
   const terrain: TerrainArray = { spaceId:58,seed:58,version:1,width:32,height:24,
     biomes:new Uint8Array(768).fill(4),blocked:new Uint8Array(768),horseJumpableTerrain:new Uint8Array(768),
     elevations:new Int16Array(768),dirtCliffRoles:new Uint8Array(768),dirtTerraces:new Uint8Array(768),baseDatum:0 };

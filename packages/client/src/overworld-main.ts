@@ -6434,6 +6434,7 @@ function terrainReadiness(): SpawnReadiness {
     mode: status?.mode, state: status?.state, store: network.chunkTerrainStore, resolved: network.chunkFailedKeys,
     window: worldSource.servedWindow, spaceId: position?.spaceId, awaitingSpaceTerrain: homesteadIslandKey() === 'awaiting',
     collisionBlocked: worldSource.collisionBlocked,
+    atlasPacksPending: status?.atlasPacksPending === true,
     tileX: position === undefined ? undefined : Math.floor(position.x / TILE_SIZE_FIXED),
     tileY: position === undefined ? undefined : Math.floor(position.y / TILE_SIZE_FIXED),
   }, performance.now());

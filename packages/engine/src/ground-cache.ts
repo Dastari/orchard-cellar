@@ -1,4 +1,5 @@
 import { terrainRuleLayers, ruleNeighbourMask } from '@orchard/sim';
+import { lazyArtReadyGeneration, lazyArtStandInReads } from './lazy-art.js';
 import { authoredFarmlandRuleLayersAt } from './terrain-sampling.js';
 import { terrainContains, terrainIndexAt, terrainTileBounds } from './terrain-index.js';
 import {hearthDoorwayFeatures} from './hearth-doorway.js';
@@ -564,6 +565,10 @@ function drawAuthoredGrassFringe(context:CanvasRenderingContext2D,art:OverworldA
 
 export class GroundChunkCache {
   private readonly chunks: ChunkLruCache<HTMLCanvasElement>;
+  /** Chunks baked while some lazy art still read as its stand-in (static world S6), redone once
+   * more art has loaded. */
+  private readonly provisional = new Set<string>();
+  private artGeneration = lazyArtReadyGeneration();
   private terrainKey = "";
   private residenceTerrain: TerrainArray | undefined;
   private presentationKey = "original";
@@ -712,11 +717,22 @@ export class GroundChunkCache {
         drawCalls += 1;
       }
     }
+    if (this.artGeneration !== lazyArtReadyGeneration()) {
+      this.artGeneration = lazyArtReadyGeneration();
+      for (const key of this.provisional) {
+        const comma = key.indexOf(',');
+        this.chunks.invalidate(Number(key.slice(0, comma)), Number(key.slice(comma + 1)));
+      }
+      this.provisional.clear();
+    }
     for (let chunkY = minChunkY; chunkY <= maxChunkY; chunkY += 1) {
       for (let chunkX = minChunkX; chunkX <= maxChunkX; chunkX += 1) {
-        const canvas = this.chunks.getOrCreate(chunkX, chunkY, () =>
-          this.renderChunk(art, terrain, chunkX, chunkY),
-        );
+        const canvas = this.chunks.getOrCreate(chunkX, chunkY, () => {
+          const standIns = lazyArtStandInReads();
+          const baked = this.renderChunk(art, terrain, chunkX, chunkY);
+          if (lazyArtStandInReads() !== standIns) this.provisional.add(`${chunkX},${chunkY}`);
+          return baked;
+        });
         const destination = snapRectForContext(context, {
           x: (chunkX * GROUND_CHUNK_PIXELS - cameraX) * scale,
           y: (chunkY * GROUND_CHUNK_PIXELS - cameraY) * scale,

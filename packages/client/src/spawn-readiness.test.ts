@@ -59,6 +59,14 @@ describe('spawn readiness (static world S4f)', () => {
     expect(readiness).toContain('collisionBlocked: worldSource.collisionBlocked,');
   });
 
+  it('waits for the pinned chunks\' art packs once the ring is resident, within the timeout (S6)', () => {
+    expect(chunkSpawnReadiness(on({ atlasPacksPending: true }))).toEqual({ ready: false, reason: 'awaiting_art', missing: 0 });
+    expect(chunkSpawnReadiness(on({ atlasPacksPending: false }))).toMatchObject({ ready: true, reason: 'resident' });
+    const gate = new SpawnReadinessGate();
+    gate.update(on({ atlasPacksPending: true }), 0);
+    expect(gate.update(on({ atlasPacksPending: true }), SPAWN_READINESS_TIMEOUT_MS)).toMatchObject({ ready: true, reason: 'timeout' });
+  });
+
   it('waits for the spawn chunk and its ring, not the rest of the window', () => {
     expect(chunkSpawnReadiness(on())).toMatchObject({ ready: true, reason: 'resident' });
     const partial = ring(6, 6).filter(key => key !== '7:7');
