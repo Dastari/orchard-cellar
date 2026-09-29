@@ -121,8 +121,8 @@ describe('Studio-authored item lifecycle code', () => {
       },
       {
         type: 'equipmentUse', actor: { entityType: 'player', id: 'player' },
-        equipmentItem: { kind: 'wooden_pickaxe', containerId: 'equipment', slot: 35 },
-        equipmentSlot: 35,
+        equipmentItem: { kind: 'wooden_pickaxe', containerId: 'equipment', slot: 5 },
+        equipmentIndex: 5,
       },
       {
         type: 'worldItemUse', actor: { entityType: 'player', id: 'player' },

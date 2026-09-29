@@ -86,13 +86,16 @@ export function accessibleBackpackCapacity(equippedCapacity: number, debugBackpa
 }
 
 /** The carried cells a player draws from outside a menu (BUG-068): the hotbar and the backpack cells the accessible
- * capacity opens. Never equipment, the crafting grid, or cells stranded past a smaller bag. `backpackCapacity` is the
- * player's accessible capacity (equipped bag and debug slots); it goes through `accessibleBackpackCapacity`, which
- * leaves an already accessible capacity unchanged. Bow ammunition and expedition readiness both use this. */
-export function isAccessibleCarriedSlot(slot: number, backpackCapacity: number): boolean {
-  if (!Number.isInteger(slot) || slot < 0) return false;
-  if (slot < HOTBAR_SLOT_OFFSET + HOTBAR_SLOT_COUNT) return slot >= HOTBAR_SLOT_OFFSET;
-  return slot >= BACKPACK_SLOT_OFFSET && slot < BACKPACK_SLOT_OFFSET + accessibleBackpackCapacity(backpackCapacity);
+ * capacity opens. Never equipment, the crafting grid, the stash, or cells stranded past a smaller bag. Container
+ * addressed (Uncapped Storage step 5): `backpackCapacity` is the player's accessible backpack capacity as the caller
+ * already resolved it (`accessibleBackpackCapacity`, equipped bag and debug slots); this rule adds no ceiling of its own,
+ * so a backpack of any size is read the same way. Bow ammunition and expedition readiness both use this. */
+export function isAccessibleCarriedCell(
+  cell: { readonly container: string; readonly index: number }, backpackCapacity: number,
+): boolean {
+  if (!Number.isInteger(cell.index) || cell.index < 0) return false;
+  if (cell.container === 'hotbar') return cell.index < HOTBAR_SLOT_COUNT;
+  return cell.container === 'backpack' && cell.index < backpackCapacity;
 }
 
 export function hotbarSlotForInputCode(code: string): number | null {
