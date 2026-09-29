@@ -7,7 +7,7 @@ import { CRAFTING_SLOT_COUNT, EQUIPMENT_SLOT_COUNT, EQUIPMENT_SLOT_RESTRICTIONS,
 import { clickContainerSlot, itemPolicyResolver } from '@orchard/sim/item-containers';
 import { uiSlotDropTarget } from '../kit/components/inventory.js';
 import { scrollUiElement } from '../kit/layout/scroll.js';
-import { OverworldUi, type OverworldUiCallbacks, type OverworldUiItemArt, type OverworldUiModel, type OverworldWindow } from '../overworld-ui.js';
+import { OverworldUi, type OverworldUiCallbacks, type OverworldUiInventorySlot, type OverworldUiItemArt, type OverworldUiModel, type OverworldWindow } from '../overworld-ui.js';
 import type { UiSkin } from '../skin.js';
 import type { LoadedAsset } from '../assets.js';
 import type { UiPoint } from '../geometry.js';
@@ -462,7 +462,7 @@ describe('a 1,000-slot bag in the inventory window (Uncapped Storage step 5)', (
     const bag = registry.items.get('item:backpack')!;
     return { ...registry, items: new Map(registry.items).set(bag.id, { ...bag, equip: { ...bag.equip!, inventoryCapacity: CAPACITY } }) } as typeof registry;
   })();
-  const inventory = [{ container: 'equipment', index: 4, itemKind: 'backpack', quantity: 1 }, { container: 'backpack', index: 0, itemKind: 'wood', quantity: 8 },
+  const inventory: OverworldUiInventorySlot[] = [{ container: 'equipment', index: 4, itemKind: 'backpack', quantity: 1 }, { container: 'backpack', index: 0, itemKind: 'wood', quantity: 8 },
     { container: 'backpack', index: 500, itemKind: 'apple', quantity: 2 }, { container: 'backpack', index: 999, itemKind: 'wood', quantity: 3 }];
   const backpackSlots = (root: UiRoot) => root.entries().flatMap(({ element }) => {
     const ref = element.props['binding'] as { container: string; index: number } | undefined;
