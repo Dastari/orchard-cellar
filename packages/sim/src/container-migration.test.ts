@@ -55,7 +55,7 @@ describe('player container migration plan', () => {
     expect([LEGACY_CONTAINER_LAYOUT_VERSION, CURRENT_CONTAINER_LAYOUT_VERSION]).toEqual([0, 1]);
     expect(CURRENT_INVENTORY_PROTOCOL_VERSION).toBe(1);
     expect(CURRENT_EQUIPMENT_LAYOUT_VERSION).toBe(1);
-    expect(CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION).toBe(2);
+    expect(CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION).toBe(3);
   });
 
   it('moves a full inventory and stash into cells with every item accounted for', () => {

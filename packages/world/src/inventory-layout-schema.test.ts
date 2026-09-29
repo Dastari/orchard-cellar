@@ -19,8 +19,10 @@ describe('shared hotbar layout authority', () => {
   });
 
   it('derives container offsets and new-player row count from the sim contract', () => {
-    // Container offsets now come from the sim's frozen legacy layout contract, not from a world-side offset table.
-    expect(source).toContain('? cellToLegacyGlobalSlot({ container: cell.container, index: cell.index }) ?? -1 : -1;');
+    // Carried cells are container addressed (Uncapped Storage step 5): no world code numbers a live cell by a global
+    // slot, and the frozen legacy conversion is left to the migration and new-player loadout reads.
+    expect(source).not.toContain('cellToLegacyGlobalSlot');
+    expect(source).not.toContain('legacySlotRows');
     expect(source).not.toContain('inventoryContainerSlotOffset');
     expect(source).toContain('return inventoryContainerSlotCount(containerId)');
     expect(source).toContain('slot < INVENTORY_SLOT_COUNT');

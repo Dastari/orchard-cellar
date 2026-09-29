@@ -137,12 +137,13 @@ export interface SecondaryEvent {
 }
 
 /** Direct invocation of an item in an active equipment slot. This is distinct
- * from the selected hotbar item and lets authority resolve the real slot row. */
+ * from the selected hotbar item and lets authority resolve the real slot row.
+ * `equipmentIndex` is the equipment container index (0-9, `EQUIPMENT_SLOTS`), never a global slot. */
 export interface EquipmentUseEvent {
   readonly type: 'equipmentUse';
   readonly actor: ActorRef;
   readonly equipmentItem: ItemRef;
-  readonly equipmentSlot: number;
+  readonly equipmentIndex: number;
 }
 
 /** Direct invocation of an item entity lying in the world. The object target

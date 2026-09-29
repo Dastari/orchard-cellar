@@ -33,7 +33,6 @@ const output=resolve(root,process.argv.slice(2).find(argument=>!argument.startsW
 const settings={width:(furnishing||orders||seals||(danger&&!compact))?960:compact?1080:1440,height:(furnishing||orders||seals||(danger&&!compact))?540:810,uiWidth:(furnishing||orders||seals||(danger&&!compact))?320:compact?360:480,uiHeight:(furnishing||orders||seals||(danger&&!compact))?180:270,scale:3,danger,seals,skills,rewards,rewardState,ferry,stash,furniture,furnishing,seating,expansion,construction,constructionReview,intro,rowan,furnishContract,expeditionContract,orders,orderReview,orderPending};
 const scene=`
 import { villageOrders,villageOrderQuote,bootstrapContentRegistry,hearthFurnitureDefinition,compileEquipmentLoadout,MAIN_HAND_SELECTED_SLOT } from '/packages/sim/src/index.ts';
-import { legacySlotRows } from '/packages/ui/src/legacy-global-slots.ts';
 import { HomesteadBuildPalette } from '/packages/ui/src/homestead-build-palette.ts';
 import { loadUiKitArt } from '/packages/ui/src/kit/components/art.ts';
 import { NpcInteractionUi } from '/packages/ui/src/npc-interaction-ui.ts';
@@ -55,7 +54,7 @@ try {
  {container:'equipment', index:8,itemKind:'hearth_rare_feet',quantity:1},{container:'equipment', index:9,itemKind:'hearth_rare_body',quantity:1}];
  const trainedRanks={blade_training:5,battle_conditioning:4,archery_basics:5,measured_stride:4};
  const skillPriority=['blade_training','battle_conditioning'];
- const loadout=compileEquipmentLoadout({registry,inventory:legacySlotRows(inventory),selectedSlot:MAIN_HAND_SELECTED_SLOT,trainedRanks,skillPriority});
+ const loadout=compileEquipmentLoadout({registry,inventory,selectedSlot:MAIN_HAND_SELECTED_SLOT,trainedRanks,skillPriority});
  const callbacks=new Proxy({}, {get:(_target,key)=>key==='claimOutdoorReward'?()=>Promise.reject(new Error('reward_inventory_full')):()=>{}});
  const ui=new OverworldUi(art.uiSkin,art.ui,{missing:art.missingItem,avatar:art.avatar,...art.itemIcons},callbacks);
  // Inventory windows are the kit's (item slot S9): hand the retained inventory its art.

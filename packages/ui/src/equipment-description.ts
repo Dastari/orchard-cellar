@@ -4,7 +4,6 @@ import { compileEquipmentLoadout } from '@orchard/sim/equipment-loadout';
 import { activeEquipmentSlotAccepts, EQUIPMENT_SLOTS } from '@orchard/sim/inventory-layout';
 import { itemContainerContentResolver } from '@orchard/sim/item-containers';
 import { TILE_SIZE_FIXED } from '@orchard/sim/state';
-import { legacySlotRows } from './legacy-global-slots.js';
 import type { PlayerCellStack } from './player-cells.js';
 const labels: Partial<Record<Modifier['target'],string>> = {
   attackPower:'MELEE POWER',rangedPower:'RANGED POWER',maxHealth:'MAX HEALTH',maxVigour:'MAX VIGOUR',maxMana:'MAX MANA',
@@ -50,8 +49,8 @@ export function equipmentDescriptionLines(
     container:'equipment',index:slot.index,itemKind,quantity:1,...(item.durability===undefined?{}:{durability:item.durability.max}),
   }];
   const previewSelected=slot.id==='main_hand'?MAIN_HAND_SELECTED_SLOT:selectedSlot;
-  const before=compileEquipmentLoadout({registry,inventory:legacySlotRows(inventory),selectedSlot:previewSelected,trainedRanks,skillPriority});
-  const after=compileEquipmentLoadout({registry,inventory:legacySlotRows(previewInventory),selectedSlot:previewSelected,trainedRanks,skillPriority});
+  const before=compileEquipmentLoadout({registry,inventory,selectedSlot:previewSelected,trainedRanks,skillPriority});
+  const after=compileEquipmentLoadout({registry,inventory:previewInventory,selectedSlot:previewSelected,trainedRanks,skillPriority});
   const lines=[item.displayName.toUpperCase(),`${item.quality.toUpperCase()} / ${slot.label}`];
   if (item.combat!==undefined) {
     const old=previousItem?.combat;

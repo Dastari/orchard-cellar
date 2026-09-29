@@ -72,7 +72,7 @@ function fixture(itemKind = 'pickaxe') {
     requireCombatActionReady: noop, previewPlayerStats: () => stats, advancePlayerStats: () => stats,
     activeCharacterCombatBalance: () => sim.BOOTSTRAP_CHARACTER_COMBAT_BALANCE,
     activePlayerModifiers: () => sim.compileEquipmentLoadout({ registry: activeRegistry,
-      inventory: [{ ...selected, slot: 0 }], selectedSlot: 0, trainedRanks: ranks, skillPriority: [], bowDrawn: false }).modifiers,
+      inventory: [{ ...selected, container: 'hotbar', index: 0 }], selectedSlot: 0, trainedRanks: ranks, skillPriority: [], bowDrawn: false }).modifiers,
     spendPlayerHunger: () => writes.push('hunger'),
     writeInventorySlot: (_ctx: unknown, row: typeof selected) => { selected = row; writes.push('wear'); },
     recordPlayerStatistic: noop, nextActionStartedTick: (_old: bigint, tick: bigint) => tick,

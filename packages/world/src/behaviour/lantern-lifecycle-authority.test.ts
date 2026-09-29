@@ -18,7 +18,7 @@ describe('authored portable-light authority', () => {
   it('resolves and validates the concrete active equipment row', () => {
     expect(worldSource).toContain('function equipmentBehaviourItem(');
     expect(worldSource).toContain("containerId: 'equipment'");
-    expect(worldSource).toContain('activeEquipmentSlotAccepts(slot - EQUIPMENT_SLOT_OFFSET, row.itemKind, activeItemContainerContent(ctx))');
+    expect(worldSource).toContain('activeEquipmentSlotAccepts(equipmentIndex, row.itemKind, activeItemContainerContent(ctx))');
     expect(dispatchSource).toContain("request.verb === 'equipment_use'");
     expect(dispatchSource).toContain('equipmentItem: equipment.ref');
     expect(dispatchSource).toContain('authority.snapshot(ctx, undefined, equipment.snapshot)');
@@ -45,7 +45,7 @@ describe('authored portable-light authority', () => {
 
   it('gates prompt and dispatch on equipmentUse metadata and retires the global bridge', () => {
     expect(clientSource).toContain("selectedItemLifecycleAction(\n    liveItemContentDefinition(snapshot, selectedLight.itemKind),\n    'equipmentUse'");
-    expect(clientSource).toContain("network.useSelected('equipment_use', { equipmentSlot: legacyEquipmentUseSlot(selectedLight.index) })");
+    expect(clientSource).toContain("network.useSelected('equipment_use', { equipmentIndex: selectedLight.index })");
     expect(clientSource).toContain("'worldItemUse'");
     expect(clientSource).toContain("network.interactEntity('world_item', groundLightItem.id, 'use')");
     expect(clientSource).not.toContain('groundLantern');

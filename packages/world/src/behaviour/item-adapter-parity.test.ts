@@ -60,8 +60,9 @@ describe('item world-adapter row-write parity', () => {
 
   it('preflights selected ownership, carrying precedence, permissions, and atomic consumption', () => {
     expect(writer).toContain('const selected = selectedRow()');
-    expect(writer).toContain("subjectItem.containerId !== 'hotbar'");
-    expect(writer).toContain('subjectItem.slot !== survival.selectedSlot');
+    expect(writer).toContain('const selectedCell = selectedSlotCell(survival.selectedSlot)');
+    expect(writer).toContain('subjectItem.containerId !== selectedCell.container');
+    expect(writer).toContain('subjectItem.slot !== selectedCell.index');
     expect(writer).toContain('row.id !== subjectItem.instanceId');
     expect(writer).toContain('row.itemKind !== subjectItem.kind');
     expect(writer).toContain('requireWorldModificationAuthorized(ctx, position)');
@@ -107,8 +108,8 @@ describe('item world-adapter row-write parity', () => {
   it('keeps each concrete equipped light row and replicated light state in sync', () => {
     expect(writer).toContain("subjectItem?.containerId !== 'equipment'");
     // The subject's legacy equipment slot resolves to its concrete equipment cell, bounded to the equipment range.
-    expect(writer).toContain('subjectItem.slot < EQUIPMENT_SLOT_OFFSET || subjectItem.slot >= EQUIPMENT_SLOT_OFFSET + EQUIPMENT_SLOT_COUNT');
-    expect(writer).toContain('equipmentInventorySlot(ctx, ctx.sender, subjectItem.slot - EQUIPMENT_SLOT_OFFSET)');
+    expect(writer).toContain('subjectItem.slot < 0 || subjectItem.slot >= EQUIPMENT_SLOT_COUNT');
+    expect(writer).toContain('equipmentInventorySlot(ctx, ctx.sender, subjectItem.slot)');
     expect(writer).toContain('row.id !== subjectItem.instanceId');
     expect(writer).toContain('row.itemKind !== subjectItem.kind');
     expect(writer).toContain('row.quantity <= 0');

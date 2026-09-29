@@ -343,12 +343,12 @@ describe('generic behaviour authority', () => {
     let appliedSubject: unknown;
     const light = {
       kind, definitionId: `item:${kind}`, tags: ['item.equipment', 'emits.light'], count,
-      containerId: 'equipment', slot: 35, state: { lit: true },
+      containerId: 'equipment', slot: 5, state: { lit: true },
     } as const;
     const authority: UseSelectedAuthority = {
       ...baseAuthority([]),
-      equipmentItem: (_ctx, slot) => slot === 35 ? {
-        ref: { kind, instanceId: `actor:${slot}`, containerId: 'equipment', slot }, snapshot: light,
+      equipmentItem: (_ctx, index) => index === 5 ? {
+        ref: { kind, instanceId: `actor:${index}`, containerId: 'equipment', slot: index }, snapshot: light,
       } : null,
       carriedObject: () => null,
       tileTarget: (_ctx, x, y) => ({
@@ -359,7 +359,7 @@ describe('generic behaviour authority', () => {
         id: kind, eventType: 'equipmentUse', source: 'selectedItem',
         match: { kind: 'definition', definitionId: `item:${kind}` }, handler: (event, view) => {
           observedKind = view.selectedItem?.kind;
-          observedSlot = event.type === 'equipmentUse' ? event.equipmentSlot : undefined;
+          observedSlot = event.type === 'equipmentUse' ? event.equipmentIndex : undefined;
           return effectsResult([{ toggleState: 'lit' }, { setLight: { enabled: false } }]);
         },
       }),
@@ -367,12 +367,12 @@ describe('generic behaviour authority', () => {
     };
     useSelectedBehaviour(ctx, {
       verb: 'equipment_use', targetKind: '', entityId: 0n, tileX: 0, tileY: 0,
-      equipmentSlot: 35,
+      equipmentIndex: 5,
     }, authority);
     expect({ observedKind, observedSlot, appliedSubject }).toEqual({
       observedKind: kind,
-      observedSlot: 35,
-      appliedSubject: { kind, instanceId: 'actor:35', containerId: 'equipment', slot: 35 },
+      observedSlot: 5,
+      appliedSubject: { kind, instanceId: 'actor:5', containerId: 'equipment', slot: 5 },
     });
   });
 

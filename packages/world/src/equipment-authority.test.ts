@@ -33,7 +33,8 @@ function table<T extends object = Record<string,unknown>>(initial: T | null = nu
   return {identity:index,id:index,npcId:index,connectionId:index,insert:index.update};
 }
 type FixtureIdentity={toHexString:()=>string;isEqual:(other:unknown)=>boolean};
-type FixtureInventory=sim.EquippedInventoryEntry & {id:string;identity:FixtureIdentity;durability:number;lit:boolean};
+/** Legacy-slot keyed rows, served as container cells by `legacySlotCellTable`. */
+type FixtureInventory={slot:number;itemKind:string;quantity:number;id:string;identity:FixtureIdentity;durability:number;lit:boolean};
 type FixtureAttack=sim.EnemyAttackCommitment & {npcId:bigint;targetIdentity:FixtureIdentity;lastProcessedTick:bigint;
   elevation:number;damageCenti:number;hitIdentities:FixtureIdentity[];spaceId:number;chunkX:number;chunkY:number};
 function fixture() {
@@ -64,7 +65,8 @@ function fixture() {
     projectile_charge:table(),enemy_attack:table<FixtureAttack>(),
     rogue_run_member:{by_run:{filter:()=>[{identity:sender}]}},
   }};
-  const modifiers=()=>sim.compileEquipmentLoadout({registry:sim.bootstrapContentRegistry(),inventory:[...inventory.values()],
+  // The loadout reads the player's carried cells, container addressed, as the world's activePlayerModifiers does.
+  const modifiers=()=>sim.compileEquipmentLoadout({registry:sim.bootstrapContentRegistry(),inventory:[...ctx.db.player_container_cell.by_identity.filter(sender)],
     selectedSlot:survival.identity.find()!.selectedSlot,trainedRanks:{},bowDrawn:bow.identity.find()!==null}).modifiers;
   const containers=()=>({equipment:{slots:Array.from({length:10},(_,index)=>inventory.get(30+index)??null)},
     hotbar:{slots:Array.from({length:10},(_,index)=>inventory.get(index)??null)}});

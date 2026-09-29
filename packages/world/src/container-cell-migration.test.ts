@@ -590,8 +590,9 @@ describe('connect-time wiring', () => {
     }
   });
 
-  it('requires inventory protocol 2 and takes u32 container indices', () => {
-    expect(sim.CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION).toBe(2);
+  it('requires inventory protocol 3 and takes u32 container indices', () => {
+    // Protocol 2 was step 4's container cells; protocol 3 (step 5) also names the equipment cell by index in use_selected.
+    expect(sim.CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION).toBe(3);
     expect(text).toContain('acknowledgement.version !== CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION');
     expect(text).not.toMatch(/\b(?:index|fromIndex|toIndex|hotbarIndex|inventoryIndex|tradeSlot): t\.u8\(\)/u);
     expect(text).not.toContain('targetIndexes: t.array(t.u8())');

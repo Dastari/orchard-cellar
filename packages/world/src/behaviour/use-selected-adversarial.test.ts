@@ -153,8 +153,8 @@ describe('generic selected-item authority adversarial inputs', () => {
 
   it('rejects absent or target-spoofed equipment rows without invoking handlers', () => {
     for (const request of [
-      { targetKind: '', entityId: 0n, equipmentSlot: 34 },
-      { targetKind: 'placeable', entityId: 9n, equipmentSlot: 35 },
+      { targetKind: '', entityId: 0n, equipmentIndex: 4 },
+      { targetKind: 'placeable', entityId: 9n, equipmentIndex: 5 },
     ] as const) {
       const log: string[] = [];
       expect(() => useSelectedBehaviour(ctx, {

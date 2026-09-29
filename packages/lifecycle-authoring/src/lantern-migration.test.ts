@@ -78,8 +78,8 @@ describe('authored portable-light lifecycle migration', () => {
     expect(registration).toBeDefined();
     const event = {
       type: 'equipmentUse', actor: { entityType: 'player', id: 'player' },
-      equipmentItem: { kind, containerId: 'equipment', slot: 35 },
-      equipmentSlot: 35,
+      equipmentItem: { kind, containerId: 'equipment', slot: 5 },
+      equipmentIndex: 5,
     } as const;
     expect((registration!.handler as Handler)(event, snapshot(kind, true))).toEqual({ effects: [
       { toggleState: 'lit' }, { setLight: { enabled: false } },

@@ -30,7 +30,6 @@ export * from './chat-overlay.js';
 export * from './dom-panel-skin.js';
 export * from './gateway-frame.js';
 export * from './homestead-build-palette.js';
-export * from './legacy-global-slots.js';
 export * from './npc-interaction-ui.js';
 export * from './orchard-backdrop.js';
 export * from './overworld-ui.js';

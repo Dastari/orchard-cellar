@@ -107,7 +107,7 @@ describe('consolidated item lifecycle retirement boundary', () => {
     for (const kind of interactiveKinds) expect(dispatcher, kind).not.toContain(`'${kind}'`);
     expect(dispatcher).not.toMatch(/handler\.id\s*(?:===|!==)/u);
     expect(dispatcher).toContain('const selected = authority.selectedItem(ctx);');
-    expect(dispatcher).toContain('const equipment = authority.equipmentItem(ctx, request.equipmentSlot);');
+    expect(dispatcher).toContain('const equipment = authority.equipmentItem(ctx, request.equipmentIndex);');
     expect(dispatcher).toContain('raiseEvent(authority.handlers(ctx)');
     // Process control is deliberately a target-owned engine operation, not a
     // selected inventory-item capability lane.

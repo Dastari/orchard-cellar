@@ -42,7 +42,7 @@ describe('switchable lantern authority', () => {
     expect(source).toContain('const equippedLifecycleLight = ()');
     expect(source).toContain("subjectItem?.containerId !== 'equipment'");
     // The off-hand row is read from the sender's own equipment container, never from a client-named row.
-    expect(source).toContain('equipmentInventorySlot(ctx, ctx.sender, subjectItem.slot - EQUIPMENT_SLOT_OFFSET)');
+    expect(source).toContain('equipmentInventorySlot(ctx, ctx.sender, subjectItem.slot)');
     expect(source).toContain('row.id !== subjectItem.instanceId');
     expect(source).toContain('row.quantity <= 0');
     expect(source).toContain("runtimeItemHasTag(contentRegistry(ctx), row.itemKind, 'emits.light')");
