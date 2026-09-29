@@ -18,8 +18,9 @@ export function chunkTerrainAssetIds(): readonly string[] {
 }
 function natureFamilies(): ReadonlyMap<string, readonly [string, number]> {
   const result = new Map<string, readonly [string, number]>();
-  const fn = artSource.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'loadNatureDecorationArt');
-  if (!fn) throw new Error('Nature asset loader changed; review chunk dependencies');
+  const fn = artSource.statements.find(node => ts.isVariableStatement(node)
+    && node.declarationList.declarations.some(declaration => ts.isIdentifier(declaration.name) && declaration.name.text === 'NATURE_DECORATION_BANKS'));
+  if (!fn) throw new Error('Nature asset banks changed; review chunk dependencies');
   const visit = (node: ts.Node): void => {
     if (ts.isArrayLiteralExpression(node) && node.elements.length === 3) {
       const [kind, name, count] = node.elements;
