@@ -9,7 +9,7 @@ import { runtimeActorCollision, runtimeTraversalPolicy, traversalSolidGeometry }
 import { timingLabels } from '@orchard/ui';
 import { TOUCH_ACTION_KEY_CODES } from '@orchard/ui';
 import type { OverworldUiItemArt } from '@orchard/ui';
-import { lazyArtSlot, warmLazyArt } from '@orchard/engine/lazy-art';
+import { lazyArtSlot, lazyArtStandInReads, warmLazyArt } from '@orchard/engine/lazy-art';
 import { GrowthTimingHoverIndex, projectResourceTiming } from './content/growth-timing.js';
 import { projectTiming, rainForWeatherMode } from '@orchard/sim';
 import { TimingHoverIndex } from './content/timing-hover.js';
@@ -708,6 +708,10 @@ const itemArt = new Proxy({} as OverworldUiItemArt, {
   has: (_target, key) => key === 'missing' || key === 'avatar' || key in art.itemIcons,
 });
 
+/** First-arrival art settle (see settleWorldArt). */
+const WORLD_ART_SETTLE_TIMEOUT_MS = 8_000;
+let worldArtSettled = false;
+let worldArtWaitStartedAt: number | null = null;
 let warmedLocalArtKey = '';
 let toolArtWarmed = false;
 /**
@@ -4814,6 +4818,7 @@ function renderFrame(alpha = 1): void {
   worldGapStartedAt = null;
   presentedRecoveryState = null;
   lastFramePresentation = 'playing';
+  const standInsBeforeFrame = lazyArtStandInReads();
   const localJumpState = snapshot.identityHex === null ? undefined : snapshot.playerJumps.get(snapshot.identityHex);
   const cameraJump = localAuthority === undefined ? null : horseJumpPose(
     localJumpState?.fromX,
@@ -6259,10 +6264,28 @@ function renderFrame(alpha = 1): void {
     uiContext.restore();
   }
   renderer.endUi();
+  settleWorldArt(standInsBeforeFrame, performance.now());
   renderMetrics.recordStage('uiDraw', performance.now() - uiDrawStartedAt);
   const renderSubmittedAt = performance.now();
   renderMetrics.record(renderSubmittedAt - renderStarted, renderItems);
   renderMetrics.recordRenderSubmit(renderSubmittedAt);
+}
+
+/** Static world S6 (art by need): the first world frames can draw lazy art that is still loading
+ * (terrain, trees, the player's outfit), which reads as an unpainted island. The loading screen
+ * stays over the world until one frame draws no stand-in, for at most WORLD_ART_SETTLE_TIMEOUT_MS,
+ * and input waits with it (worldClientReady). Only the first arrival waits: later pop-in is brief. */
+function settleWorldArt(standInsBeforeFrame: number, now: number): void {
+  if (worldArtSettled) return;
+  worldArtWaitStartedAt ??= now;
+  if (lazyArtStandInReads() === standInsBeforeFrame || now - worldArtWaitStartedAt >= WORLD_ART_SETTLE_TIMEOUT_MS) {
+    worldArtSettled = true;
+    return;
+  }
+  drawInitialWorldLoading(renderer, {
+    kitArt, apple: art.groundItems['apple'] ?? art.missingItem, cask: art.itemIcons['barrel'],
+  }, { title: 'UNPACKING YOUR WAGON', detail: 'PAINTING THE ISLAND AROUND YOU', progress: 96 },
+  import.meta.env.VITE_CLIENT_VERSION, safeAreaInsets);
 }
 
 function pointerUiPosition(event: MouseEvent): readonly [number, number] {
@@ -6487,7 +6510,7 @@ function currentWorldLoadingStage(): ReturnType<typeof worldLoadingStage> {
 }
 
 function worldClientReady(): boolean {
-  return network.gameplayReady && currentWorldLoadingStage().ready === true;
+  return network.gameplayReady && currentWorldLoadingStage().ready === true && worldArtSettled;
 }
 
 function clearConnectionInput(): void {
