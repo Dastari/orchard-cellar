@@ -22,7 +22,10 @@ export type SpawnReadinessReason =
   | 'not_on' | 'other_space' | 'no_position' | 'resident' | 'timeout'
   | 'awaiting_store' | 'awaiting_pin' | 'awaiting_chunks' | 'awaiting_window'
   /** Static world S6: topside has no chunk runtime serving (server `off`, nothing published, a
-   * subscription or load error) and there is no whole-map fallback: "world updating", retried. */
+   * subscription or load error), or its store's collision cannot serve (a publication the server
+   * would not serve, a window, collision or records that failed to build), and there is no
+   * whole-map fallback: "world updating", retried. A newer publication still loading (`superseded`)
+   * is not one of these: the resident revision keeps serving until the new one swaps in. */
   | 'world_updating'
   /** Static world S6: another space whose terrain is still loading its source (a homestead's
    * exterior samples the topside chunks around its site). Never times out: there is no terrain. */
@@ -35,6 +38,8 @@ export interface SpawnReadiness {
   readonly missing: number;
   /** Their `cx:cy` keys. */
   readonly missingKeys?: readonly string[];
+  /** `world_updating` with a resident store: why its collision cannot serve (diagnostics). */
+  readonly blockedBy?: string;
 }
 
 /** What the chunk runtime serves: BoundedChunkTerrainStore, structurally. */
@@ -63,6 +68,10 @@ export interface SpawnReadinessInput {
   readonly tileY: number | undefined;
   /** Another space's terrain still waits for its source (a homestead's topside chunks, S6). */
   readonly awaitingSpaceTerrain?: boolean;
+  /** Static world S6: why the serving store's collision cannot serve (WorldSource.collisionBlocked):
+   * a publication the server would not serve, a window or collision that failed to build, or
+   * records that cannot be built. The player cannot move on nothing, so it is "world updating". */
+  readonly collisionBlocked?: string | null;
 }
 
 /** Runtime states in which a first serving store is still on its way. */
@@ -99,7 +108,9 @@ export function chunkSpawnReadiness(input: SpawnReadinessInput): SpawnReadiness 
       && !window!.present.has(key)) unserved++;
   }
   if (missingKeys.length > 0) return { ready: false, reason: 'awaiting_chunks', missing: missingKeys.length, missingKeys };
-  return unserved === 0 ? ready('resident') : { ready: false, reason: 'awaiting_window', missing: unserved };
+  if (unserved !== 0) return { ready: false, reason: 'awaiting_window', missing: unserved };
+  const blocked = input.collisionBlocked ?? null;
+  return blocked === null ? ready('resident') : { ready: false, reason: 'world_updating', missing: 0, blockedBy: blocked };
 }
 
 /** How long movement may wait for terrain before giving up (a chunk fetch times out at 15 s). */

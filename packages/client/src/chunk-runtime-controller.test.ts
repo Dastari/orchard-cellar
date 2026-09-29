@@ -117,6 +117,32 @@ describe('on mode',()=>{
   }finally{h.controller.dispose();}
  });
 
+ it('keeps the serving store through a content-only republish (same manifest, new revision), and while its load keeps failing (S6)',async()=>{
+  const h=harness({authority:'on'}),rev1=revision(0);
+  try{
+   h.publish(1,rev1);h.controller.update(h.connection,0n,view,source);
+   await vi.waitFor(()=>expect(h.controller.status.state).toBe('on'));
+   const serving=h.controller.store;
+   expect(serving).toBeDefined();
+   // Content R23 in production: the heads move to shadow revision 2 with an identical manifest.
+   const release=h.hold(rev1.hash);h.publish(2,rev1,{contentHash:'content-2'});
+   h.controller.update(h.connection,0n,view,{...source,contentHash:'content-2'});
+   await vi.waitFor(()=>expect(h.controller.status.pendingRevision).toBe('0:2'));
+   expect(h.controller.authorityGate()).toBe('superseded');
+   expect(h.controller.store).toBe(serving); // WorldSource keeps serving its collision (world-source.test)
+   // A chunk of the new revision that keeps failing: the resident revision keeps serving.
+   h.failing.add(rev1.hash);release();
+   await vi.waitFor(()=>expect(h.controller.status.state).toBe('chunk_fetch_404'));
+   expect(h.controller.store).toBe(serving);
+   expect(h.controller.authorityGate()).toBe('superseded');
+   // The load succeeds on a retry and swaps in.
+   h.failing.delete(rev1.hash);h.controller.retry();
+   await vi.waitFor(()=>expect(h.controller.status.servingRevision).toBe('0:2'));
+   expect(h.controller.authorityGate()).toBeNull();
+   expect(h.controller.store).toBeDefined();
+  }finally{h.controller.dispose();}
+ });
+
  it('gates authority use like the server: superseded, never a lagging map or content (SW-D2) or the atlas (S4d)',async()=>{
   const h=harness({authority:'on'}),rev1=revision(0);
   try{

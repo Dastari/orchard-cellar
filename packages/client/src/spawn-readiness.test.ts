@@ -42,6 +42,23 @@ describe('spawn readiness (static world S4f)', () => {
     }
   });
 
+  it('shows "world updating", never a frozen ready, while a resident store\'s collision cannot serve (S6)', () => {
+    for (const reason of ['traversal_policy_mismatch', 'incomplete: map_records:x', 'window_unavailable', 'collision_build_failed', 'shadow_missing']) {
+      expect(chunkSpawnReadiness(on({ collisionBlocked: reason })), reason).toEqual({ ready: false, reason: 'world_updating', missing: 0, blockedBy: reason });
+    }
+    expect(chunkSpawnReadiness(on({ collisionBlocked: null }))).toMatchObject({ ready: true, reason: 'resident' });
+    const gate = new SpawnReadinessGate();
+    gate.update(on({ collisionBlocked: 'traversal_policy_mismatch' }), 0);
+    expect(gate.update(on({ collisionBlocked: 'traversal_policy_mismatch' }), SPAWN_READINESS_TIMEOUT_MS * 3)).toMatchObject({ ready: false, reason: 'world_updating' });
+  });
+
+  it('is fed the world source\'s collision block by the game (S6)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const main = readFileSync(new URL('./overworld-main.ts', import.meta.url), 'utf8');
+    const readiness = main.slice(main.indexOf('function terrainReadiness('), main.indexOf('function currentWorldLoadingStage('));
+    expect(readiness).toContain('collisionBlocked: worldSource.collisionBlocked,');
+  });
+
   it('waits for the spawn chunk and its ring, not the rest of the window', () => {
     expect(chunkSpawnReadiness(on())).toMatchObject({ ready: true, reason: 'resident' });
     const partial = ring(6, 6).filter(key => key !== '7:7');
