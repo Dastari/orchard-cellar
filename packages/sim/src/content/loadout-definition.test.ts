@@ -58,6 +58,46 @@ describe('loadout content definitions', () => {
     })).toThrow('expected a safe integer from 1');
   });
 
+  it('keeps the authored legacy slot form byte-identical and accepts the container-addressed form', () => {
+    const definition = bootstrapLoadout();
+    // The committed pack still authors legacy global slots; they parse exactly as before (no cell field is added).
+    expect(definition.selectedSlot).toBe(0);
+    expect(definition.selectedCell).toBeUndefined();
+    expect(definition.entries.every((entry) => entry.cell === undefined && Number.isInteger(entry.slot))).toBe(true);
+    const { selectedSlot, ...rest } = definition;
+    void selectedSlot;
+    const addressed = {
+      ...rest,
+      selectedCell: { container: 'hotbar', index: 0 },
+      entries: definition.entries.map(({ slot, ...entry }) => ({ ...entry, cell: { container: 'hotbar', index: slot } })),
+    };
+    const parsed = parseContentDefinition('loadout', addressed);
+    expect(parsed).toEqual(addressed);
+    expect(parseContentDefinition('loadout', JSON.stringify(parsed))).toEqual(parsed);
+  });
+
+  it('rejects mixed addressing forms, duplicate cells, unknown containers, and an unoccupied selected cell', () => {
+    const definition = bootstrapLoadout();
+    const { selectedSlot, ...rest } = definition;
+    void selectedSlot;
+    const cellEntries = definition.entries.map(({ slot, ...entry }) => ({ ...entry, cell: { container: 'hotbar', index: slot } }));
+    const addressed = { ...rest, selectedCell: { container: 'hotbar', index: 0 }, entries: cellEntries };
+    expect(() => parseContentDefinition('loadout', { ...addressed, selectedSlot: 0 }))
+      .toThrow('expected exactly one of selectedSlot or selectedCell');
+    expect(() => parseContentDefinition('loadout', rest)).toThrow('expected exactly one of selectedSlot or selectedCell');
+    expect(() => parseContentDefinition('loadout', { ...addressed, entries: [...cellEntries.slice(1), definition.entries[0]] }))
+      .toThrow('a loadout with selectedCell addresses entries by cell');
+    expect(() => parseContentDefinition('loadout', { ...definition, entries: [...definition.entries.slice(1), cellEntries[0]] }))
+      .toThrow('a loadout with selectedSlot addresses entries by legacy slot');
+    expect(() => parseContentDefinition('loadout', { ...addressed, entries: [...cellEntries, { ...cellEntries[0], item: 'item:wood' }] }))
+      .toThrow('duplicate loadout cell hotbar:0');
+    expect(() => parseContentDefinition('loadout', {
+      ...addressed, entries: [{ ...cellEntries[0], cell: { container: 'stash', index: 0 } }],
+    })).toThrow('expected one of hotbar, backpack, equipment, crafting');
+    expect(() => parseContentDefinition('loadout', { ...addressed, selectedCell: { container: 'hotbar', index: 9 } }))
+      .toThrow('selected cell must contain a loadout entry');
+  });
+
   it('validates active item references, max stacks, and unique active loadout roles', () => {
     const rows = bootstrapContentRows();
     const loadout = bootstrapLoadout();

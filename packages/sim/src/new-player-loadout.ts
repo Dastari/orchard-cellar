@@ -1,15 +1,24 @@
 import type { ContentRegistry } from './content/registry.js';
-import type { LoadoutContentDefinition, LoadoutDefinitionId } from './content/loadout-definition.js';
+import type {
+  LoadoutCellDefinition, LoadoutContainerId, LoadoutContentDefinition, LoadoutDefinitionId, LoadoutEntryDefinition,
+} from './content/loadout-definition.js';
+import {
+  LEGACY_GLOBAL_SLOT_CONTAINERS, MAIN_HAND_EQUIPMENT_INDEX, MAIN_HAND_SELECTED_SLOT, legacyGlobalSlotToCell,
+} from './container-addressing.js';
+import { HOTBAR_SLOT_COUNT } from './inventory-layout.js';
 
 export interface NewPlayerLoadoutRequest {
   /** This gate is authority-owned. Existing characters must never receive a
    * newly published starter kit during reconnect or content migration. */
   readonly existingCharacter: boolean;
-  readonly inventoryCapacity: number;
+  /** The cells a new character's container holds; a starter cell at or past it refuses the loadout. */
+  readonly containerCapacity: (container: LoadoutContainerId) => number;
 }
 
-export interface NewPlayerInventorySlotPlan {
-  readonly slot: number;
+/** One starter stack and the cell it starts in. Only occupied cells are planned. */
+export interface NewPlayerCellPlan {
+  readonly container: LoadoutContainerId;
+  readonly index: number;
   readonly itemKind: string;
   readonly quantity: number;
   readonly durability: number;
@@ -19,16 +28,19 @@ export interface NewPlayerInventorySlotPlan {
 export interface SkippedNewPlayerLoadoutPlan {
   readonly ok: true;
   readonly apply: false;
-  readonly slots: readonly [];
+  readonly cells: readonly [];
 }
 
 export interface AppliedNewPlayerLoadoutPlan {
   readonly ok: true;
   readonly apply: true;
   readonly definitionId: LoadoutDefinitionId;
+  /** The stored `player_survival.selectedSlot` value: a hotbar index, or `MAIN_HAND_SELECTED_SLOT`. */
   readonly selectedSlot: number;
+  readonly selectedCell: LoadoutCellDefinition;
   readonly equippedKind: string;
-  readonly slots: readonly NewPlayerInventorySlotPlan[];
+  /** Occupied starter cells in container order (hotbar, backpack, equipment, crafting), then index. */
+  readonly cells: readonly NewPlayerCellPlan[];
 }
 
 export interface FailedNewPlayerLoadoutPlan {
@@ -40,6 +52,34 @@ export type NewPlayerLoadoutPlan =
   | SkippedNewPlayerLoadoutPlan
   | AppliedNewPlayerLoadoutPlan
   | FailedNewPlayerLoadoutPlan;
+
+/** An authored loadout address as a cell: a `cell` as given, or a legacy global `slot` translated once through the
+ * frozen legacy layout. Null for a legacy slot past that layout. */
+function loadoutAddressCell(address: { readonly slot?: number; readonly cell?: LoadoutCellDefinition }): LoadoutCellDefinition | null {
+  if (address.cell !== undefined) return address.cell;
+  if (address.slot === undefined) return null;
+  const cell = legacyGlobalSlotToCell(address.slot);
+  return cell === null || cell.container === 'stash' ? null : Object.freeze({ container: cell.container, index: cell.index });
+}
+
+export function loadoutEntryCell(entry: LoadoutEntryDefinition): LoadoutCellDefinition | null {
+  return loadoutAddressCell(entry);
+}
+
+export function loadoutSelectedCell(loadout: LoadoutContentDefinition): LoadoutCellDefinition | null {
+  return loadoutAddressCell({
+    ...(loadout.selectedSlot === undefined ? {} : { slot: loadout.selectedSlot }),
+    ...(loadout.selectedCell === undefined ? {} : { cell: loadout.selectedCell }),
+  });
+}
+
+/** The stored selected-slot value naming a cell: a hotbar index or the Main Hand; null for any other cell. */
+function selectedSlotForCell(cell: LoadoutCellDefinition): number | null {
+  if (cell.container === 'hotbar' && cell.index < HOTBAR_SLOT_COUNT) return cell.index;
+  return cell.container === 'equipment' && cell.index === MAIN_HAND_EQUIPMENT_INDEX ? MAIN_HAND_SELECTED_SLOT : null;
+}
+
+const cellKey = (cell: LoadoutCellDefinition): string => `${cell.container}:${cell.index}`;
 
 export function activeNewPlayerLoadout(
   registry: Pick<ContentRegistry, 'loadouts'>,
@@ -56,47 +96,50 @@ export function planNewPlayerLoadout(
 ): NewPlayerLoadoutPlan {
   // This must precede all content resolution: a missing or temporarily invalid
   // loadout can block new admission but can never rewrite a returning player.
-  if (request.existingCharacter) return Object.freeze({ ok: true, apply: false, slots: [] as const });
-  if (!Number.isSafeInteger(request.inventoryCapacity) || request.inventoryCapacity <= 0) {
-    return Object.freeze({ ok: false, code: 'loadout_capacity_exceeded' });
-  }
+  if (request.existingCharacter) return Object.freeze({ ok: true, apply: false, cells: [] as const });
   const loadout = activeNewPlayerLoadout(registry);
   if (loadout === null) return Object.freeze({ ok: false, code: 'loadout_unavailable' });
-  if (loadout.selectedSlot >= request.inventoryCapacity
-    || loadout.entries.some(({ slot }) => slot >= request.inventoryCapacity)) {
+  const fits = (cell: LoadoutCellDefinition | null): cell is LoadoutCellDefinition => {
+    if (cell === null) return false;
+    const capacity = request.containerCapacity(cell.container);
+    return Number.isSafeInteger(capacity) && cell.index < capacity;
+  };
+  const selectedCell = loadoutSelectedCell(loadout);
+  const placed = loadout.entries.map((entry) => ({ entry, cell: loadoutEntryCell(entry) }));
+  if (!fits(selectedCell) || !placed.every(({ cell }) => fits(cell))) {
     return Object.freeze({ ok: false, code: 'loadout_capacity_exceeded' });
   }
+  const containerOrder = (container: LoadoutContainerId): number => LEGACY_GLOBAL_SLOT_CONTAINERS.indexOf(container);
+  placed.sort((left, right) => containerOrder(left.cell!.container) - containerOrder(right.cell!.container)
+    || left.cell!.index - right.cell!.index);
 
-  const entries = new Map(loadout.entries.map((entry) => [entry.slot, entry] as const));
-  const slots: NewPlayerInventorySlotPlan[] = [];
-  for (let slot = 0; slot < request.inventoryCapacity; slot += 1) {
-    const entry = entries.get(slot);
-    if (entry === undefined) {
-      slots.push(Object.freeze({ slot, itemKind: 'empty', quantity: 0, durability: 0, lit: true }));
-      continue;
-    }
+  const cells: NewPlayerCellPlan[] = [];
+  for (const { entry, cell } of placed) {
     const item = registry.items.get(entry.item);
     if (item === undefined || item.retired === true || entry.quantity > item.maxStack) {
       return Object.freeze({ ok: false, code: 'loadout_item_invalid' });
     }
-    slots.push(Object.freeze({
-      slot,
+    cells.push(Object.freeze({
+      container: cell!.container,
+      index: cell!.index,
       itemKind: item.id.slice('item:'.length),
       quantity: entry.quantity,
       durability: item.durability?.max ?? 0,
       lit: entry.lit ?? true,
     }));
   }
-  const equippedKind = slots[loadout.selectedSlot]?.itemKind;
-  if (equippedKind === undefined || equippedKind === 'empty') {
+  const selectedSlot = selectedSlotForCell(selectedCell);
+  const equippedKind = cells.find((cell) => cellKey(cell) === cellKey(selectedCell))?.itemKind;
+  if (selectedSlot === null || equippedKind === undefined) {
     return Object.freeze({ ok: false, code: 'loadout_item_invalid' });
   }
   return Object.freeze({
     ok: true,
     apply: true,
     definitionId: loadout.id,
-    selectedSlot: loadout.selectedSlot,
+    selectedSlot,
+    selectedCell: Object.freeze({ container: selectedCell.container, index: selectedCell.index }),
     equippedKind,
-    slots: Object.freeze(slots),
+    cells: Object.freeze(cells),
   });
 }

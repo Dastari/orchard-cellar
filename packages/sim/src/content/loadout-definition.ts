@@ -25,10 +25,23 @@ export interface SprintAbilityContentDefinition {
   readonly baselineAttribute: number;
 }
 
+/** The carried containers a starter kit may fill (never the stash, which the legacy numbering never addressed). */
+export type LoadoutContainerId = 'hotbar' | 'backpack' | 'equipment' | 'crafting';
+const LOADOUT_CONTAINERS: readonly LoadoutContainerId[] = ['hotbar', 'backpack', 'equipment', 'crafting'];
+
+export interface LoadoutCellDefinition {
+  readonly container: LoadoutContainerId;
+  readonly index: number;
+}
+
 export interface LoadoutEntryDefinition {
   readonly item: ItemDefinitionId;
   readonly quantity: number;
-  readonly slot: number;
+  /** Legacy global slot (hotbar 0-9, backpack 10-29, equipment 30-39, crafting 40-48). Give this or `cell`;
+   * one loadout uses one form throughout. Translated once through the frozen legacy layout. */
+  readonly slot?: number;
+  /** The starter cell by container and index. Give this or the legacy `slot`; one loadout uses one form throughout. */
+  readonly cell?: LoadoutCellDefinition;
   /** Omitted preserves the persisted inventory default of an enabled item. */
   readonly lit?: boolean;
 }
@@ -38,7 +51,10 @@ export interface LoadoutContentDefinition {
   readonly kind: 'loadout';
   readonly schemaVersion: typeof CONTENT_SCHEMA_VERSION;
   readonly role: LoadoutRole;
-  readonly selectedSlot: number;
+  /** Legacy global slot of the selected entry; used with legacy `slot` entries. */
+  readonly selectedSlot?: number;
+  /** The selected entry's cell (a hotbar cell or the Main Hand); used with `cell` entries. */
+  readonly selectedCell?: LoadoutCellDefinition;
   readonly entries: readonly LoadoutEntryDefinition[];
   readonly appearance: PlayerAppearanceCatalogDefinition;
   readonly abilities: readonly SprintAbilityContentDefinition[];
@@ -52,6 +68,8 @@ const ABILITY_ID = /^ability:[a-z0-9]+(?:_[a-z0-9]+)*$/u;
 const CATALOG_VALUE = /^[a-z0-9]+(?:_[a-z0-9]+)*$/u;
 const MAX_INVENTORY_SLOT = 255;
 const MAX_STACK_QUANTITY = 65_535;
+/** A u32 cell index; the new-player plan checks the index against the container's capacity. */
+const MAX_CELL_INDEX = 0xffff_ffff;
 
 function fail(path: string, message: string): never {
   throw new ContentParseError('invalid_type', path, message);
@@ -77,6 +95,17 @@ function loadoutId(value: unknown, path: string): LoadoutDefinitionId {
 function itemId(value: unknown, path: string): ItemDefinitionId {
   if (typeof value !== 'string' || !ITEM_ID.test(value)) fail(path, 'invalid item definition id');
   return value as ItemDefinitionId;
+}
+
+function loadoutCell(value: unknown, path: string): LoadoutCellDefinition {
+  const source = record(value, path);
+  if (!LOADOUT_CONTAINERS.includes(source.container as LoadoutContainerId)) {
+    fail(`${path}.container`, `expected one of ${LOADOUT_CONTAINERS.join(', ')}`);
+  }
+  return Object.freeze({
+    container: source.container as LoadoutContainerId,
+    index: integer(source.index, `${path}.index`, 0, MAX_CELL_INDEX),
+  });
 }
 
 function nonEmptyString(value: unknown, path: string): string {
@@ -156,23 +185,49 @@ export function parseLoadoutDefinition(json: string | unknown): LoadoutContentDe
   if (!Array.isArray(source.entries) || source.entries.length === 0 || source.entries.length > 256) {
     fail('$.entries', 'expected one to 256 loadout entries');
   }
-  const slots = new Set<number>();
+  // One loadout uses one addressing form throughout: legacy global `slot` numbers with `selectedSlot`, or container
+  // `cell`s with `selectedCell`. Mixed forms would need the legacy conversion here to find a shared cell.
+  const cellForm = source.selectedCell !== undefined;
+  if (cellForm === (source.selectedSlot !== undefined)) fail('$.selectedSlot', 'expected exactly one of selectedSlot or selectedCell');
+  const occupied = new Set<string>();
   const entries = source.entries.map((value, index): LoadoutEntryDefinition => {
     const path = `$.entries[${index}]`;
     const entry = record(value, path);
-    const slot = integer(entry.slot, `${path}.slot`, 0, MAX_INVENTORY_SLOT);
-    if (slots.has(slot)) fail(`${path}.slot`, `duplicate loadout slot ${slot}`);
-    slots.add(slot);
+    let address: Pick<LoadoutEntryDefinition, 'slot' | 'cell'>;
+    if (cellForm) {
+      if (entry.slot !== undefined) fail(`${path}.slot`, 'a loadout with selectedCell addresses entries by cell');
+      const cell = loadoutCell(entry.cell, `${path}.cell`);
+      const key = `${cell.container}:${cell.index}`;
+      if (occupied.has(key)) fail(`${path}.cell`, `duplicate loadout cell ${key}`);
+      occupied.add(key);
+      address = { cell };
+    } else {
+      if (entry.cell !== undefined) fail(`${path}.cell`, 'a loadout with selectedSlot addresses entries by legacy slot');
+      const slot = integer(entry.slot, `${path}.slot`, 0, MAX_INVENTORY_SLOT);
+      if (occupied.has(String(slot))) fail(`${path}.slot`, `duplicate loadout slot ${slot}`);
+      occupied.add(String(slot));
+      address = { slot };
+    }
     if (entry.lit !== undefined && typeof entry.lit !== 'boolean') fail(`${path}.lit`, 'expected a boolean');
     return Object.freeze({
       item: itemId(entry.item, `${path}.item`),
       quantity: integer(entry.quantity, `${path}.quantity`, 1, MAX_STACK_QUANTITY),
-      slot,
+      ...address,
       ...(entry.lit === undefined ? {} : { lit: entry.lit }),
     });
   });
-  const selectedSlot = integer(source.selectedSlot, '$.selectedSlot', 0, MAX_INVENTORY_SLOT);
-  if (!slots.has(selectedSlot)) fail('$.selectedSlot', 'selected slot must contain a loadout entry');
+  let selection: Pick<LoadoutContentDefinition, 'selectedSlot' | 'selectedCell'>;
+  if (cellForm) {
+    const selectedCell = loadoutCell(source.selectedCell, '$.selectedCell');
+    if (!occupied.has(`${selectedCell.container}:${selectedCell.index}`)) {
+      fail('$.selectedCell', 'selected cell must contain a loadout entry');
+    }
+    selection = { selectedCell };
+  } else {
+    const selectedSlot = integer(source.selectedSlot, '$.selectedSlot', 0, MAX_INVENTORY_SLOT);
+    if (!occupied.has(String(selectedSlot))) fail('$.selectedSlot', 'selected slot must contain a loadout entry');
+    selection = { selectedSlot };
+  }
   if (source.retired !== undefined && typeof source.retired !== 'boolean') fail('$.retired', 'expected a boolean');
   if (!Array.isArray(source.abilities) || source.abilities.length === 0 || source.abilities.length > 32) {
     fail('$.abilities', 'expected one to 32 abilities');
@@ -186,7 +241,7 @@ export function parseLoadoutDefinition(json: string | unknown): LoadoutContentDe
     kind: 'loadout',
     schemaVersion: CONTENT_SCHEMA_VERSION,
     role: 'new_player',
-    selectedSlot,
+    ...selection,
     entries: Object.freeze(entries),
     appearance: parseAppearanceCatalog(source.appearance, '$.appearance'),
     abilities: Object.freeze(abilities),

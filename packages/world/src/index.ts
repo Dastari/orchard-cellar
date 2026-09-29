@@ -429,7 +429,7 @@ import { farmingSkillEffects, farmingCropDefinition, farmingHarvestReward, first
 import { authoredHookApproved, authoredHookRegistrations, type AuthoredHookAuthority } from '@orchard/sim';
 import {
   CONTAINER_CELL_INVENTORY_PROTOCOL_VERSION, CURRENT_CONTAINER_LAYOUT_VERSION, buildDenseContainer, diffDenseContainer,
-  isPlayerContainerId, legacyGlobalSlotToCell, runtimeStoredStackCodec, selectedSlotCell,
+  isPlayerContainerId, runtimeStoredStackCodec, selectedSlotCell,
   type SparseContainerBuild,
 } from '@orchard/sim';
 import {
@@ -14009,7 +14009,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
   const enteringSurvivalWorld = survival === null;
   const newPlayerLoadout = planNewPlayerLoadout(contentRegistry(ctx), {
     existingCharacter: !enteringSurvivalWorld,
-    inventoryCapacity: INVENTORY_SLOT_COUNT,
+    containerCapacity: inventoryContainerCapacity,
   });
   if (!newPlayerLoadout.ok) throw new SenderError(newPlayerLoadout.code);
   // Uncapped Storage step 4: storage still on the legacy layout completes the legacy layout steps and moves to
@@ -14069,18 +14069,16 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
     // full, as the first-connect durability backfill always made the legacy rows. A loadout cell already holding a
     // moved orphan item keeps it; that loadout stack goes to overflow custody and the connect drain places it.
     const registry = contentRegistry(ctx);
-    for (const slot of newPlayerLoadout.slots) {
-      const cell = legacyGlobalSlotToCell(slot.slot);
-      if (cell === null) throw new SenderError('loadout_unavailable');
+    // The plan lists only occupied starter cells, each addressed by container and index (a legacy authored slot was
+    // translated once, in the plan, through the frozen legacy layout).
+    for (const cell of newPlayerLoadout.cells) {
       const stack = {
-        itemKind: slot.itemKind,
-        quantity: slot.quantity,
-        durability: runtimeDurabilityDefinition(registry, slot.itemKind) === null
-          ? slot.durability : runtimeNormalizeDurability(registry, slot.itemKind),
-        lit: slot.lit,
+        itemKind: cell.itemKind,
+        quantity: cell.quantity,
+        durability: runtimeDurabilityDefinition(registry, cell.itemKind) === null
+          ? cell.durability : runtimeNormalizeDurability(registry, cell.itemKind),
+        lit: cell.lit,
       };
-      // A vacant loadout slot writes nothing (a vacant put would delete the cell, and with it a moved orphan item).
-      if (slot.itemKind === 'empty' || slot.quantity === 0) continue;
       if (ctx.db.player_container_cell.id.find(playerCellId(ctx.sender, cell.container, cell.index)) === null) {
         putPlayerCell(ctx.db, ctx.sender, cell.container, cell.index, stack);
       } else {
