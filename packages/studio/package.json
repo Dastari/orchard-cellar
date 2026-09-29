@@ -1,6 +1,6 @@
 {
   "name": "@orchard/studio",
-  "version": "0.16.21",
+  "version": "0.16.22",
   "private": true,
   "type": "module",
   "scripts": {

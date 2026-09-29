@@ -2,6 +2,26 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.55.0 / Engine 0.30.1 / World 0.31.3 / Sim 0.35.3 / UI 0.54.3 / Tools 0.24.9 / Studio 0.16.22 — Static world S6: true chunk streaming and art by need
+
+**Routine release: client and world code, no schema change.** Chunk heads are republished, because the atlas index changes.
+- **Generator-free leaves (#278):** survival rules move into a generator-free leaf, and terrain imports are sampling-only. No behaviour change.
+- **Server keeps serving the pinned chunks (#279):** while the map or content lags, the server serves the pinned chunk publication (SW-D2). `stale_generator` still refuses.
+- **Client retirement (#280):**
+  - The client no longer subscribes to the whole `live_map_document` and no longer bundles the terrain generator; CI enforces a generator-free bundle.
+  - Topside draws and collides only from the chunks around the player.
+  - When the chunk runtime can't serve, players see "WORLD UPDATING" with a 5 s retry, never a frozen or broken world. During a republish, the previous revision keeps serving.
+  - Homesteads read the published chunks, on both server and client.
+  - Owner accepted two apple trees replacing birches beside a lake at homestead 10000.
+- **Atlas packs (#282):** world art comes from per-area packs, prefetched from the chunks around the player, instead of one consolidated atlas.
+- **Art by need (#284, owner approved as measured):**
+  - Startup loads only the UI, the player body and the missing-item icon. Everything else loads when first drawn.
+  - The 27 MB player pack is split.
+  - Decoded atlas memory at spawn falls from 110 MB to 67 MB.
+  - Cold first arrival may take a few seconds longer.
+
+**Rollback** after this release is server chunk authority `off` plus the last pre-S6 client dist (Client 0.54.1). An `off` or `shadow` build of S6 code only shows "world updating", and the lanes refuse it.
+
 ## Client 0.54.1 / UI 0.54.2 / Sim 0.35.2 / World 0.31.2 / Studio 0.16.21 / Assets 0.24.2 / Lifecycle authoring 0.16.4 — Uncapped Storage step 5 (part 2): 65,535 ceiling, Traveller's Pack
 
 **Routine release: content, client and world code. No reducer signature change, no schema change, no data migration.**
