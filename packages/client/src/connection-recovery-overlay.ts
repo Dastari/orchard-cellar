@@ -28,7 +28,7 @@ export function connectionRecoveryLayout(viewport: UiSize): { readonly frame: Ui
 }
 
 const copy: Readonly<Record<ConnectionRecoveryState, { readonly title: string; readonly lines: readonly string[] }>> = {
-  'content-incompatible': { title: 'CONTENT UPDATE REQUIRED', lines: ['GAME CONTENT IS INCOMPATIBLE.', 'PLEASE WAIT FOR AN UPDATE.'] },
+  'content-incompatible': { title: 'CONTENT UPDATE REQUIRED', lines: ['GAME CONTENT HAS CHANGED.', 'RELOAD TO UPDATE.'] },
   reconnecting: { title: 'RECONNECTING', lines: ['RESTORING CONNECTION.', 'RETRY IF NEEDED.'] },
   offline: { title: 'CONNECTION LOST', lines: ['CONNECTION INTERRUPTED.', 'CHECK YOUR CONNECTION.'] },
   'sign-in-required': { title: 'SIGN IN REQUIRED', lines: ['PLEASE SIGN IN AGAIN.', 'REJOIN YOUR WORLD.'] },
@@ -89,8 +89,11 @@ export class ConnectionRecoveryOverlay {
 
   primaryAction(state: ConnectionRecoveryState | null, blockedByUpdate = false): ConnectionRecoveryAction | null {
     if (blockedByUpdate || state === null) return null;
-    // A refused client version is fixed by loading the new one, never by signing in again (which would loop).
-    return state === 'sign-in-required' ? 'sign-in' : state === 'update-required' ? 'reload' : 'retry';
+    // A refused client version is fixed by loading the new one, never by signing in again (which would loop). So is
+    // live content this client cannot parse (it keeps its last good content meanwhile): a retry would reconnect the
+    // same stale bundle to the same content, while a reload fetches the client that ships with it.
+    if (state === 'sign-in-required') return 'sign-in';
+    return state === 'update-required' || state === 'content-incompatible' ? 'reload' : 'retry';
   }
 
   actionAt(point: UiPoint, viewport: UiSize, state: ConnectionRecoveryState | null, blockedByUpdate = false): ConnectionRecoveryAction | null {

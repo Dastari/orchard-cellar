@@ -20,16 +20,7 @@
         "alignment": "start",
         "minWidth": 160,
         "bind": {
-          "entitySlots": [
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7
-          ]
+          "entitySlots": "all"
         },
         "restriction": {
           "acceptedFrom": {
@@ -96,24 +87,7 @@
         "columns": 5,
         "rows": 4,
         "bind": {
-          "entitySlots": [
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12,
-            13,
-            14,
-            15
-          ]
+          "entitySlots": "all"
         }
       },
       {
@@ -480,28 +454,7 @@
         "columns": 5,
         "rows": 4,
         "bind": {
-          "entitySlots": [
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12,
-            13,
-            14,
-            15,
-            16,
-            17,
-            18,
-            19
-          ]
+          "entitySlots": "all"
         }
       },
       {

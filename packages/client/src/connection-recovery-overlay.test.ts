@@ -7,7 +7,8 @@ function overlay() { return new ConnectionRecoveryOverlay({} as PixelUi, {} as U
 const viewport = { width: 257, height: 555, scale: 2, left: 12, top: 24 };
 
 describe('canvas connection recovery', () => {
-  const expectedAction = (state: string) => state === 'sign-in-required' ? 'sign-in' : state === 'update-required' ? 'reload' : 'retry';
+  const expectedAction = (state: string) => state === 'sign-in-required' ? 'sign-in'
+    : state === 'update-required' || state === 'content-incompatible' ? 'reload' : 'retry';
   it.each(['reconnecting', 'offline', 'sign-in-required', 'content-incompatible', 'update-required'] as const)('activates only the visible %s button once', state => {
     const ui = overlay();
     const action = vi.fn();
@@ -32,6 +33,19 @@ describe('canvas connection recovery', () => {
     panel.mockRestore();
     // The PWA update prompt still takes precedence over it.
     expect(ui.primaryAction('update-required', true)).toBeNull();
+  });
+
+  it('shows content this client cannot parse as CONTENT UPDATE REQUIRED with a RELOAD button, not a retry', () => {
+    const ui = overlay();
+    const drawn: string[] = [];
+    const panel = vi.spyOn(ui as unknown as { drawPanel: (...args: unknown[]) => void }, 'drawPanel')
+      .mockImplementation((_context, _viewport, text, label) => {
+        drawn.push((text as { title: string }).title, ...(text as { lines: string[] }).lines, String(label));
+      });
+    ui.draw({} as CanvasRenderingContext2D, viewport, 'content-incompatible');
+    expect(drawn).toEqual(['CONTENT UPDATE REQUIRED', 'GAME CONTENT HAS CHANGED.', 'RELOAD TO UPDATE.', 'RELOAD']);
+    panel.mockRestore();
+    expect(ui.primaryAction('content-incompatible', true)).toBeNull();
   });
 
   it.each([{ width: 257, height: 555 }, { width: 320, height: 180 }, { width: 160, height: 138 }])(
