@@ -308,7 +308,8 @@ function authority(names: readonly string[], dependencies: Record<string, unknow
 
 describe('open-menu moves on container cells', () => {
   const registry = sim.bootstrapContentRegistry();
-  function menuWorld(options: { stash?: boolean; debugBackpackSlots?: number } = {}) {
+  function menuWorld(options: { stash?: boolean; debugBackpackSlots?: number; content?: sim.ContentRegistry } = {}) {
+    const content = options.content ?? registry;
     const db = world(); seedPlayer(db, alice);
     cells.movePlayerToContainerCells(db as never, alice as never, 1);
     db.player_survival.identity.update({ ...db.player_survival.identity.find(alice), debugBackpackSlots: options.debugBackpackSlots ?? 0 });
@@ -317,14 +318,18 @@ describe('open-menu moves on container cells', () => {
       world_clock: { id: { find: () => ({ authorityTick: 10n }) } },
       active_chest: { identity: { find: () => null } },
       active_placeable: { identity: { find: () => null } },
+      inventory_cursor: table<Row>('identity'),
+      membership: { identity: { find: () => ({ role: 'player', blocked: false }) } },
     };
-    const ctx = { sender: alice, timestamp: { microsSinceUnixEpoch: 1n }, db: full };
+    const ctx = { sender: alice, timestamp: { microsSinceUnixEpoch: 1n }, db: full, senderAuth: { jwt: { issuer: OIDC_ISSUER, audience: [] } } };
     const api = authority([
       'moveOpenMenuItem', 'loadOpenMenuInventory', 'writeOpenMenuInventory', 'loadPlayerInventory', 'writePlayerInventory',
       'loadHearthStashBuild', 'equippedInventoryCapacity', 'accessibleInventoryContainerCapacity', 'inventoryContainerCapacity',
       'playerDebugBackpackSlots', 'withSenderErrors', 'requirePlayerContainerCells', 'sameStoredStack', 'activeItemContainerContent',
+      'playerInventoryCursor', 'writePlayerInventoryCursor', 'storedStack', 'storedDurability', 'storedLit',
     ], {
-      ...sim, ...cells, SenderError: Error, contentRegistry: () => registry,
+      ...sim, ...cells, SenderError: Error, contentRegistry: () => content,
+      requireAuthorizedSender: () => ({ role: 'player' }),
       DEFAULT_BACKPACK_CAPACITY: sim.BASE_BACKPACK_CAPACITY,
       requirePersistentInventoryAvailable: () => {}, hearthStashSessionAvailable: () => options.stash === true,
       activeHearthLobbyDefinition: () => ({ stashCapacity: 20 }), hearthStashFrameRestrictions: () => ({}),
@@ -405,6 +410,49 @@ describe('open-menu moves on container cells', () => {
     expect(db.player_container_cell.id.find('a1:backpack:19')).toMatchObject({ itemKind: 'arrow', quantity: 18 });
     expect(db.player_container_cell.id.find('a1:backpack:2')).toBeNull();
     expect(db.inventory_overflow.rows.size).toBe(0);
+  });
+
+  /** The bootstrap content with the shipped bag widened to `capacity` cells (Uncapped Storage step 5). */
+  const withBagCapacity = (capacity: number): sim.ContentRegistry => {
+    const bag = registry.items.get('item:backpack')!;
+    return { ...registry, items: new Map(registry.items).set(bag.id, { ...bag, equip: { ...bag.equip!, inventoryCapacity: capacity } }) };
+  };
+  /** A reducer's own callback from the world source, run against the fixture. */
+  function reducer(name: string, dependencies: Record<string, unknown>) {
+    const statement = source.statements.find(node => ts.isVariableStatement(node)
+      && node.declarationList.declarations.some(declaration => ts.isIdentifier(declaration.name) && declaration.name.text === name)) as ts.VariableStatement | undefined;
+    const call = statement?.declarationList.declarations[0]?.initializer;
+    if (call === undefined || !ts.isCallExpression(call) || call.arguments[1] === undefined) throw new Error(`Missing reducer ${name}`);
+    const javascript = ts.transpileModule(`return (${call.arguments[1].getText(source)});`, {
+      compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
+    }).outputText;
+    return new Function(...Object.keys(dependencies), javascript)(...Object.values(dependencies)) as (ctx: unknown, request: unknown) => void;
+  }
+
+  it('moves and clicks at backpack cell 999 of a 1,000-cell bag on the real reducers, and refuses cell 1,000', () => {
+    const content = withBagCapacity(1000);
+    const { db, ctx, api } = menuWorld({ content });
+    expect(api.loadPlayerInventory(ctx, alice).containers.backpack.capacity).toBe(1000);
+    // moveInventoryItem's body is moveOpenMenuItem.
+    api.moveOpenMenuItem(ctx, { fromContainer: 'backpack', fromIndex: 2, toContainer: 'backpack', toIndex: 999, quantity: 40 });
+    expect(db.player_container_cell.id.find('a1:backpack:999')).toMatchObject({ container: 'backpack', index: 999, itemKind: 'wood', quantity: 40 });
+    expect(db.player_container_cell.id.find('a1:backpack:2')).toBeNull();
+    const click = reducer('inventoryCursorClick', {
+      ...sim, ...api, SenderError: Error, requireAuthorizedSender: () => ({ role: 'player' }),
+      activeItemContainerContent: () => sim.itemContainerContentResolver(content), refreshSenderQuestsFromInventory: () => {},
+    });
+    click(ctx, { container: 'backpack', index: 999, button: 'left' });
+    expect(db.player_container_cell.id.find('a1:backpack:999')).toBeNull();
+    expect(ctx.db.inventory_cursor.rows.get('a1')).toMatchObject({ itemKind: 'wood', quantity: 40 });
+    click(ctx, { container: 'backpack', index: 998, button: 'left' });
+    expect(db.player_container_cell.id.find('a1:backpack:998')).toMatchObject({ itemKind: 'wood', quantity: 40 });
+    expect(ctx.db.inventory_cursor.rows.size).toBe(0);
+    // Only occupied cells are rows: the 1,000-cell bag stores two backpack cells (the wood and the arrows at 19).
+    expect([...db.player_container_cell.rows.values()].filter(row => row['container'] === 'backpack').map(row => row['index']).sort())
+      .toEqual([19, 998]);
+    expect(() => api.moveOpenMenuItem(ctx, { fromContainer: 'backpack', fromIndex: 998, toContainer: 'backpack', toIndex: 1000, quantity: 40 })).toThrow();
+    expect(() => click(ctx, { container: 'backpack', index: 1000, button: 'left' })).toThrow();
+    expect(db.player_container_cell.id.find('a1:backpack:998')).toMatchObject({ itemKind: 'wood', quantity: 40 });
   });
 
   it('refuses writes for a player still on the legacy layout', () => {

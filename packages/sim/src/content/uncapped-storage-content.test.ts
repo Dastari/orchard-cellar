@@ -4,8 +4,8 @@ import { buildContentRegistry } from './registry.js';
 import { frameEntitySlotIndexes, frameRestrictions } from './frame-runtime.js';
 import { MAX_CONTAINER_CAPACITY } from './parse-contract.js';
 
-// Uncapped Storage step 3 (wiki Roadmap/Uncapped Storage): `entitySlots: all` binds a whole container, and stored
-// containers are capped at 256 slots until the step-4 migration widens slot numbers.
+// Uncapped Storage steps 3 and 5 (wiki Roadmap/Uncapped Storage): `entitySlots: all` binds a whole container, and every
+// container shares one technical ceiling of 65,535 slots.
 type Json = Record<string, unknown>;
 const edit = (id: string, change: (json: Json) => Json) => buildContentRegistry(bootstrapContentRows().map(row => row.id !== id ? row
   : { ...row, json: JSON.stringify(change(JSON.parse(String(row.json)) as Json)) }));
@@ -49,15 +49,23 @@ describe('Uncapped Storage step 3 content', () => {
     expect(errors(built).join('\n')).toContain('an entitySlots: all pane must be the frame\'s only entity pane');
   });
 
-  it('caps a placeable container and the hearth stash at 256 slots', () => {
-    expect(MAX_CONTAINER_CAPACITY).toBe(256);
+  // Step 5: one shared technical ceiling, 65,535, for a placeable's slotCount, the stash and an equipped bag.
+  it('caps a placeable container, the hearth stash and a bag at 65,535 slots', () => {
+    expect(MAX_CONTAINER_CAPACITY).toBe(65_535);
     const container = (slotCount: number) => edit('object:chest', json => ({ ...json,
       components: { ...(json.components as Json), container: { ...((json.components as Json).container as Json), slotCount } } }));
-    expect(container(256).report.errors).toEqual([]);
-    expect(errors(container(257)).join('\n')).toMatch(/slotCount/u);
+    for (const allowed of [257, 1000, 65_535]) expect(container(allowed).report.errors).toEqual([]);
+    expect(errors(container(65_536)).join('\n')).toMatch(/slotCount/u);
     const lobby = bootstrapContentRows().find(row => String(row.json).includes('"stashCapacity"'))!;
     const stash = (stashCapacity: number) => edit(lobby.id, json => JSON.parse(JSON.stringify(json).replace(/"stashCapacity":\d+/u, `"stashCapacity":${stashCapacity}`)) as Json);
-    expect(stash(256).report.errors).toEqual([]);
-    expect(errors(stash(257)).join('\n')).toMatch(/stashCapacity/u);
+    for (const allowed of [257, 65_535]) expect(stash(allowed).report.errors).toEqual([]);
+    expect(errors(stash(65_536)).join('\n')).toMatch(/stashCapacity/u);
+    const bag = (inventoryCapacity: number) => edit('item:backpack', json => ({ ...json, equip: { ...(json.equip as Json), inventoryCapacity } }));
+    for (const allowed of [21, 1000, 65_535]) {
+      const built = bag(allowed);
+      expect(built.report.errors).toEqual([]);
+      expect(built.registry.items.get('item:backpack')?.equip?.inventoryCapacity).toBe(allowed);
+    }
+    expect(errors(bag(65_536)).join('\n')).toMatch(/inventoryCapacity/u);
   });
 });

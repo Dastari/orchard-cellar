@@ -792,7 +792,8 @@ function accessibleInventoryContainerCapacity(
   debugBackpackSlots = 0,
 ): number {
   if (containerId !== 'backpack') return inventoryContainerCapacity(containerId);
-  // The one rule the client shares (BUG-054): max(8, min(20, equipped)), or more debug slots up to 20.
+  // The one rule the client shares (BUG-054): the equipped bag (at least 8) or more debug slots, up to the container
+  // ceiling (Uncapped Storage step 5).
   return accessibleBackpackCapacity(equippedCapacity, debugBackpackSlots);
 }
 

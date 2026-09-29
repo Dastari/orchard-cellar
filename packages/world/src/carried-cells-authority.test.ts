@@ -34,7 +34,7 @@ function cell(container: string, index: number, itemKind: string, quantity = 1, 
     identity: sender, container, index, itemKind, quantity, durability, lit: true };
 }
 
-function fixture(cells: readonly FixtureCellRow[], options: { uncapped?: boolean; protocol?: number; selectedSlot?: number; content?: sim.ContentRegistry } = {}) {
+function fixture(cells: readonly FixtureCellRow[], options: { protocol?: number; selectedSlot?: number; content?: sim.ContentRegistry } = {}) {
   const content = options.content ?? registry;
   const ctx = {
     sender, connectionId: { toHexString: () => 'connection' },
@@ -52,10 +52,6 @@ function fixture(cells: readonly FixtureCellRow[], options: { uncapped?: boolean
     'requireInventoryProtocol', 'requirePersistentInventoryAvailable', 'rogueRunForIdentity', ...PLAYER_CELL_HELPER_NAMES,
   ], {
     ...sim, ...playerCellDependencies, SenderError: Error, contentRegistry: () => content,
-    // Step 5's content change lifts the 20-cell ceiling of the one capacity rule; everything else must already read
-    // any index. `uncapped` stands in for that raise.
-    accessibleBackpackCapacity: options.uncapped === true
-      ? (equipped: number, debug = 0) => Math.max(sim.BASE_BACKPACK_CAPACITY, equipped, debug) : sim.accessibleBackpackCapacity,
     DEFAULT_BACKPACK_CAPACITY: sim.BASE_BACKPACK_CAPACITY,
     activeItemContainerContent: () => sim.itemContainerContentResolver(content),
     requireCombatActionReady: () => {},
@@ -75,11 +71,11 @@ describe('carried cells in the world (Uncapped Storage step 5)', () => {
     {      const { content, bag } = withBag(400);
       const cells = [cell('equipment', 4, bag), cell('backpack', 300, 'arrow', 7), cell('backpack', 30, 'arrow', 3),
         cell('hotbar', 4, 'arrow', 2), cell('crafting', 1, 'arrow', 9), cell('equipment', 5, 'arrow', 1)];
-      const { ctx, api } = fixture(cells, { uncapped: true, content });
+      const { ctx, api } = fixture(cells, { content });
       expect(api.carriedAmmunitionRows(ctx, sender, 'arrow').map((row: FixtureCellRow) => `${row.container}:${row.index}`))
         .toEqual(['hotbar:4', 'backpack:30', 'backpack:300']);
-      // With today's 20-cell rule the same cells are stranded, never renumbered into equipment or crafting.
-      const capped = fixture(cells, { content });
+      // Under a 20-cell bag the same cells are stranded, never renumbered into equipment or crafting.
+      const capped = fixture(cells, { content: withBag(20).content });
       expect(capped.api.carriedAmmunitionRows(capped.ctx, sender, 'arrow').map((row: FixtureCellRow) => `${row.container}:${row.index}`))
         .toEqual(['hotbar:4']);
     }
@@ -89,13 +85,13 @@ describe('carried cells in the world (Uncapped Storage step 5)', () => {
     {
       const { content, bag } = withBag(400);
       const gear = [cell('equipment', 4, bag), cell('equipment', 3, 'hearth_common_bow', 1, 300), cell('equipment', 9, 'hearth_common_body')];
-      const ready = (cells: readonly FixtureCellRow[], uncapped = true) => {
-        const { ctx, api } = fixture([...gear, ...cells], { uncapped, content });
+      const ready = (cells: readonly FixtureCellRow[], capacity = 400) => {
+        const { ctx, api } = fixture([...gear, ...cells], { content: capacity === 400 ? content : withBag(capacity).content });
         return api.expeditionPreparationFor(ctx, sender);
       };
       expect(ready([cell('backpack', 30, 'arrow', 4), cell('backpack', 300, 'arrow', 6)])).toEqual({ weapon: 1, body: 1 });
       expect(ready([cell('backpack', 30, 'arrow', 4), cell('backpack', 300, 'arrow', 5)])).toEqual({ weapon: 0, body: 1 });
-      expect(ready([cell('backpack', 30, 'arrow', 10)], false)).toEqual({ weapon: 0, body: 1 });
+      expect(ready([cell('backpack', 30, 'arrow', 10)], 20)).toEqual({ weapon: 0, body: 1 });
     }
   });
 
