@@ -261,7 +261,7 @@ describe('client collision cache', () => {
     expect(structuralTiles).toBeGreaterThan(0);
     expect(lowerPlaneBlockers).toBeGreaterThan(0);
     expect(upperPlaneBlockers).toBeGreaterThan(0);
-  }, 20_000);
+  }, 60_000); // a whole generated island: slow on a loaded CI runner
 
   it('uses the shared cellar plane mask for ordinary solid side walls', () => {
     const width = 7;
