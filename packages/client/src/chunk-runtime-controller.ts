@@ -79,8 +79,11 @@ export interface ChunkRuntimeStatus {
   servingRevision: string | null;
   pendingRevision: string | null;
   swaps: number;
-  /** `on`: atlas pack loads that failed (non-fatal; the consolidated atlas still draws). */
+  /** `on`: atlas pack loads that failed (non-fatal: the art loads by need when first drawn). */
   atlasPackFailures: number;
+  /** `on`: the pinned chunks' atlas packs are still loading (static world S6: spawn readiness
+   * waits for them, bounded by its timeout, so the art is there before the player moves). */
+  atlasPacksPending: boolean;
 }
 
 export interface ChunkRuntimeControllerOptions {
@@ -111,7 +114,7 @@ const EMPTY_KEYS: ReadonlySet<string> = new Set();
 
 function idleStatus(mode: ChunkRuntimeMode, state: string): ChunkRuntimeStatus {
   return { mode, state, readyChunks: 0, residentBytes: 0, compared: 0, differences: 0, stale: false, staleReasons: [], staleObservations: 0,
-    servingRevision: null, pendingRevision: null, swaps: 0, atlasPackFailures: 0 };
+    servingRevision: null, pendingRevision: null, swaps: 0, atlasPackFailures: 0, atlasPacksPending: false };
 }
 
 /**
@@ -411,10 +414,14 @@ export class ChunkRuntimeController {
     if (ids.length === 0 || key === this.#atlasPackKey) return;
     this.#atlasPackKey = key;
     const epoch = this.#epoch;
+    this.status.atlasPacksPending = true;
     void this.#loadAtlasPacks(ids).catch(() => {
       if (epoch !== this.#epoch) return;
       this.status.atlasPackFailures++;
       if (this.#atlasPackKey === key) this.#atlasPackKey = '';
+    }).finally(() => {
+      // A newer pin set's load keeps the flag until it settles itself.
+      if (this.#atlasPackKey === key || this.#atlasPackKey === '') this.status.atlasPacksPending = false;
     });
   }
   #checkAssetRevision(): void {

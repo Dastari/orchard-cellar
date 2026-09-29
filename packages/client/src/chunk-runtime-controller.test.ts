@@ -346,7 +346,17 @@ describe('spawn readiness (static world S4f)',()=>{
    enabled.controller.update(enabled.h.connection,0n,view,{...source});
    await new Promise(resolve=>setTimeout(resolve,20));
    expect(loads).toHaveLength(2);
+   expect(enabled.controller.status.atlasPacksPending).toBe(false);
   }finally{enabled.controller.dispose();}
+  // S6: pending while the pinned packs load (spawn readiness waits on it), cleared once they settle.
+  let release!:()=>void;
+  const slow=make(()=>new Promise<void>(done=>{release=done;}));
+  try{
+   slow.h.publish(1,rev1);slow.controller.update(slow.h.connection,0n,view,source);
+   await vi.waitFor(()=>expect(slow.controller.status.atlasPacksPending).toBe(true));
+   release();
+   await vi.waitFor(()=>expect(slow.controller.status.atlasPacksPending).toBe(false));
+  }finally{slow.controller.dispose();}
   // Disabled (no loader passed): nothing is loaded; the consolidated atlas draws.
   const disabled=make();
   try{

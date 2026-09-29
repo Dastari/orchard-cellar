@@ -121,6 +121,21 @@ export async function atlasPackIdsForAssets(names: readonly string[]): Promise<r
   }))].sort();
 }
 
+type AtlasPackListener = (packIds: readonly string[]) => void;
+const packListeners = new Set<AtlasPackListener>();
+/** Called with each pack id once `loadAtlasPacks` has its manifest and pages (static world S6:
+ * lazily loaded art warms the assets of packs the chunk runtime prefetched). */
+export function onAtlasPacksLoaded(listener: AtlasPackListener): () => void {
+  packListeners.add(listener);
+  return () => { packListeners.delete(listener); };
+}
+let resolvedPackIndex: BuiltAtlasManifest | undefined;
+/** The pack an asset belongs to, once the pack index has loaded (undefined before, or when the
+ * asset is not in the index). */
+export function atlasPackIdForAsset(name: string): string | undefined {
+  return resolvedPackIndex?.assetPacks?.[name];
+}
+
 /** Pin/ring chunk hook. Fetch only these packs and this season, with normal queue deduplication. */
 export async function loadAtlasPacks(ids: readonly string[], season = 'summer'): Promise<void> {
   const index = await loadPackIndex();
@@ -131,6 +146,9 @@ export async function loadAtlasPacks(ids: readonly string[], season = 'summer'):
       if (!file) throw new Error(`Atlas pack season unavailable: ${id}:${season}`);
       await loadAtlasPage(file, index.revision, page);
     }));
+    for (const listener of packListeners) {
+      try { listener([id]); } catch (error) { console.warn('Atlas pack listener failed', error); }
+    }
   }));
 }
 
@@ -170,10 +188,14 @@ export interface GeneratedAssetCatalog extends GeneratedAssetRegistry {
 let manifestPromise: Promise<BuiltAtlasManifest> | null = null;
 let packIndexPromise: Promise<BuiltAtlasManifest> | null = null;
 let manifestUsesPacks: boolean | undefined;
-/** Rollout remains opt-in until visible dependency ownership replaces the
- * eager gameplay art factory. Studio and existing game startup stay consolidated. */
+/** Static world S6: the game client build turns pack delivery on (`VITE_ATLAS_PACK_DELIVERY=1`, set
+ * by its Vite config), so it downloads the packs it uses instead of the consolidated atlas. Studio
+ * stays consolidated. `?atlasPacks=1` or `?atlasPacks=0` overrides either way (diagnosis). */
 function packDeliveryEnabled(): boolean {
-  return typeof location !== 'undefined' && new URLSearchParams(location.search).get('atlasPacks') === '1';
+  const query = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('atlasPacks');
+  if (query === '1') return true;
+  if (query === '0') return false;
+  return import.meta.env?.VITE_ATLAS_PACK_DELIVERY === '1';
 }
 /** Whether atlas pack delivery is enabled for this page (the opt-in rollout flag).
  * The chunk runtime loads the pinned chunks' packs only then (static world S4f). */
@@ -193,6 +215,7 @@ async function loadPackIndex(): Promise<BuiltAtlasManifest> {
     if (!response.ok) throw new Error(`Unable to load atlas pack index: ${response.status}`);
     const index = await response.json() as BuiltAtlasManifest;
     if (index.schemaVersion !== 5 || !index.assetPacks || !index.packs) throw new Error('Invalid atlas pack index');
+    resolvedPackIndex = index;
     return index;
   });
   try { return await packIndexPromise; }

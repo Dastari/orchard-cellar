@@ -68,6 +68,9 @@ export default defineConfig(({ command, mode }) => {
   define: {
     'import.meta.env.VITE_CLIENT_VERSION': JSON.stringify(clientPackage.version),
     'import.meta.env.VITE_PWA_BUILD_ID': JSON.stringify(pwaBuildId),
+    // Static world S6: the game downloads atlas packs by need, never the consolidated atlas
+    // (Studio's build does not set this). VITE_ATLAS_PACK_DELIVERY=0 builds the old delivery.
+    'import.meta.env.VITE_ATLAS_PACK_DELIVERY': JSON.stringify(process.env['VITE_ATLAS_PACK_DELIVERY'] === '0' ? '0' : '1'),
   },
   // The browser SDK is already distributed as ESM. Serving it directly also
   // avoids invalidating the running game when Vite rotates its optimized-dep

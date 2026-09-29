@@ -253,3 +253,39 @@ it('uses native corners and opaque fill for combined grass neighbors',async()=>{
   expect(authoredGrassFringeLayersAt(terrainArrayForMapDocument(document),2,2)).toEqual(frame===null?[]:[{assetId:frame===-1?'tile_cf_grass_2_middle':'tile_cf_grass_2_sheet',frame:frame===-1?0:frame}]);
  }
 });
+
+describe('ground chunks baked with lazy art (static world S6)', () => {
+  it('rebakes only the chunks that read a stand-in, once more art has loaded', async () => {
+    const { recordingArt, recordingCanvasFactory } = await import('./testing/draw-list-recorder.js');
+    const lazy = await import('./lazy-art.js');
+    let resolve!: () => void;
+    lazy.setLazyArtLoaderForTests(name => new Promise(done => { resolve = () => done({ ...(recordingArt() as unknown as Record<string, unknown>)[name] as object, name } as never); }));
+    try {
+      const slot = lazy.artSlot('tile_cf_lazy_ground_probe');
+      const factory = recordingCanvasFactory();
+      const cache = new GroundChunkCache(512, factory.create);
+      const base = recordingArt();
+      let loading = true;
+      // Reading the pending slot while baking marks the bake provisional.
+      const art = new Proxy({}, { get: (_target, key) => { if (loading) void slot.value; return (base as unknown as Record<string | symbol, unknown>)[key]; } }) as OverworldArt;
+      const render = vi.spyOn(cache as unknown as { renderChunk: (...args: unknown[]) => HTMLCanvasElement }, 'renderChunk');
+      const terrain = terrainForSpace(spaceDefinitionFor(30000, { spaceId: 60000, residenceSpaceId: 30000, residenceExpansionRank: 1,
+        residenceArchitectureJson: JSON.stringify({ recipeVersion: 1, revision: '0', cells: [] }) })!, 1, 1);
+      const context = { drawImage: vi.fn(), save: vi.fn(), restore: vi.fn(), fillRect: vi.fn(), getTransform: () => ({ a: 1, d: 1, e: 0, f: 0 }),
+        imageSmoothingEnabled: false } as unknown as CanvasRenderingContext2D;
+      const draw = () => cache.draw(context, art, terrain, 0, 0, 1, 256, 256);
+      draw();
+      const first = render.mock.calls.length;
+      expect(first).toBeGreaterThan(0);
+      draw();
+      expect(render.mock.calls.length).toBe(first); // cached, nothing new loaded
+      loading = false;
+      resolve();
+      await vi.waitFor(() => expect(slot.ready).toBe(true));
+      draw();
+      expect(render.mock.calls.length).toBe(2 * first); // every provisional chunk rebaked once
+      draw();
+      expect(render.mock.calls.length).toBe(2 * first);
+    } finally { lazy.setLazyArtLoaderForTests(null); }
+  });
+});

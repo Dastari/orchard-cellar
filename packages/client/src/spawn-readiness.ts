@@ -29,7 +29,10 @@ export type SpawnReadinessReason =
   | 'world_updating'
   /** Static world S6: another space whose terrain is still loading its source (a homestead's
    * exterior samples the topside chunks around its site). Never times out: there is no terrain. */
-  | 'awaiting_space_terrain';
+  | 'awaiting_space_terrain'
+  /** Static world S6: the spawn ring is resident but the pinned chunks' atlas packs (the world art)
+   * are still loading. Bounded by the timeout: late art draws as it arrives. */
+  | 'awaiting_art';
 
 export interface SpawnReadiness {
   readonly ready: boolean;
@@ -72,6 +75,8 @@ export interface SpawnReadinessInput {
    * a publication the server would not serve, a window or collision that failed to build, or
    * records that cannot be built. The player cannot move on nothing, so it is "world updating". */
   readonly collisionBlocked?: string | null;
+  /** The pinned chunks' atlas packs are still loading (ChunkRuntimeStatus.atlasPacksPending, S6). */
+  readonly atlasPacksPending?: boolean;
 }
 
 /** Runtime states in which a first serving store is still on its way. */
@@ -110,7 +115,8 @@ export function chunkSpawnReadiness(input: SpawnReadinessInput): SpawnReadiness 
   if (missingKeys.length > 0) return { ready: false, reason: 'awaiting_chunks', missing: missingKeys.length, missingKeys };
   if (unserved !== 0) return { ready: false, reason: 'awaiting_window', missing: unserved };
   const blocked = input.collisionBlocked ?? null;
-  return blocked === null ? ready('resident') : { ready: false, reason: 'world_updating', missing: 0, blockedBy: blocked };
+  if (blocked !== null) return { ready: false, reason: 'world_updating', missing: 0, blockedBy: blocked };
+  return input.atlasPacksPending === true ? { ready: false, reason: 'awaiting_art', missing: 0 } : ready('resident');
 }
 
 /** How long movement may wait for terrain before giving up (a chunk fetch times out at 15 s). */
