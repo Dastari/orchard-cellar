@@ -87,8 +87,9 @@ const SERVER_FUNCTIONS = [
 export const SERVER_MIRRORED_FRAGMENTS: Readonly<Record<string, string>> = Object.freeze({
   // Static composition inputs: the oracle passes no live rows, a null instance and no excavations;
   // composeWithLiveRows adds the live resource (runtime-suppression filtered), chest and placeable rows.
-  'collisionForSpace:ground-composition': '0292d6d9dcf859df5ccec1277f3b8399e24758708646d8f87dd8d9e2f88ff22f',
-  'waterCollisionForSpace:water-composition': 'f641cf8c6a9d2c3e212b78fdd2b58750b4dea0f12f0fd6570d750841a8183c48',
+  // S6 review: + homesteadIslandSource(ctx, spaceId), undefined for topside (the mirror is topside only).
+  'collisionForSpace:ground-composition': 'b0c00984c9fe5fd7fd7a68938c2413b6c5da8968117358ab8821cb53f2414181',
+  'waterCollisionForSpace:water-composition': '781e308990f94b34b0f5f0330c0ea5b4550736925696a965f7111c13240ba399',
   // Resource placement, desired set and the orphan-placement keep rule. S3c: re-pinned after review; the
   // oracle mirrors them over the compiled runtime (staticView placements, generatedResources()).
   'placedLiveIslandResources': 'ad7076e54ceeb6ef94a7a84052d711998c7eae7d7491e37dd186250db9e80574',

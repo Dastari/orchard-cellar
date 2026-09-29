@@ -210,6 +210,13 @@ export class WorldSource {
     return { failures: this.#failures, lastError: this.#lastError, fallback: this.#failed !== undefined };
   }
 
+  /** Static world S6: why topside collision cannot serve right now although a store does (anything but
+   * a not-yet-resident chunk), or null. Spawn readiness turns it into "world updating" and a retry. */
+  get collisionBlocked(): string | null {
+    const store = this.dependencies.store();
+    return store === undefined || store.manifest.spaceId !== TOPSIDE_SPACE_ID ? null : this.#collisionFallback;
+  }
+
   get collisionStatus(): WorldSourceCollisionStatus {
     return { failures: this.#collisionFailures, lastError: this.#lastCollisionError, fallbackReason: this.#collisionFallback,
       authorityIncomplete: this.#authorityIncomplete, missingChunks: this.#missingChunks };
@@ -235,7 +242,10 @@ export class WorldSource {
    */
   #authorityReason(store: BoundedChunkTerrainStore, registry: ContentRegistry): string | null {
     const gate = this.dependencies.authorityGate?.() ?? null;
-    if (gate !== null) return gate;
+    // Static world S6: `superseded` (a newer publication is still loading behind the serving one, as
+    // during every republish) keeps serving the resident revision. The client has no other map to
+    // collide with, and the controller swaps the new revision in as soon as it is complete.
+    if (gate !== null && gate !== 'superseded') return gate;
     const manifest = store.manifest;
     let byRegistry = this.#manifestReasons.get(manifest);
     if (byRegistry === undefined) { byRegistry = new WeakMap(); this.#manifestReasons.set(manifest, byRegistry); }

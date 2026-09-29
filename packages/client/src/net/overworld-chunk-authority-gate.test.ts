@@ -8,7 +8,7 @@ import { ChunkRuntimeController, type ChunkAuthorityGate, type ChunkRuntimeSourc
  * this was never covered). `not_on` only when there is no chunk runtime; otherwise exactly the
  * controller's answer, including `null`, which lets chunk collision and map records serve.
  */
-const SOURCE: ChunkRuntimeSource = { mapRevision: 3, mapHash: 'map-3', contentHash: 'content-1' };
+const SOURCE: ChunkRuntimeSource = { contentHash: 'content-1' };
 const gateOf = (self: { chunkRuntime: unknown }): ChunkAuthorityGate | null =>
   OverworldConnection.prototype.chunkAuthorityGate.call({ ...self, chunkRuntimeSource: () => SOURCE } as unknown as OverworldConnection);
 

@@ -1,10 +1,9 @@
-import { runtimeTraversalPolicy, mapDocumentTraversalChannels, createLiveIslandMapDocument, activeSurvivalLandmarks, staticTraversalChannels, terrainCellMedium, type MediumCollisionChannels } from '@orchard/sim';
+import { runtimeTraversalPolicy, staticTraversalChannels, terrainCellMedium, type MediumCollisionChannels } from '@orchard/sim';
 import { cellFlagsWhere } from '@orchard/sim/cell-flags';
 import {
   SURVIVAL_BIOMES,
   TILE_SIZE_FIXED,
   TOPSIDE_SPACE_ID,
-  generateSurvivalDecorations,
   survivalBiomeBlocksTraversal,
   survivalDecorationObstacle,
   survivalFishermanDockWalkableAt,
@@ -12,7 +11,6 @@ import {
   survivalResourceObstacle,
   runtimeResourceDefinition,
   runtimeResourceObstacle,
-  survivalTerrainPlaneCollisionBytes,
   runtimePlaceableBlocksMovement,
   runtimeObjectFootprintTiles,
   hearthFurnitureShapeForPlaceable,
@@ -24,6 +22,22 @@ import {
 } from '@orchard/sim';
 import { terrainFixedPlane, terrainMinimumElevation, type TerrainArray } from './terrain-sampling.js';
 import { terrainIsWindow } from './terrain-index.js';
+
+/**
+ * The island generator's whole-map collision inputs (static world S6). Only a whole-map
+ * topside terrain (the legacy generated island, never a chunk window) uses them, and the game
+ * client never builds one any more: it collides with chunk windows. Tests and tools that still
+ * build the generated island pass `islandCollisionGenerators` from `collision-island.ts`,
+ * which is the only module here that imports the generator.
+ */
+export interface IslandCollisionGenerators {
+  /** Generated decorations of the whole island (their collision footprints are obstacles). */
+  decorations(seed: number, registry: ContentRegistry | undefined): readonly { readonly id: number; readonly kind: string; readonly tileX: number; readonly tileY: number }[];
+  /** Traversal channels of the generated island document. */
+  traversalChannels(seed: number, registry: ContentRegistry): MediumCollisionChannels;
+  /** The generator's whole-map terrain-plane collision bytes. */
+  planeBlocked(seed: number): Uint8Array;
+}
 
 export interface CollisionWorldResource {
   readonly id: bigint;
@@ -152,6 +166,7 @@ export function createClientCollisionMap(
   authoredDockWalkableTiles?: readonly { readonly tileX: number; readonly tileY: number }[],
   contentRegistry?: ContentRegistry,
   preparedTerrain?: PreparedClientTerrainCollision,
+  island?: IslandCollisionGenerators,
 ): CollisionMap & { readonly resourceObstacles: ReadonlyMap<bigint, CollisionObstacle> } {
   const live = medium === 'ground'
     ? clientLiveRowObstacles(resources, chests, placeables, generatedSuppressions, contentRegistry)
@@ -159,13 +174,13 @@ export function createClientCollisionMap(
   const obstacles = live.entries.map(({ obstacle }) => obstacle);
   const resourceObstacles = live.resourceObstacles;
   const window = terrainIsWindow(terrain);
-  if (terrain.spaceId === TOPSIDE_SPACE_ID && !window) {
+  if (terrain.spaceId === TOPSIDE_SPACE_ID && !window && island !== undefined) {
     // Isolated engine fixtures may omit all authored spaces. Live snapshots
     // always carry the active registry and must fail neutral on a missing
     // island palette instead of silently restoring bootstrap content.
     const decorationRegistry = contentRegistry !== undefined && contentRegistry.spaces.size > 0
       ? contentRegistry : undefined;
-    for (const decoration of generateSurvivalDecorations(terrain.seed, decorationRegistry)) {
+    for (const decoration of island.decorations(terrain.seed, decorationRegistry)) {
       if (generatedSuppressions.has(String(decoration.id))
         || generatedSuppressions.has(`decoration-${decoration.id}`)
         || generatedSuppressions.has(`decoration:${decoration.id}`)) continue;
@@ -180,19 +195,18 @@ export function createClientCollisionMap(
     traversalChannels = cache.get(contentRegistry);
     if (traversalChannels === undefined) {
       if (terrain.spaceId === TOPSIDE_SPACE_ID) {
-        const document = createLiveIslandMapDocument({ seed: terrain.seed, landmarks: activeSurvivalLandmarks(contentRegistry, TOPSIDE_SPACE_ID) });
-        traversalChannels = mapDocumentTraversalChannels(document);
+        traversalChannels = island?.traversalChannels(terrain.seed, contentRegistry);
       } else {
         const ground = prepareClientTerrainCollision(terrain, 'ground', authoredDockWalkableTiles);
         const hazards = new Set(Array.from(terrain.rogueHazards ?? [], (value, index) => value ? index : -1).filter(index => index >= 0));
         traversalChannels = staticTraversalChannels(ground, index => hazards.has(index) ? 'lava'
           : terrainCellMedium({ biome: SURVIVAL_BIOMES[terrain.biomes[index]!] ?? 'water' }), hazards);
       }
-      cache.set(contentRegistry, traversalChannels);
+      if (traversalChannels !== undefined) cache.set(contentRegistry, traversalChannels);
     }
   }
   return {
-    ...(preparedTerrain ?? prepareClientTerrainCollision(terrain, medium, authoredDockWalkableTiles)),
+    ...(preparedTerrain ?? prepareClientTerrainCollision(terrain, medium, authoredDockWalkableTiles, island)),
     ...(traversalChannels === undefined ? {} : { traversalChannels }),
     obstacles,
     resourceObstacles,
@@ -205,6 +219,7 @@ export function prepareClientTerrainCollision(
   terrain: TerrainArray,
   medium: MovementMedium = 'ground',
   authoredDockWalkableTiles?: readonly { readonly tileX: number; readonly tileY: number }[],
+  island?: IslandCollisionGenerators,
 ): PreparedClientTerrainCollision {
   const fixedTerrainPlane = terrainFixedPlane(terrain);
   const terrainBlocked = medium === 'ground'
@@ -233,7 +248,7 @@ export function prepareClientTerrainCollision(
   }
   // The generator's whole-map plane bytes never describe a window.
   const topsidePlaneBlocked = medium !== 'ground' || terrain.spaceId !== TOPSIDE_SPACE_ID ? undefined
-    : terrain.terrainPlaneBlocked ?? (window ? undefined : survivalTerrainPlaneCollisionBytes(terrain.seed));
+    : terrain.terrainPlaneBlocked ?? (window ? undefined : island?.planeBlocked(terrain.seed));
   return {
     width: terrain.width,
     height: terrain.height,

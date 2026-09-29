@@ -28,8 +28,7 @@ import { runtimeWorldPolicyBalance } from '@orchard/sim';
 import {
   activeSpaceGroundWalkableTiles,
   activeSurvivalLandmarks,
-  generateSurvivalLandmarkDecorations,
-  generateSurvivalLandmarkPathTiles,
+  survivalLandmarkPathTiles,
   runtimeDurabilityDefinition,
   runtimeItemAvatarAction,
   survivalLandmarkRoleReservedAt,
@@ -102,7 +101,7 @@ import { resetSpriteLightMasks } from '@orchard/engine/light-occlusion';
 import { ClosingEntityWindows, entityWindowKey, escapeClosesSurface } from './escape-precedence.js';
 import { GamepadPaging } from './gamepad-paging.js';
 import { clientBackpackSlotCapacity, equippedBackpackCapacity, reachableCarriedRows } from './backpack-capacity.js';
-import { AUTHORITY_TICK_MS, AUTHORITY_HZ, MAIN_HAND_SELECTED_SLOT, selectedSlotCell, compileEquipmentLoadout, itemContainerContentResolver, ACTIVE_EQUIPMENT_SLOT_INDEXES, activeEquipmentSlotAccepts, HUNGER_MAX_CENTI, BASE_BACKPACK_CAPACITY, CHEST_STORAGE_CAPACITY, CROP_WATERING_TICKS, BOW_MAX_CHARGE_MS, BOW_MAX_PROJECTILE_FLIGHT_TICKS, BOW_MAX_TARGET_RANGE_PIXELS, BOW_MIN_TARGET_RANGE_PIXELS, CHEST_INTERACTION_REACH_FIXED, CAMPFIRE_INTERACTION_REACH_FIXED, FIXED_UNITS_PER_PIXEL, INPUT_REFRESH_STEPS, SIM_STEPS_PER_AUTHORITY_TICK, SIM_TICKS_PER_SECOND, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION, TILE_SIZE_FIXED, TICKS_PER_DAY, SKILL_TRACKS, TOPSIDE_SPACE_ID, authorityDayProgress, authorityTickAtDayProgress, calendarAtTick, canAdministerWorld, craftingStationWithinReach, runtimeCropDefinition, runtimeResourcePerception, runtimeNpcMount, runtimeNpcDefinition, runtimeObjectIrrigatesTile, runtimeObjectProtectsCropSeasons, cropGrowthAt, bowChargedRangePixels, bowChargeTracerFraction, bowChargeVigourCostCenti, bowProjectileArcPresentation, bowProjectileOrigin, bowProjectileRangePixels, bowProjectileTargetOrigin, bowShotForTarget, directionFromAim, directionUnitVector, encodedBowTargetAim, isWindDirectionMode, isWeatherMode, lunarIlluminationAtAuthorityTick, lunarPhaseAtAuthorityTick, generateSurvivalDecorations, generateSurvivalProceduralDecorations, survivalTreeKindAt, homesteadBiomeAt, homesteadPathTiles, homesteadPortalName, HOMESTEAD_GATE_TILE, HOMESTEAD_TENT_TILE, cellarOreKindAt, runtimeLandmarkCampfirePlans, ROGUE_RUN_ROOM_COUNT, hearthLobbyFurnitureObstacles, interiorFurnitureBlockingTiles, homesteadTentFootprint, homesteadMarkerPlacementTiles, homesteadBoundaryTiles, homesteadPlotBounds, homesteadPlayableTile, runtimeHomesteadBuildDefinition, homesteadBuildDefinitions, homesteadBuildFootprintTiles, instanceSpaceRowFor, isBreakableRockKind, isChoppableTreeKind, isMineableOreKind, miningHitsUntilYield, miningNodeRichnessLabel, mixedNodeStoneChancePercent, miningWorkPerHit, MINING_YIELD_WORK, FISHING_CAST_TICKS, projectileTraversalCollision, forwardSwingTargetInReach, survivalResourceInitialHealth, survivalResourceObstacle, survivalDecorationObstacle, treeGrowthStageName, isMountWithinReach, runtimeEffectDefinition, runtimeItemDefinition, runtimeItemSalePremium, runtimeRangedWeaponDefinition, runtimeToolDefinition, runtimeVigourDefinition, runtimeHomesteadUpgradeRank, coinPurseFromBronze, itemActionRejection, isPlayerAppearanceSelection, runtimePlayerAppearanceCatalog, isSkillTrack, runtimePlaceableDefinition, placeableObjectDefinition, questDefinitionFromContent, questObjectiveProgress, richSoilGrowthTicks, homesteadRoleAtLeast, isHomesteadMemberRole, estateVintageTier, runtimeCreatureDefinition, runtimeCreatureIsHuntable, runtimeResolveCreatureStats, nextWeatherMode, nextWindDirectionMode, weatherVisualState, collisionTileIsBlockedAtPlane, shiftAuthorityDay, simTickOfDayAtAuthorityTick, movePlayer, movePlayerAtSpeed, movePlayerAtSpeedPermille, modifiersForEffects, nearestTileTarget, normalizedBowAim, playerHitboxBounds, positionCollides, tileTargetIsBlocked, tileTargetWithinFixedReach, tileToolInteractionOrigin, playerInteractionOrigin, resourceToolReachFixed, resourceToolForwardOffsetFixed, toolUsesForwardSwing, resolveStatsWithProfile, runtimeCharacterCombatBalance, resolveSprintAbility, runtimeSprintAbilityDefinition, resolveModifierTarget, sprintVigourCostForSteps, type CollisionMap, type CollisionObstacle, type CraftingStation, type Direction, type MerchantCartLine, type PlayerState, type PlayerAppearanceSelection, type SpaceDefinition, type WeatherMode, type WindDirectionMode, type HomesteadUpgradeMechanic, type MiningNodeClass, type ProcessAdapter, type Modifier, type MapDocumentV3, rogueUpgradeDefinition, resolvedMapBiomeAt, survivalBiomeAt } from '@orchard/sim';
+import { AUTHORITY_TICK_MS, AUTHORITY_HZ, MAIN_HAND_SELECTED_SLOT, selectedSlotCell, compileEquipmentLoadout, itemContainerContentResolver, ACTIVE_EQUIPMENT_SLOT_INDEXES, activeEquipmentSlotAccepts, HUNGER_MAX_CENTI, BASE_BACKPACK_CAPACITY, CHEST_STORAGE_CAPACITY, CROP_WATERING_TICKS, BOW_MAX_CHARGE_MS, BOW_MAX_PROJECTILE_FLIGHT_TICKS, BOW_MAX_TARGET_RANGE_PIXELS, BOW_MIN_TARGET_RANGE_PIXELS, CHEST_INTERACTION_REACH_FIXED, CAMPFIRE_INTERACTION_REACH_FIXED, FIXED_UNITS_PER_PIXEL, INPUT_REFRESH_STEPS, SIM_STEPS_PER_AUTHORITY_TICK, SIM_TICKS_PER_SECOND, SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION, TILE_SIZE_FIXED, TICKS_PER_DAY, SKILL_TRACKS, TOPSIDE_SPACE_ID, authorityDayProgress, authorityTickAtDayProgress, calendarAtTick, canAdministerWorld, craftingStationWithinReach, runtimeCropDefinition, runtimeResourcePerception, runtimeNpcMount, runtimeNpcDefinition, runtimeObjectIrrigatesTile, runtimeObjectProtectsCropSeasons, cropGrowthAt, bowChargedRangePixels, bowChargeTracerFraction, bowChargeVigourCostCenti, bowProjectileArcPresentation, bowProjectileOrigin, bowProjectileRangePixels, bowProjectileTargetOrigin, bowShotForTarget, directionFromAim, directionUnitVector, encodedBowTargetAim, isWindDirectionMode, isWeatherMode, lunarIlluminationAtAuthorityTick, lunarPhaseAtAuthorityTick, homesteadPathTiles, homesteadPortalName, HOMESTEAD_GATE_TILE, HOMESTEAD_TENT_TILE, cellarOreKindAt, runtimeLandmarkCampfirePlans, ROGUE_RUN_ROOM_COUNT, hearthLobbyFurnitureObstacles, interiorFurnitureBlockingTiles, homesteadTentFootprint, homesteadMarkerPlacementTiles, homesteadBoundaryTiles, homesteadPlotBounds, homesteadPlayableTile, runtimeHomesteadBuildDefinition, homesteadBuildDefinitions, homesteadBuildFootprintTiles, instanceSpaceRowFor, isBreakableRockKind, isChoppableTreeKind, isMineableOreKind, miningHitsUntilYield, miningNodeRichnessLabel, mixedNodeStoneChancePercent, miningWorkPerHit, MINING_YIELD_WORK, FISHING_CAST_TICKS, projectileTraversalCollision, forwardSwingTargetInReach, survivalResourceInitialHealth, survivalResourceObstacle, treeGrowthStageName, isMountWithinReach, runtimeEffectDefinition, runtimeItemDefinition, runtimeItemSalePremium, runtimeRangedWeaponDefinition, runtimeToolDefinition, runtimeVigourDefinition, runtimeHomesteadUpgradeRank, coinPurseFromBronze, itemActionRejection, isPlayerAppearanceSelection, runtimePlayerAppearanceCatalog, isSkillTrack, runtimePlaceableDefinition, placeableObjectDefinition, questDefinitionFromContent, questObjectiveProgress, richSoilGrowthTicks, homesteadRoleAtLeast, isHomesteadMemberRole, estateVintageTier, runtimeCreatureDefinition, runtimeCreatureIsHuntable, runtimeResolveCreatureStats, nextWeatherMode, nextWindDirectionMode, weatherVisualState, collisionTileIsBlockedAtPlane, shiftAuthorityDay, simTickOfDayAtAuthorityTick, movePlayer, movePlayerAtSpeed, movePlayerAtSpeedPermille, modifiersForEffects, nearestTileTarget, normalizedBowAim, playerHitboxBounds, positionCollides, tileTargetIsBlocked, tileTargetWithinFixedReach, tileToolInteractionOrigin, playerInteractionOrigin, resourceToolReachFixed, resourceToolForwardOffsetFixed, toolUsesForwardSwing, resolveStatsWithProfile, runtimeCharacterCombatBalance, resolveSprintAbility, runtimeSprintAbilityDefinition, resolveModifierTarget, sprintVigourCostForSteps, type CollisionMap, type CollisionObstacle, type CraftingStation, type Direction, type MerchantCartLine, type PlayerState, type PlayerAppearanceSelection, type SpaceDefinition, type WeatherMode, type WindDirectionMode, type HomesteadUpgradeMechanic, type MiningNodeClass, type ProcessAdapter, type Modifier, rogueUpgradeDefinition, SURVIVAL_BIOMES, SURVIVAL_WORLD_SIZE, type GeneratedSurvivalDecoration } from '@orchard/sim';
 import {
   clientSpaceDefinition,
   spacePresentationKey,
@@ -177,7 +176,10 @@ import { isLightEmitterKind } from '@orchard/engine/light-sources';
 import { renderMetrics, renderDiagnostics, renderMetricsSnapshot } from './gameplay-render-diagnostics.js';
 import { RainWeather } from '@orchard/engine/particles';
 
-import { liveIslandDocument, liveIslandTerrain, liveMapObjectCollisionObstacles, clearLiveMapShadowCaches, TERRAIN_ARRAY_MAP_OBJECT_SAMPLER } from '@orchard/engine/live-map-runtime';
+import { TERRAIN_ARRAY_MAP_OBJECT_SAMPLER } from '@orchard/engine/terrain-array-map-object-sampler';
+import { clearMapObjectShadowCaches as clearLiveMapShadowCaches } from '@orchard/engine/map-object-presentation';
+import { spaceTerrain, terrainWithCellarExcavations } from '@orchard/engine/space-terrain';
+import { homesteadExteriorBiomeAt, homesteadTerrainGenerators, homesteadTreeKindAt } from './homestead-terrain-source.js';
 import { mapObjectLightFrameKey, mapObjectLightOccluders } from '@orchard/engine/map-object-presentation';
 import type { RenderBenchmarkScenarioId } from '@orchard/engine/render-benchmark-scenarios';
 import { WeatherEffects, windDirectionLabel } from '@orchard/engine/weather-effects';
@@ -187,7 +189,7 @@ import {
   drawSortedWorldDepthQueue,
   worldPassLayout,
 } from '@orchard/engine/renderer';
-import { cellarExposedWallAt, cellarWallSourceAtProjectedTile, terrainContactWorldYForPlayer, terrainElevationAtWorldFoot, terrainForSpace, terrainForWorld, terrainColorAt, terrainWithCellarExcavations, terrainBaseDatum, terrainPlaneCollisionCellAt, terrainProjectionStyle, terrainProjectedDepthAtFoot, terrainProjectedWorldYAtFoot, terrainVisualProjectionRowsPerLevel, type TerrainArray } from '@orchard/engine/terrain';
+import { cellarExposedWallAt, terrainBiomeAt, cellarWallSourceAtProjectedTile, terrainContactWorldYForPlayer, terrainElevationAtWorldFoot, terrainColorAt, terrainBaseDatum, terrainPlaneCollisionCellAt, terrainProjectionStyle, terrainProjectedDepthAtFoot, terrainProjectedWorldYAtFoot, terrainVisualProjectionRowsPerLevel, type TerrainArray } from '@orchard/engine/terrain-sampling';
 import { interpolateFixedPosition, rebaseInterpolationPosition, sampleLocalProjectilePrediction } from './overworld-prediction.js';
 import {
   type InteractionCandidate,
@@ -522,14 +524,15 @@ const worldStaticProjection = new WorldStaticProjectionCache();
 let cellarTerrainCacheKey = '';
 let cellarTerrainCache: TerrainArray | null = null;
 let observedResourceRevision = -1;
-const initialTerrain = terrainForWorld(SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_VERSION);
-let worldCollision: CollisionMap = createClientCollisionMap(initialTerrain, []);
+/** Before the first collision refresh nothing is walkable (static world S6: no whole-island terrain). */
+const INITIAL_COLLISION: CollisionMap = { width: 1, height: 1, blocked: new Uint8Array([1]) };
+let worldCollision: CollisionMap = INITIAL_COLLISION;
 let furnitureCollision: CollisionMap = worldCollision;
 let furniturePreviewCache: { collision: CollisionMap; key: string; value: ReturnType<typeof furnishingPreview> } | null = null;
 let furnishingStatus: string | undefined;
 let constructionStatus: HomesteadBuildPaletteModel['constructionStatus'];
 const constructionRequests=new HearthConstructionRequest();
-let boatCollision: CollisionMap = createClientCollisionMap(initialTerrain, [], [], 'water');
+let boatCollision: CollisionMap = INITIAL_COLLISION;
 let projectileCollision: CollisionMap = projectileTraversalCollision(worldCollision, boatCollision);
 let lightOcclusion: LightOcclusionMap | undefined;
 let baseLightOcclusion: LightOcclusionMap | undefined;
@@ -919,16 +922,11 @@ const overworldUi = new OverworldUi(art.uiSkin, art.ui, itemArt, {
   const centerTileY = Math.floor(centerWorldY / 16);
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
   const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
-  const legacyMinimap = (): TerrainArray => terrainForSpace(
-    activeSpaceDefinition,
-    seed,
-    version,
-    snapshot.content.registry,
-  );
-  // Off/shadow: the raw generator as before; chunk mode `on`: the authored window (S4c).
+  // Topside: the chunk window (the authored map, S4c; nothing while none serves, S6). Other spaces
+  // draw their own terrain.
   const minimap = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
-    ? worldSource.minimapTerrain(legacyMinimap, snapshot.content.registry)
-    : { terrain: legacyMinimap(), key: '' };
+    ? worldSource.minimapTerrain(emptyTopsideWindow, snapshot.content.registry)
+    : { terrain: spaceTerrainForSnapshot(snapshot), key: homesteadIslandKey() };
   const terrain = minimap.terrain;
   const columns = Math.ceil(rect.width / pixelsPerTile) + 2;
   const rows = Math.ceil(rect.height / pixelsPerTile) + 2;
@@ -1601,10 +1599,9 @@ function updateMusicContext(snapshot: OverworldView, raining: boolean): void {
     const key = `${tileX}:${tileY}`;
     if (key !== musicBiomeTile) {
       musicBiomeTile = key;
-      const document = liveIslandDocumentFor(snapshot);
-      musicBiome = document === null
-        ? survivalBiomeAt(snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED, tileX, tileY)
-        : resolvedMapBiomeAt(document, tileX, tileY);
+      // Static world S6: the chunk window's biome underfoot (null while no window serves).
+      const window = worldSource.window(snapshot.content.registry);
+      musicBiome = window === undefined ? null : terrainBiomeAt(window.terrain, tileX, tileY);
     }
     biome = musicBiome;
   }
@@ -1622,33 +1619,25 @@ function updateMusicContext(snapshot: OverworldView, raining: boolean): void {
   audio.setMusicContext(worldMusicContext({ space: activeSpaceDefinition, biome, raining, combat }));
 }
 
-function liveIslandDocumentFor(snapshot: OverworldView): MapDocumentV3 | null {
-  return liveIslandDocument(snapshot.liveMapDocument, snapshot.content.registry);
-}
-
 /** Topside's map source, resolved once per frame section (static world S4e). Reset
  * at the start of update and render and after the chunk window may move. */
 let topsideMapResolution: { readonly snapshot: OverworldView; readonly spaceId: number; readonly records: TopsideMapRecords | null } | null = null;
 function resetTopsideMapResolution(): void { topsideMapResolution = null; }
 
-/** Topside's authored map content (static world S4e): the chunk window's records in
- * chunk mode `on` while its collision serves, else the live map document; null off topside. */
+/** Topside's authored map content: the chunk window's records while its collision serves
+ * (static world S4e, S6); null off topside or while no window serves (the world is updating). */
 function topsideMapRecords(snapshot: OverworldView): TopsideMapRecords | null {
   const resolved = topsideMapResolution;
   if (resolved !== null && resolved.snapshot === snapshot && resolved.spaceId === activeSpaceDefinition.spaceId) return resolved.records;
   const records = activeSpaceDefinition.spaceId !== TOPSIDE_SPACE_ID ? null
-    : topsideMapRecordsFrom(worldSource, snapshot.content.registry, () => liveIslandDocumentFor(snapshot));
+    : topsideMapRecordsFrom(worldSource, snapshot.content.registry);
   topsideMapResolution = { snapshot, spaceId: activeSpaceDefinition.spaceId, records };
   return records;
 }
 
-/** Topside decorations, unsuppressed: the chunk window's records in chunk mode `on`
- * (static world S4e), else the procedural decorations plus the document's landmarks. */
-function topsideDecorations(
-  snapshot: OverworldView,
-  seed: number,
-): readonly RuntimeSurvivalDecoration[] {
-  return topsideDecorationsFor(topsideMapRecords(snapshot), seed, snapshot.content.registry, () => liveIslandDocumentFor(snapshot));
+/** Topside decorations, unsuppressed: the chunk window's records (static world S4e, S6). */
+function topsideDecorations(snapshot: OverworldView): readonly RuntimeSurvivalDecoration[] {
+  return topsideDecorationsFor(topsideMapRecords(snapshot));
 }
 
 function elevatedLightOccluders(
@@ -1687,7 +1676,7 @@ function elevatedLightOccluders(
     });
   };
   if (activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID) {
-    for (const caster of topsideDecorationLightCasters(topsideDecorations(snapshot, seed), topsideMapRecords(snapshot),
+    for (const caster of topsideDecorationLightCasters(topsideDecorations(snapshot), topsideMapRecords(snapshot),
       snapshot.content.registry, activeSpaceDefinition.spaceId)) {
       add(art.poiDecorations[caster.decoration.kind], 'base', caster.worldX, caster.worldY, caster.obstacle, caster.tie, caster.painterFootY);
     }
@@ -1766,15 +1755,25 @@ function miningClassFromWire(value: string, spaceId: number): MiningNodeClass {
 }
 let homesteadSurroundingsKey = '';
 let cachedHomesteadResources: readonly RenderWorldResource[] = [];
-let cachedHomesteadDecorations: ReturnType<typeof generateSurvivalDecorations> = [];
+let cachedHomesteadDecorations: readonly GeneratedSurvivalDecoration[] = [];
+
+/** Static world S6: a homestead exterior samples the topside chunks around its site. The key of
+ * the loaded patch: '' outside homesteads, 'awaiting' while it loads (see `terrainReadiness`). */
+function homesteadIslandKey(): string {
+  const site = activeSpaceDefinition.homesteadSite;
+  if (activeSpaceDefinition.generator !== 'homestead' || site === undefined) return '';
+  return network.homesteadIslandPatch(site, activeSpaceDefinition.sizeTiles)?.key ?? 'awaiting';
+}
 
 function ensureHomesteadSurroundings(seed: number): void {
   const site = activeSpaceDefinition.homesteadSite;
   const registry = latestSnapshot.content.registry;
+  const island = homesteadIslandKey();
   const key = site === undefined ? ''
-    : `${activeSpaceDefinition.spaceId}:${activeSpaceDefinition.sizeTiles}:${site.worldTileX}:${site.worldTileY}:${seed}:${registry.contentHash}`;
+    : `${activeSpaceDefinition.spaceId}:${activeSpaceDefinition.sizeTiles}:${site.worldTileX}:${site.worldTileY}:${seed}:${registry.contentHash}:${island}`;
   if (key === homesteadSurroundingsKey) return;
   homesteadSurroundingsKey = key;
+  if (island === 'awaiting') { cachedHomesteadResources = []; cachedHomesteadDecorations = []; return; }
   cachedHomesteadResources = buildHomesteadSurroundingResources(seed, registry);
   cachedHomesteadDecorations = buildHomesteadSurroundingDecorations(seed, registry);
 }
@@ -1793,7 +1792,7 @@ function buildHomesteadSurroundingResources(
     for (let tileX = 1; tileX < activeSpaceDefinition.sizeTiles - 1; tileX += 1) {
       if (tileX >= plotBounds.minimumX - 2 && tileX <= plotBounds.maximumX + 2
         && tileY >= plotBounds.minimumY - 2 && tileY <= plotBounds.maximumY + 2) continue;
-      const biome = homesteadBiomeAt(seed, site, tileX, tileY, activeSpaceDefinition.sizeTiles);
+      const biome = homesteadExteriorBiomeAt(site, tileX, tileY, activeSpaceDefinition.sizeTiles);
       const distanceWest = plotBounds.minimumX - tileX;
       const distanceEast = tileX - plotBounds.maximumX;
       const distanceNorth = plotBounds.minimumY - tileY;
@@ -1814,7 +1813,8 @@ function buildHomesteadSurroundingResources(
       if (score % 100 >= density) continue;
       const sourceX = site.worldTileX + Math.floor((tileX - terrainCenter) / 4);
       const sourceY = site.worldTileY + Math.floor((tileY - terrainCenter) / 4);
-      const kind = survivalTreeKindAt(seed, sourceX, sourceY, registry);
+      const kind = homesteadTreeKindAt(site, seed, sourceX, sourceY, registry);
+      if (kind === null) continue;
       const definition = runtimeResourceDefinition(registry, kind);
       if (definition === null) continue;
       const key = `${tileX}:${tileY}`;
@@ -1853,10 +1853,10 @@ function buildHomesteadSurroundingResources(
 function buildHomesteadSurroundingDecorations(
   seed: number,
   registry: OverworldView['content']['registry'],
-): ReturnType<typeof generateSurvivalDecorations> {
+): readonly GeneratedSurvivalDecoration[] {
   const site = activeSpaceDefinition.homesteadSite;
   if (activeSpaceDefinition.generator !== 'homestead' || site === undefined) return [];
-  const result: Array<ReturnType<typeof generateSurvivalDecorations>[number]> = [];
+  const result: GeneratedSurvivalDecoration[] = [];
   const plotBounds = homesteadPlotBounds(activeSpaceDefinition.sizeTiles);
   let id = 6_000_000_000;
   const add = (kind: typeof result[number]['kind'], tileX: number, tileY: number, variant: number): void => {
@@ -1900,7 +1900,7 @@ function homesteadSurroundingResources(seed: number): readonly RenderWorldResour
   return cachedHomesteadResources;
 }
 
-function homesteadSurroundingDecorations(seed: number): ReturnType<typeof generateSurvivalDecorations> {
+function homesteadSurroundingDecorations(seed: number): readonly GeneratedSurvivalDecoration[] {
   ensureHomesteadSurroundings(seed);
   return cachedHomesteadDecorations;
 }
@@ -1959,23 +1959,48 @@ function estimatedCameraTiles(localX: number, localY: number): TileBounds {
     maxX: Math.ceil((cameraX + viewportWidth) / 16), maxY: Math.ceil((cameraY + viewportHeight) / 16) };
 }
 
-/** Render terrain: through the world source on topside (chunk window in chunk mode `on`). */
-function terrainForSnapshot(snapshot: OverworldView): TerrainArray {
-  const legacy = (): TerrainArray => legacyTerrainForSnapshot(snapshot);
-  return activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
-    ? worldSource.topsideTerrain(legacy, snapshot.content.registry)
-    : legacy();
+/** Render terrain: topside is the chunk window (static world S6: no whole-island terrain; an
+ * empty water window stands in while none serves, behind the "world updating" overlay). Every
+ * other space builds its own bounded terrain. */
+function renderTerrainFor(snapshot: OverworldView): TerrainArray {
+  if (activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID) {
+    return worldSource.window(snapshot.content.registry)?.terrain ?? emptyTopsideWindow();
+  }
+  return spaceTerrainForSnapshot(snapshot);
 }
 
-/** The whole-map terrain: every space but topside in chunk mode `on`, and topside collision whenever
- * the chunk collision is not serving (modes off and shadow, a revision the server would not serve, or a failed window). */
-function legacyTerrainForSnapshot(snapshot: OverworldView): TerrainArray {
+let emptyTopsideTerrain: TerrainArray | null = null;
+/** A one-cell water window (nothing walkable, nothing drawn): topside with no chunk window. */
+function emptyTopsideWindow(): TerrainArray {
+  emptyTopsideTerrain ??= Object.freeze({
+    spaceId: TOPSIDE_SPACE_ID, seed: 0, version: 0, width: 1, height: 1, originX: 0, originY: 0,
+    worldWidth: SURVIVAL_WORLD_SIZE, worldHeight: SURVIVAL_WORLD_SIZE,
+    biomes: new Uint8Array([SURVIVAL_BIOMES.indexOf('water')]), blocked: new Uint8Array([1]),
+    horseJumpableTerrain: new Uint8Array(1), elevations: new Int16Array(1), dirtCliffRoles: new Uint8Array(1), dirtTerraces: new Uint8Array(1),
+  });
+  return emptyTopsideTerrain;
+}
+
+let awaitingHomesteadTerrain: TerrainArray | null = null;
+/** A homestead exterior whose topside patch is still loading: all blocked, behind the terrain wait. */
+function awaitingHomesteadWindow(seed: number, version: number): TerrainArray {
+  const size = activeSpaceDefinition.sizeTiles, length = size * size;
+  if (awaitingHomesteadTerrain?.spaceId !== activeSpaceDefinition.spaceId || awaitingHomesteadTerrain.width !== size) {
+    awaitingHomesteadTerrain = Object.freeze({
+      spaceId: activeSpaceDefinition.spaceId, seed, version, width: size, height: size, generator: 'homestead' as const,
+      biomes: new Uint8Array(length).fill(Math.max(0, SURVIVAL_BIOMES.indexOf('plains'))), blocked: new Uint8Array(length).fill(1),
+      horseJumpableTerrain: new Uint8Array(length), elevations: new Int16Array(length), dirtCliffRoles: new Uint8Array(length), dirtTerraces: new Uint8Array(length),
+    });
+  }
+  return awaitingHomesteadTerrain;
+}
+
+/** A non-topside space's terrain (homestead, residence, cellar, delve, interiors, rogue rooms). */
+function spaceTerrainForSnapshot(snapshot: OverworldView): TerrainArray {
   const seed = snapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED;
   const version = snapshot.worldSeed?.version ?? SURVIVAL_WORLD_VERSION;
-  const base = terrainForSpace(activeSpaceDefinition, seed, version, snapshot.content.registry);
-  if (activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID) {
-    return liveIslandTerrain(snapshot.liveMapDocument, snapshot.content.registry) ?? base;
-  }
+  if (homesteadIslandKey() === 'awaiting') return awaitingHomesteadWindow(seed, version);
+  const base = spaceTerrain(activeSpaceDefinition, seed, version, snapshot.content.registry, homesteadTerrainGenerators);
   if (activeSpaceDefinition.generator !== 'cellar') return base;
   const key = `${activeSpaceDefinition.spaceId}:${seed}:${version}:${network.cellarExcavationRevision}`;
   if (cellarTerrainCache !== null && cellarTerrainCacheKey === key) return cellarTerrainCache;
@@ -1997,9 +2022,9 @@ function resourcePerceptionForSnapshot(snapshot: OverworldView) {
     underground: activeSpaceDefinition.generator === 'cellar',
     centerTileX: Math.floor((player?.x ?? 0) / TILE_SIZE_FIXED),
     centerTileY: Math.floor((player?.y ?? 0) / TILE_SIZE_FIXED),
-    terrain: terrainForSnapshot(snapshot),
+    terrain: renderTerrainFor(snapshot),
     revision: [snapshot.content.registry.contentHash, network.resourceRevision,
-      network.cellarExcavationRevision, snapshot.liveMapDocument?.contentHash ?? '',
+      network.cellarExcavationRevision, network.chunkRuntimeStatus?.servingRevision ?? '',
       ...Object.entries(ranks).sort(([a], [b]) => a.localeCompare(b)).map(([id, rank]) => `${id}=${rank}`),
     ].join(':'),
     capabilities: runtimeResourcePerception(snapshot.content.registry, player === undefined ? {} : ranks),
@@ -2011,9 +2036,8 @@ function resourcePerceptionForSnapshot(snapshot: OverworldView) {
 
 function liveMapSuppressesGeneratedResource(snapshot: OverworldView, id: bigint): boolean {
   if (activeSpaceDefinition.spaceId !== TOPSIDE_SPACE_ID) return false;
-  // Chunk mode `on`: the serving manifest's suppressions (the server's source, S4d).
-  return worldSource.suppressesGeneratedResource(id, snapshot.content.registry)
-    ?? (liveIslandDocumentFor(snapshot)?.generatedSuppressions.includes(`resource-${id}`) ?? false);
+  // The serving manifest's suppressions (the server's source, S4d). Hidden while no window serves.
+  return worldSource.suppressesGeneratedResource(id, snapshot.content.registry) ?? true;
 }
 
 /** The chunk collision serving topside this tick (chunk mode `on`), else undefined. */
@@ -2027,11 +2051,8 @@ function refreshCollision(snapshot: OverworldView): void {
   const rogueRoom = activeSpaceDefinition.rogueRoom;
   const rogueKey = rogueRoom === undefined ? ''
     : `${rogueRoom.seed}:${rogueRoom.roomNumber}:${rogueRoom.roomKind}:${rogueRoom.theme}`;
-  const liveRevision = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
-    ? snapshot.liveMapDocument?.revision ?? 0
-    : 0;
   const chunkCollision = topsideChunkCollision(snapshot);
-  const nextKey = `${activeSpaceDefinition.spaceId}:${activeSpaceDefinition.sizeTiles}:${seed}:${version}:${rogueKey}:${liveRevision}:${network.resourceRevision}:${network.cellarExcavationRevision}:${snapshot.content.registry.contentHash}:${lightingQuality.effective}:${chunkCollision === undefined ? 'legacy' : `chunks:${chunkCollision.serial}`}`;
+  const nextKey = `${activeSpaceDefinition.spaceId}:${activeSpaceDefinition.sizeTiles}:${seed}:${version}:${rogueKey}:${network.resourceRevision}:${network.cellarExcavationRevision}:${snapshot.content.registry.contentHash}:${lightingQuality.effective}:${chunkCollision === undefined ? 'none' : `chunks:${chunkCollision.serial}`}:${homesteadIslandKey()}`;
   if (collisionKey === nextKey) return;
   collisionKey = nextKey;
   appliedChunkCollisionSerial = chunkCollision?.serial ?? 0;
@@ -2039,32 +2060,22 @@ function refreshCollision(snapshot: OverworldView): void {
     refreshChunkCollision(snapshot, chunkCollision);
     return;
   }
-  const terrain = legacyTerrainForSnapshot(snapshot);
-  const liveDocument = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
-    ? liveIslandDocumentFor(snapshot)
-    : null;
-  resourceTargetPolicy = new CombatRegionPolicy(liveDocument?.combatRegions ?? []);
-  const generatedSuppressions = new Set(liveDocument?.generatedSuppressions ?? []);
-  const proceduralDecorationIds = new Set(
-    generateSurvivalProceduralDecorations(seed, snapshot.content.registry).map(({ id }) => id),
-  );
-  for (const decoration of generateSurvivalDecorations(seed, snapshot.content.registry)) {
-    if (!proceduralDecorationIds.has(decoration.id)) {
-      generatedSuppressions.add(`decoration-${decoration.id}`);
-    }
+  if (activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID) {
+    // Static world S6: topside only ever collides with chunks. While no window serves, nothing is
+    // walkable and movement waits (spawn readiness shows "world updating" and retries).
+    worldCollision = INITIAL_COLLISION; furnitureCollision = INITIAL_COLLISION; boatCollision = INITIAL_COLLISION;
+    projectileCollision = projectileTraversalCollision(worldCollision, boatCollision);
+    return;
   }
-  const activeLandmarkDecorations = generateSurvivalLandmarkDecorations(
-    activeTopsideLandmarks(snapshot),
-  );
-  for (const decoration of activeLandmarkDecorations) {
-    generatedSuppressions.add(`decoration-${decoration.id}`);
-  }
+  const terrain = spaceTerrainForSnapshot(snapshot);
+  resourceTargetPolicy = new CombatRegionPolicy([]);
+  const generatedSuppressions = new Set<string>();
   const authoredGroundWalkableTiles = activeSpaceGroundWalkableTiles(
-    snapshot.content.registry, TOPSIDE_SPACE_ID, liveDocument?.landmarks,
+    snapshot.content.registry, activeSpaceDefinition.spaceId,
   );
   const prepared = worldStaticProjection.prepare(
     terrain,
-    `${terrain.version}:${liveRevision}:${snapshot.liveMapDocument?.contentHash ?? ''}:${network.cellarExcavationRevision}:${snapshot.content.registry.contentHash}`,
+    `${terrain.version}:${network.cellarExcavationRevision}:${snapshot.content.registry.contentHash}`,
     authoredGroundWalkableTiles,
     art.cliff,
     !lightingEffectsDisabled,
@@ -2082,17 +2093,6 @@ function refreshCollision(snapshot: OverworldView): void {
   );
   resourceCollisionObstacles = baseCollision.resourceObstacles;
   const obstacles = [...(baseCollision.obstacles ?? [])];
-  if (activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID) {
-    if (liveDocument !== null) obstacles.push(...liveMapObjectCollisionObstacles(
-      liveDocument, 'ground', snapshot.content.registry,
-    ));
-    else for (const decoration of activeLandmarkDecorations) {
-      const obstacle = survivalDecorationObstacle(
-        decoration, 'ground', snapshot.content.registry,
-      );
-      if (obstacle !== null) obstacles.push(obstacle);
-    }
-  }
   obstacles.push(...dynamicCollisionOverlays(snapshot));
   worldCollision = { ...baseCollision, obstacles };
   if (activeSpaceDefinition.generator === 'residence') {
@@ -2109,24 +2109,7 @@ function refreshCollision(snapshot: OverworldView): void {
     snapshot.content.registry,
     prepared.water,
   );
-  boatCollision = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
-    ? {
-        ...baseBoatCollision,
-        obstacles: [
-          ...(baseBoatCollision.obstacles ?? []),
-          ...(liveDocument === null
-            ? activeLandmarkDecorations.flatMap((decoration) => {
-                const obstacle = survivalDecorationObstacle(
-                  decoration, 'water', snapshot.content.registry,
-                );
-                return obstacle === null ? [] : [obstacle];
-              })
-            : liveMapObjectCollisionObstacles(
-                liveDocument, 'water', snapshot.content.registry,
-              )),
-        ],
-      }
-    : baseBoatCollision;
+  boatCollision = baseBoatCollision;
   const solidGeometry = traversalSolidGeometry(worldCollision, boatCollision);
   worldCollision = runtimeActorCollision(snapshot.content.registry, worldCollision, { kind: 'placement', medium: 'ground' }, snapshot.clock?.authorityTick ?? 0n, solidGeometry);
   boatCollision = runtimeActorCollision(snapshot.content.registry, boatCollision, { kind: 'placement', medium: 'water' }, snapshot.clock?.authorityTick ?? 0n, solidGeometry);
@@ -3138,7 +3121,7 @@ function targetCellarWall(snapshot: OverworldView): { readonly tileX: number; re
   }
   const target = targetInteractionTile();
   if (target === null) return null;
-  const terrain = terrainForSnapshot(snapshot);
+  const terrain = renderTerrainFor(snapshot);
   // A faced tile is a logical neighbour: strike it directly when it is an
   // exposed wall. A pointer lands on the drawn wall, which is displaced two
   // rows north of the rock that owns it, so pointer picks are mapped back.
@@ -3242,7 +3225,7 @@ function refreshHoveredInteractionTile(): void {
     hoveredInteractionTile = null;
     return;
   }
-  const terrain = terrainForSnapshot(latestSnapshot);
+  const terrain = renderTerrainFor(latestSnapshot);
   const playerWorldX = predicted.position.x / FIXED_UNITS_PER_PIXEL;
   const playerWorldY = predicted.position.y / FIXED_UNITS_PER_PIXEL;
   const terrainProjectionPixels = terrainProjectedDepthAtFoot(
@@ -4741,7 +4724,11 @@ function renderFrame(alpha = 1): void {
   if (loadingStage.ready !== true || !network.gameplayReady) {
     // S4f: while movement waits for terrain (a topside arrival in chunk mode `on`), the chunk
     // pin follows the player, not the last camera, so the spawn ring can load.
-    const terrainWait = !spawnReadiness.status(renderStarted).ready;
+    const readinessNow = spawnReadiness.status(renderStarted);
+    const terrainWait: false | 'terrain' | 'world-updating' = readinessNow.ready ? false
+      : readinessNow.reason === 'world_updating' ? 'world-updating' : 'terrain';
+    // Static world S6: no fallback, so a topside without a serving chunk runtime retries.
+    if (terrainWait === 'world-updating') network.retryChunkRuntimeEvery(renderStarted, 5_000);
     if (terrainWait && localAuthority !== undefined && localAuthority.spaceId === TOPSIDE_SPACE_ID) {
       const tileX = Math.floor(localAuthority.x / TILE_SIZE_FIXED), tileY = Math.floor(localAuthority.y / TILE_SIZE_FIXED);
       worldSource.setView({ minX: tileX, minY: tileY, maxX: tileX, maxY: tileY });
@@ -4780,7 +4767,7 @@ function renderFrame(alpha = 1): void {
       } else if (gap.kind === 'retained-world') {
         renderer.compositeWorld();
       } else if (gap.kind === 'resyncing') {
-        if (gap.reason === 'terrain') connectionRecoveryOverlay.compositeResync(renderer, overlayViewport, gap.reason);
+        if (gap.reason !== undefined) connectionRecoveryOverlay.compositeResync(renderer, overlayViewport, gap.reason);
         else connectionRecoveryOverlay.compositeResync(renderer, overlayViewport);
       } else {
         connectionRecoveryOverlay.composite(renderer, overlayViewport, gap.state, hasRenderedWorldFrame);
@@ -4817,7 +4804,7 @@ function renderFrame(alpha = 1): void {
     worldSource.advance(snapshot.content.registry);
     resetTopsideMapResolution();
   }
-  const terrain = terrainForSnapshot(snapshot);
+  const terrain = renderTerrainFor(snapshot);
   // Chunk window moves (S4c) drop only the ground chunks whose data changed.
   worldSource.drainGroundInvalidations((region) => {
     groundCache.invalidateRegion(region.minX, region.minY, region.maxX, region.maxY);
@@ -4887,7 +4874,7 @@ function renderFrame(alpha = 1): void {
     art.farmlandGrassInset,
     activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
       ? [
-          ...generateSurvivalLandmarkPathTiles(
+          ...survivalLandmarkPathTiles(
             activeTopsideLandmarks(snapshot), 'automated_campfire',
           ),
           ...[...snapshot.homesteads].map((home) => ({
@@ -4902,7 +4889,7 @@ function renderFrame(alpha = 1): void {
     frame.layout.height,
   );
   const authoredFarmerSoil = activeSpaceDefinition.spaceId === TOPSIDE_SPACE_ID
-    ? topsideDecorations(snapshot, seed)
+    ? topsideDecorations(snapshot)
       .filter((decoration) => decoration.kind.startsWith('farm_crop_'))
       .map((decoration) => ({
         tileX: decoration.tileX,
@@ -5924,7 +5911,7 @@ function renderFrame(alpha = 1): void {
     && overworldUi.openWindow === null && !chatOverlay.isOpen) {
     const hoveredProcessor = timingHoverIndex.pick({
       registry: snapshot.content.registry,
-      revision: `${snapshot.placeables.revision ?? network.resourceRevision}:${snapshot.liveMapDocument?.revision ?? 0}`,
+      revision: `${snapshot.placeables.revision ?? network.resourceRevision}:${network.chunkRuntimeStatus?.servingRevision ?? ''}`,
       spaceId: activeSpaceDefinition.spaceId, rows: snapshot.placeables,
       x: cameraX + worldPointer.x / worldZoom, y: cameraY + worldPointer.y / worldZoom,
       projectionAt,
@@ -5941,7 +5928,7 @@ function renderFrame(alpha = 1): void {
       }
     } else {
       const target = growthTimingHoverIndex.pick({ registry: snapshot.content.registry,
-        revision: `${snapshot.resources.revision ?? network.resourceRevision}:${snapshot.crops.revision ?? snapshot.crops.size}:${snapshot.liveMapDocument?.revision ?? 0}`,
+        revision: `${snapshot.resources.revision ?? network.resourceRevision}:${snapshot.crops.revision ?? snapshot.crops.size}:${network.chunkRuntimeStatus?.servingRevision ?? ''}`,
         spaceId: activeSpaceDefinition.spaceId, crops: snapshot.crops, resources: snapshot.resources,
         resourceVisible: row => !liveMapSuppressesGeneratedResource(snapshot, row.id),
         x: cameraX + worldPointer.x / worldZoom, y: cameraY + worldPointer.y / worldZoom, projectionAt });
@@ -6445,7 +6432,8 @@ function terrainReadiness(): SpawnReadiness {
   const status = network.chunkRuntimeStatus;
   return spawnReadiness.update({
     mode: status?.mode, state: status?.state, store: network.chunkTerrainStore, resolved: network.chunkFailedKeys,
-    window: worldSource.servedWindow, spaceId: position?.spaceId,
+    window: worldSource.servedWindow, spaceId: position?.spaceId, awaitingSpaceTerrain: homesteadIslandKey() === 'awaiting',
+    collisionBlocked: worldSource.collisionBlocked,
     tileX: position === undefined ? undefined : Math.floor(position.x / TILE_SIZE_FIXED),
     tileY: position === undefined ? undefined : Math.floor(position.y / TILE_SIZE_FIXED),
   }, performance.now());
@@ -7760,8 +7748,9 @@ Object.assign(window, {
       get zoom() { return worldZoom; },
       get seed() { return latestSnapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED; },
       get contentRevision() { return latestSnapshot.content.registry.contentHash; },
-      get mapRevision() { return latestSnapshot.liveMapDocument?.revision ?? 0; },
-      get mapContentHash() { return latestSnapshot.liveMapDocument?.contentHash ?? ''; },
+      // Static world S6: the served chunk publication's map source (the client has no live map document).
+      get mapRevision() { return worldSource.window(latestSnapshot.content.registry)?.manifest.sourceRevision ?? 0; },
+      get mapContentHash() { return worldSource.window(latestSnapshot.content.registry)?.manifest.sourceHash ?? ''; },
       get resourceRevision() { return network.resourceRevision; },
       get uiWindow() { return overworldUi.openWindow; }, setUiWindow(value) { overworldUi.openWindow = value; },
       get playerIdentity() { return latestSnapshot.identityHex; },
@@ -7769,7 +7758,7 @@ Object.assign(window, {
       setLightingPreview(value) { lightingPreview = value; }, setLightPreview(value) { lightPreviewKind = value; },
       pondTies: () => protocolPondTies(activeSpaceDefinition.generator === 'homestead'
         ? homesteadSurroundingDecorations(latestSnapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED)
-        : topsideDecorations(latestSnapshot, latestSnapshot.worldSeed?.seed ?? SURVIVAL_WORLD_SEED),
+        : topsideDecorations(latestSnapshot),
       topsideMapRecords(latestSnapshot)),
     }),
     snapshot: () => network.snapshot(),

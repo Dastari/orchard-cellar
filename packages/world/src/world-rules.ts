@@ -1,4 +1,4 @@
-import { homesteadBiomeAt, runtimeTraversalPolicy, staticTraversalChannels, terrainCellMedium, SURVIVAL_WORLD_SEED } from '@orchard/sim';
+import { homesteadBiomeAt, homesteadBiomeWith, runtimeTraversalPolicy, staticTraversalChannels, terrainCellMedium, SURVIVAL_WORLD_SEED, type SurvivalBiome } from '@orchard/sim';
 import { cellFlagsWhere } from '@orchard/sim';
 import {persistedHearthArchitectureCollision} from '@orchard/sim';
 import {hearthInteriorCollision} from '@orchard/sim';
@@ -118,6 +118,17 @@ function flatSpaceCollision(sizeTiles: number, medium: MovementMedium, generator
   };
 }
 
+/**
+ * Static world S6: the published topside island a homestead exterior enlarges (the live island
+ * runtime's static view), so the server's homestead traversal matches the client, which samples the
+ * same published chunks. `key` identifies the publication (it is part of the collision cache key).
+ * Without one (tools, tests), homesteads fall back to the generator's island.
+ */
+export interface HomesteadIslandBiomeSource {
+  readonly key: string;
+  biomeAt(tileX: number, tileY: number): SurvivalBiome | undefined;
+}
+
 export function terrainCollisionForSpace(
   registry: ContentRegistry,
   spaceId: number,
@@ -134,8 +145,9 @@ export function terrainCollisionForSpace(
     readonly roomKind?: string | undefined;
     readonly theme?: string | undefined;
   } | null,
+  homesteadIsland?: HomesteadIslandBiomeSource,
 ): CollisionMap {
-  const key = `${registry.contentHash}:${spaceId}:${medium}:${instanceRow?.sizeTier ?? 0}:${instanceRow?.seed ?? 0}:${instanceRow?.roomNumber ?? 0}:${instanceRow?.roomKind ?? ''}:${instanceRow?.theme ?? ''}:${instanceRow?.residenceExpansionRank??0}:${instanceRow?.residenceArchitectureJson??''}`;
+  const key = `${registry.contentHash}:${spaceId}:${medium}:${instanceRow?.sizeTier ?? 0}:${instanceRow?.seed ?? 0}:${instanceRow?.roomNumber ?? 0}:${instanceRow?.roomKind ?? ''}:${instanceRow?.theme ?? ''}:${instanceRow?.residenceExpansionRank??0}:${instanceRow?.residenceArchitectureJson??''}:${homesteadIsland?.key ?? ''}`;
   const cached = SPACE_TERRAIN_COLLISION.get(key);
   if (cached !== undefined) return cached;
   const definition = runtimeSpaceDefinition(registry, spaceId, instanceRow);
@@ -207,14 +219,21 @@ export function terrainCollisionForSpace(
     definition.residenceExpansionRank??0,collision,definition.residenceArchitectureJson);
   if (definition?.generator !== 'island' && runtimeTraversalPolicy(registry) !== null) {
     if (medium !== 'ground') {
-      const ground = terrainCollisionForSpace(registry, spaceId, 'ground', instanceRow);
+      const ground = terrainCollisionForSpace(registry, spaceId, 'ground', instanceRow, homesteadIsland);
       collision = { ...collision, ...(ground.traversalChannels === undefined ? {} : { traversalChannels: ground.traversalChannels }) };
     } else {
       const rogue = definition?.rogueRoom;
       const layout = rogue === undefined ? null : generateRogueRoomLayout(rogue.seed, rogue.roomNumber, rogue.roomKind as Parameters<typeof generateRogueRoomLayout>[2]);
       const hazards = new Set((layout?.hazards ?? []).map(point => point.tileY * collision.width + point.tileX));
+      const site = definition?.homesteadSite;
+      const homesteadBiome = (index: number): SurvivalBiome => {
+        const tileX = index % collision.width, tileY = Math.floor(index / collision.width);
+        return homesteadIsland === undefined
+          ? homesteadBiomeAt(SURVIVAL_WORLD_SEED, site!, tileX, tileY, collision.width)
+          : homesteadBiomeWith((x, y) => homesteadIsland.biomeAt(x, y) ?? 'water', site!, tileX, tileY, collision.width);
+      };
       const mediumAt = (index: number) => hazards.has(index) ? 'lava' as const
-        : definition?.homesteadSite === undefined ? 'land' as const : terrainCellMedium({ biome: homesteadBiomeAt(SURVIVAL_WORLD_SEED, definition.homesteadSite, index % collision.width, Math.floor(index / collision.width), collision.width) });
+        : site === undefined ? 'land' as const : terrainCellMedium({ biome: homesteadBiome(index) });
       collision = { ...collision, traversalChannels: staticTraversalChannels(collision, mediumAt, hazards) };
     }
   }
@@ -305,10 +324,11 @@ export function createAuthoritySpaceCollisionMap(
     readonly theme?: string | undefined;
   } | null,
   excavatedTiles: readonly AuthorityExcavatedTile[] = [],
+  homesteadIsland?: HomesteadIslandBiomeSource,
 ): CollisionMap {
   // Terrain is immutable for a space definition. Reusing the cached arrays
   // avoids rebuilding the large topside terrain for every authority tick.
-  const terrain = terrainCollisionForSpace(registry, spaceId, medium, instanceRow);
+  const terrain = terrainCollisionForSpace(registry, spaceId, medium, instanceRow, homesteadIsland);
   let traversalChannels = terrain.traversalChannels;
   let blocked = terrain.blocked;
   let elevations = terrain.elevations;

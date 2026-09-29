@@ -155,7 +155,7 @@ to start (exit `64`) if either raw variable is already in the environment, even 
 |---|---|
 | `WORLD_RELEASE_CLIENT_CHUNK_RUNTIME` | `off`, `shadow` or `on`. |
 | `WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION` | For `on`: the committed `CHUNK_RUNTIME_ACTIVATION_RELEASE`. |
-| `WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK=1` | After activation: a deliberate `off` or `shadow` build. |
+| `WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK=1` | Refused since static world S6 (see below). |
 
 - **Before activation** (`CHUNK_RUNTIME_ACTIVATION_RELEASE` is `null` in
   `packages/client/src/chunk-shadow-build-gate.ts`), the default is `off`. `shadow` is
@@ -163,8 +163,20 @@ to start (exit `64`) if either raw variable is already in the environment, even 
 - **After activation**, the mode must be given explicitly. Otherwise a later release
   would silently deactivate the client.
   - `on` must carry the committed id.
-  - `off` or `shadow` needs `WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK=1`, and is the client half
-    of a rollback. The server half is `setChunkAuthority('off')`.
+  - `off` or `shadow` is refused, even with `WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK=1`
+    (`release_chunk_deactivation_refused_after_s6`).
+    - Since static world S6 the client has no whole-map path, so such a build would only
+      show "world updating".
+    - The lanes also run `client:chunks:check` with `ORCHARD_REQUIRE_GENERATOR_FREE=1`, which
+      refuses any build but the activated `on` one.
+
+**Kill switch after S6.** The server kill switch (`setChunkAuthority('off')`, or
+`world:chunks:authority set off`) no longer restores play on its own: S6 clients show
+"world updating" and retry. A rollback is always both halves together:
+1. the server `off`;
+2. the **last pre-S6 client dist**, installed from the release rollback copies (runbook §5.1).
+
+Keep that dist in every release's rollback copies until static world S7 ships.
 
 The plan is saved to `client-chunk-runtime.json` in the evidence. The staged build's
 `chunk-runtime-audit.json` is copied to `client-chunk-runtime-audit.json` and checked

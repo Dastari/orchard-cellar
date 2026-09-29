@@ -1,4 +1,4 @@
-import { bootstrapContentRegistry, buildContentRegistry, FIXED_UNITS_PER_PIXEL } from '@orchard/sim';
+import { bootstrapContentRegistry, buildContentRegistry, FIXED_UNITS_PER_PIXEL, SURVIVAL_BIOMES } from '@orchard/sim';
 import { authoredNpcArt, loadAuthoredNpcArt } from '@orchard/engine/authored-npc-art';
 import type { WorldDepthItem } from '@orchard/engine/renderer';
 import type { LoadedAsset } from '@orchard/ui';
@@ -105,6 +105,10 @@ function renderNpc(
       ? null : { species: options.wildlifeSpecies, variant: 2 },
     npcTargetDimensions: () => ({ halfWidth: 8, height: 16 }),
     NPC_HIT_FLASH_MS: 100,
+    // A one-cell plains window: the painter reads water from the drawn terrain (static world S6).
+    terrain: { spaceId: 0, seed: 0, version: 0, width: 1, height: 1, biomes: new Uint8Array([SURVIVAL_BIOMES.indexOf('plains')]),
+      blocked: new Uint8Array(1), horseJumpableTerrain: new Uint8Array(1), elevations: new Int16Array(1),
+      dirtCliffRoles: new Uint8Array(1), dirtTerraces: new Uint8Array(1) },
   } as unknown as Parameters<typeof enqueueGameplayNpcs>[0]);
   return { queued, targetableEntities, nameplates };
 }

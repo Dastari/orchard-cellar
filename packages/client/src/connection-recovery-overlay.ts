@@ -50,10 +50,14 @@ export const RECONNECT_GRACE_MS = 3000;
  * the player shows its note sooner than a data re-sync, over the retained world. */
 export const TERRAIN_GAP_GRACE_MS = 250;
 
+/** `terrain`: an arrival waiting for nearby chunks; `world-updating`: topside has no chunk
+ * runtime serving at all (static world S6: no whole-map fallback), retried until it serves. */
+export type TerrainWaitReason = 'terrain' | 'world-updating';
+
 export type WorldGapPresentation =
   | { readonly kind: 'initial-loading' }
   | { readonly kind: 'retained-world' }
-  | { readonly kind: 'resyncing'; readonly reason?: 'terrain' }
+  | { readonly kind: 'resyncing'; readonly reason?: TerrainWaitReason }
   | { readonly kind: 'recovery'; readonly state: ConnectionRecoveryState };
 
 /**
@@ -71,17 +75,21 @@ export function worldGapPresentation(
   gapStartedAt: number,
   now: number,
   graceMs = WORLD_GAP_GRACE_MS,
-  terrainWait = false,
+  terrainWait: boolean | TerrainWaitReason = false,
 ): WorldGapPresentation {
   if (state === 'reconnecting' && hasWorldFrame && !stageError && now - gapStartedAt < RECONNECT_GRACE_MS) return { kind: 'retained-world' };
   if (state !== null) return { kind: 'recovery', state };
   if (!hasWorldFrame || stageError) return { kind: 'initial-loading' };
-  if (terrainWait) return now - gapStartedAt < Math.min(graceMs, TERRAIN_GAP_GRACE_MS) ? { kind: 'retained-world' } : { kind: 'resyncing', reason: 'terrain' };
+  if (terrainWait !== false) {
+    const reason: TerrainWaitReason = terrainWait === true ? 'terrain' : terrainWait;
+    return now - gapStartedAt < Math.min(graceMs, TERRAIN_GAP_GRACE_MS) ? { kind: 'retained-world' } : { kind: 'resyncing', reason };
+  }
   return now - gapStartedAt < graceMs ? { kind: 'retained-world' } : { kind: 'resyncing' };
 }
 
 const RESYNC_COPY = { title: 'RE-SYNCING', lines: ['RESTORING YOUR WORLD.', 'ONE MOMENT.'] } as const;
 const TERRAIN_COPY = { title: 'ARRIVING', lines: ['LOADING THE LAND AROUND YOU.', 'ONE MOMENT.'] } as const;
+const WORLD_UPDATING_COPY = { title: 'WORLD UPDATING', lines: ['THE ISLAND IS BEING UPDATED.', 'RETRYING SHORTLY.'] } as const;
 
 /** A canvas-only game modal. The host owns connection effects and keyboard focus. */
 export class ConnectionRecoveryOverlay {
@@ -141,13 +149,13 @@ export class ConnectionRecoveryOverlay {
   compositeResync(
     renderer: Pick<UnifiedRenderer, 'compositeWorld' | 'beginUi' | 'endUi'>,
     viewport: ConnectionRecoveryViewport,
-    reason?: 'terrain',
+    reason?: TerrainWaitReason,
   ): void {
     renderer.compositeWorld();
     const context = renderer.beginUi(viewport.scale);
     try {
       context.translate(viewport.left / viewport.scale, viewport.top / viewport.scale);
-      this.drawPanel(context, viewport, reason === 'terrain' ? TERRAIN_COPY : RESYNC_COPY, null);
+      this.drawPanel(context, viewport, reason === 'terrain' ? TERRAIN_COPY : reason === 'world-updating' ? WORLD_UPDATING_COPY : RESYNC_COPY, null);
     } finally { renderer.endUi(); }
   }
 

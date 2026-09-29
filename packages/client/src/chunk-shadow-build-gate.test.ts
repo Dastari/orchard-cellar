@@ -105,4 +105,21 @@ describe('vite config wiring',()=>{
   await expect(run({VITE_CHUNK_RUNTIME_MODE:undefined,ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE:undefined},'build','client-production')).resolves.toMatchObject({build:{outDir:'dist'}});
   await expect(run({VITE_CHUNK_RUNTIME_MODE:'live'},'serve','development')).rejects.toThrow(/mode_invalid/);
  });
+ it('CI builds the activated on client with the committed activation id (S6)',async()=>{
+  const {readFileSync}=await import('node:fs');
+  const ci=readFileSync(new URL('../../../.github/workflows/ci.yml',import.meta.url),'utf8');
+  expect(ci).toContain(`ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE: ${CHUNK_RUNTIME_ACTIVATION_RELEASE}`);
+  expect(ci).toContain("VITE_CHUNK_RUNTIME_MODE: 'on'");
+ });
+ it('audits only legacy modules that render code (a barrel-reached, fully tree-shaken module ships nothing, S6)',async()=>{
+  const config=await run({VITE_CHUNK_RUNTIME_MODE:undefined,ORCHARD_CHUNK_RUNTIME_ACTIVATION_RELEASE:undefined},'build','client-production') as {plugins:{name?:string;generateBundle?:(...args:unknown[])=>void}[]};
+  const plugin=config.plugins.find(entry=>entry?.name==='orchard-chunk-runtime-audit')!;
+  const emitted:{source:string}[]=[];
+  const chunk=(modules:Record<string,number>)=>({type:'chunk',moduleIds:Object.keys(modules),modules:Object.fromEntries(Object.entries(modules).map(([id,renderedLength])=>[id,{renderedLength}]))});
+  plugin.generateBundle!.call({emitFile:(file:{source:string})=>emitted.push(file)},{},{
+   a:chunk({'/r/packages/sim/src/survival-world.ts':0,'/r/packages/engine/src/terrain.ts':0,'/r/packages/client/src/main.ts':900}),
+   b:chunk({'/r/packages/sim/src/procedural-terrain.ts':12}),
+  });
+  expect(JSON.parse(emitted[0]!.source).legacyModules).toEqual(['packages/sim/src/procedural-terrain.ts']);
+ });
 });

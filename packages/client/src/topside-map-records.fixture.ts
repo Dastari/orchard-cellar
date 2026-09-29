@@ -1,9 +1,11 @@
 import {
-  activeSurvivalLandmarks, connectedObjectAsset, createLiveIslandMapDocument, createMapPrefabDocument, generateSurvivalProceduralDecorations,
+  activeSurvivalLandmarks, connectedObjectAsset, createLiveIslandMapDocument, createMapPrefabDocument, generateSurvivalLandmarkDecorations,
+  generateSurvivalProceduralDecorations, mapLandmarkDecoration,
   LIVE_ISLAND_MAP_ID, runtimeHearthSupplyCache, serializeMapDocumentV3, SURVIVAL_WORLD_SEED, TOPSIDE_SPACE_ID,
   type CombatRegion, type ContentRegistry, type MapDocumentV3, type MapObjectInstance, type MapPrefabDocumentV2,
 } from '@orchard/sim';
 import type { LiveMapDocumentRow } from '@orchard/engine/live-map-runtime';
+import type { RuntimeSurvivalDecoration } from './gameplay-painter-inputs.js';
 
 /**
  * Static world S4e: an authored live island exercising everything the topside
@@ -136,4 +138,29 @@ export function topsideAuthoredFixture(registry: ContentRegistry): MapDocumentV3
 
 export function topsideFixtureRow(document: MapDocumentV3, contentHash: string): LiveMapDocumentRow {
   return { mapId: LIVE_ISLAND_MAP_ID, revision: document.revision, contentHash, documentJson: serializeMapDocumentV3(document) };
+}
+
+const legacyDecorationCache = new WeakMap<MapDocumentV3, Map<number, readonly RuntimeSurvivalDecoration[]>>();
+
+/** Test and parity code only (static world S6 removed it from the client): the pre-S4e topside
+ * decoration composition, the generator's procedural decorations plus the document's enabled
+ * landmarks (or, without a document, the registry's landmark decorations). */
+export function legacyTopsideDecorations(document: MapDocumentV3 | null, seed: number,
+  registry: ContentRegistry): readonly RuntimeSurvivalDecoration[] {
+  if (document === null) return Object.freeze([
+    ...generateSurvivalProceduralDecorations(seed, registry),
+    ...generateSurvivalLandmarkDecorations(activeSurvivalLandmarks(registry, TOPSIDE_SPACE_ID)),
+  ]);
+  const bySeed = legacyDecorationCache.get(document) ?? new Map<number, readonly RuntimeSurvivalDecoration[]>();
+  const cached = bySeed.get(seed);
+  if (cached !== undefined) return cached;
+  const decorations = Object.freeze([
+    ...generateSurvivalProceduralDecorations(seed, registry),
+    ...document.landmarks
+      .filter((landmark) => landmark.enabled)
+      .map((landmark) => ({ ...mapLandmarkDecoration(landmark), landmark })),
+  ]);
+  bySeed.set(seed, decorations);
+  legacyDecorationCache.set(document, bySeed);
+  return decorations;
 }

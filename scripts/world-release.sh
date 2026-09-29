@@ -333,7 +333,7 @@ if [[ "$studio_was_active" = true ]]; then sudo systemctl stop orchard-studio.se
 env "${client_chunk_build_env[@]}" npm run build --workspace @orchard/client -- --mode client-production
 cp packages/client/dist/chunk-runtime-audit.json "$client_chunk_stage/client-chunk-runtime-audit-candidate.json"
 assert_client_chunk_audit candidate
-npm run client:chunks:check
+ORCHARD_REQUIRE_GENERATOR_FREE=1 npm run client:chunks:check
 CLIENT_STATIC_DRY_RUN=true ops/orchard-runtime/bin/validate-client-static.sh
 install_reviewed_studio
 STUDIO_STATIC_DRY_RUN=true ops/orchard-runtime/bin/validate-studio-static.sh
@@ -443,7 +443,7 @@ npm run typecheck --workspace @orchard/world-bindings
 env "${client_chunk_build_env[@]}" npm run build --workspace @orchard/client -- --mode client-production
 cp packages/client/dist/chunk-runtime-audit.json "$client_chunk_stage/client-chunk-runtime-audit-final.json"
 assert_client_chunk_audit final
-npm run client:chunks:check
+ORCHARD_REQUIRE_GENERATOR_FREE=1 npm run client:chunks:check
 CLIENT_STATIC_DRY_RUN=true ops/orchard-runtime/bin/validate-client-static.sh
 install_reviewed_studio
 STUDIO_STATIC_DRY_RUN=true ops/orchard-runtime/bin/validate-studio-static.sh

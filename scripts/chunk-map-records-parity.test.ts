@@ -21,7 +21,8 @@ import {
 import { enqueueGameplayDecorations } from '../packages/client/src/gameplay-painter-decorations.js';
 import { protocolPondTies } from '../packages/client/src/render-protocol-ponds.js';
 import { topsideAuthoredFixture, topsideFixtureRow } from '../packages/client/src/topside-map-records.fixture.js';
-import { legacyTopsideDecorations, topsideDecorationLightCasters } from '../packages/client/src/topside-map-records.js';
+import { topsideDecorationLightCasters } from '../packages/client/src/topside-map-records.js';
+import { legacyTopsideDecorations } from '../packages/client/src/topside-map-records.fixture.js';
 import { WorldSource } from '../packages/client/src/world-source.js';
 import { captureWorldChunkSnapshot, materializeWorldChunks } from './materialize-world-chunks.js';
 

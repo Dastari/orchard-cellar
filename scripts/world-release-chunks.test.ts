@@ -49,6 +49,26 @@ const TARGET = {
 const STALE = 3;
 
 describe('release routine chunk hook', () => {
+  it('names stale_generator heads and requires the republish (S6: the server refuses them)', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'orchard-chunks-hook-'));
+    directories.push(root);
+    const bin = join(root, 'bin');
+    await mkdir(bin);
+    // A fake pipeline that reports heads from another generator and exits stale.
+    await writeFile(join(bin, 'node'), `#!/usr/bin/env bash
+for ((i = 1; i <= $#; i++)); do if [[ "\${!i}" = --report ]]; then n=$((i + 1)); printf '{"stale":["generator"]}' > "\${!n}"; fi; done
+exit 3
+`);
+    await chmod(join(bin, 'node'), 0o755);
+    await mkdir(join(root, 'evidence'));
+    const result = spawnSync('bash', [HOOK, join(root, 'evidence', 'chunks')], {
+      cwd: root, encoding: 'utf8', env: { PATH: `${bin}:${process.env['PATH']}`, HOME: root, ...TARGET, WORLD_RELEASE_CHUNKS: 'check' },
+    });
+    expect(result.status).toBe(3);
+    expect(result.stderr).toContain('stale_generator');
+    expect(result.stderr).toContain('WORLD_RELEASE_CHUNKS=publish');
+  });
+
   it('does nothing unless WORLD_RELEASE_CHUNKS is set', async () => {
     for (const env of [TARGET, { ...TARGET, WORLD_RELEASE_CHUNKS: 'off' }, {}]) {
       const run = await runHook(env, [0, 0, 0]);

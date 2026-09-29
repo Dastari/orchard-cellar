@@ -9,8 +9,9 @@ const topside = readFileSync(new URL('./topside-map-records.ts', import.meta.url
 describe('active landmark client wiring', () => {
   it('uses active semantic landmark roles for draw, collision, placement and paths', () => {
     expect(main).toContain('activeSurvivalLandmarks(snapshot.content.registry, TOPSIDE_SPACE_ID)');
-    expect(topside).toContain('generateSurvivalLandmarkDecorations(activeSurvivalLandmarks(registry, TOPSIDE_SPACE_ID))');
-    expect(main).toMatch(/generateSurvivalLandmarkDecorations\(\s*activeTopsideLandmarks\(snapshot\),/u);
+    // Static world S6: topside landmark decorations come only from chunk records (no generator in the client).
+    expect(topside).not.toMatch(/generateSurvival/u);
+    expect(main).not.toMatch(/generateSurvival(?:Landmark|Procedural)?Decorations\(/u);
     expect(main).toContain("activeTopsideLandmarks(snapshot), 'wildlife_feed'");
     expect(main).toContain("activeTopsideLandmarks(snapshot), 'automated_campfire'");
     expect(main).not.toContain('survivalFarmerBobFarmReservedAt');
@@ -32,10 +33,10 @@ describe('active landmark client wiring', () => {
   });
 
   it('passes the active registry through every painter live-map projection', () => {
-    // Static world S4e: painters draw the one topside record source overworld-main resolves
-    // with the active registry (chunk records in mode on, else the live document).
-    expect(main).toContain('topsideMapRecordsFrom(worldSource, snapshot.content.registry, () => liveIslandDocumentFor(snapshot))');
-    expect(main).toContain('return liveIslandDocument(snapshot.liveMapDocument, snapshot.content.registry);');
+    // Static world S4e, S6: painters draw the one topside record source overworld-main resolves
+    // with the active registry: the chunk window's records (the client has no live document).
+    expect(main).toContain('topsideMapRecordsFrom(worldSource, snapshot.content.registry)');
+    expect(main).not.toMatch(/liveMapDocument|liveIslandDocument/u);
     expect(setup).toContain('enqueueMapObjects(topsideMapRecords, {');
     expect(decorations).toContain('mapObjectPointLights(topsideMapRecords,snapshot.content.registry,');
     expect(decorations.match(/\btopsideMapRecords\b/g)).toHaveLength(5);

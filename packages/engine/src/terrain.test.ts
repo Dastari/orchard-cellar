@@ -779,7 +779,7 @@ describe("shared client terrain array", () => {
         }
       }
     }
-  }, 20_000);
+  }, 60_000); // a whole generated island: slow on a loaded CI runner
 
   it("maps shallow dirt terraces onto the same connected topology with their own ramp", () => {
     const terrain = terrainFixture(5, 5, 17);

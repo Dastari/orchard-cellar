@@ -16,21 +16,47 @@ const on = (overrides: Partial<SpawnReadinessInput> = {}): SpawnReadinessInput =
   ({ mode: 'on', state: 'on', store: store(ring(6, 6), window(6, 6)), spaceId: TOPSIDE_SPACE_ID, tileX: 6 * 64 + 10, tileY: 6 * 64 + 10, ...overrides });
 
 describe('spawn readiness (static world S4f)', () => {
-  it('never waits in modes off and shadow, in other spaces or without a position', () => {
+  it('waits ("world updating") on topside without an `on` runtime, never in other spaces or without a position (S6)', () => {
     for (const mode of ['off', 'shadow', undefined] as const) {
-      expect(chunkSpawnReadiness(on({ mode, store: undefined, state: 'loading' }))).toEqual({ ready: true, reason: 'not_on', missing: 0 });
+      expect(chunkSpawnReadiness(on({ mode, store: undefined, state: 'loading' }))).toEqual({ ready: false, reason: 'world_updating', missing: 0 });
     }
     expect(chunkSpawnReadiness(on({ spaceId: 5, store: undefined }))).toMatchObject({ ready: true, reason: 'other_space' });
     expect(chunkSpawnReadiness(on({ tileX: undefined }))).toMatchObject({ ready: true, reason: 'no_position' });
   });
 
-  it('waits in `on` for a serving store while one is loading, but never when the legacy source serves', () => {
+  it('waits, without timing out, for a homestead exterior\'s topside patch (S6)', () => {
+    const waiting = on({ spaceId: 5, store: undefined, awaitingSpaceTerrain: true });
+    expect(chunkSpawnReadiness(waiting)).toEqual({ ready: false, reason: 'awaiting_space_terrain', missing: 0 });
+    const gate = new SpawnReadinessGate();
+    gate.update(waiting, 0);
+    expect(gate.update(waiting, SPAWN_READINESS_TIMEOUT_MS * 3)).toMatchObject({ ready: false, reason: 'awaiting_space_terrain' });
+    expect(gate.update({ ...waiting, awaitingSpaceTerrain: false }, SPAWN_READINESS_TIMEOUT_MS * 3)).toMatchObject({ ready: true, reason: 'other_space' });
+  });
+
+  it('waits in `on` for a serving store while one is loading, and shows "world updating" when none will serve (S6)', () => {
     for (const state of ['idle', 'subscribing', 'loading', 'awaiting_heads']) {
       expect(chunkSpawnReadiness(on({ store: undefined, state }))).toMatchObject({ ready: false, reason: 'awaiting_store' });
     }
     for (const state of ['awaiting_publication', 'subscription_error', 'chunk_fetch_404', 'chunk_manifest_space_mismatch']) {
-      expect(chunkSpawnReadiness(on({ store: undefined, state }))).toMatchObject({ ready: true, reason: 'legacy' });
+      expect(chunkSpawnReadiness(on({ store: undefined, state }))).toMatchObject({ ready: false, reason: 'world_updating' });
     }
+  });
+
+  it('shows "world updating", never a frozen ready, while a resident store\'s collision cannot serve (S6)', () => {
+    for (const reason of ['traversal_policy_mismatch', 'incomplete: map_records:x', 'window_unavailable', 'collision_build_failed', 'shadow_missing']) {
+      expect(chunkSpawnReadiness(on({ collisionBlocked: reason })), reason).toEqual({ ready: false, reason: 'world_updating', missing: 0, blockedBy: reason });
+    }
+    expect(chunkSpawnReadiness(on({ collisionBlocked: null }))).toMatchObject({ ready: true, reason: 'resident' });
+    const gate = new SpawnReadinessGate();
+    gate.update(on({ collisionBlocked: 'traversal_policy_mismatch' }), 0);
+    expect(gate.update(on({ collisionBlocked: 'traversal_policy_mismatch' }), SPAWN_READINESS_TIMEOUT_MS * 3)).toMatchObject({ ready: false, reason: 'world_updating' });
+  });
+
+  it('is fed the world source\'s collision block by the game (S6)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const main = readFileSync(new URL('./overworld-main.ts', import.meta.url), 'utf8');
+    const readiness = main.slice(main.indexOf('function terrainReadiness('), main.indexOf('function currentWorldLoadingStage('));
+    expect(readiness).toContain('collisionBlocked: worldSource.collisionBlocked,');
   });
 
   it('waits for the spawn chunk and its ring, not the rest of the window', () => {
@@ -45,9 +71,18 @@ describe('spawn readiness (static world S4f)', () => {
     expect(chunkSpawnReadiness(on({ tileX: 64, tileY: 64 }))).toMatchObject({ ready: false, reason: 'awaiting_pin' });
   });
 
-  it('gives up after the timeout rather than lock a player out, and starts over once ready', () => {
+  it('never times out while no store serves: there is no whole map to fall back to (S6)', () => {
     const gate = new SpawnReadinessGate();
-    const waiting = on({ store: undefined, state: 'loading' });
+    for (const waiting of [on({ store: undefined, state: 'loading' }), on({ mode: 'off', store: undefined, state: 'off' })]) {
+      expect(gate.update(waiting, 1_000).ready).toBe(false);
+      expect(gate.update(waiting, 1_000 + 10 * SPAWN_READINESS_TIMEOUT_MS).ready).toBe(false);
+      expect(gate.update(on(), 1_000 + 11 * SPAWN_READINESS_TIMEOUT_MS)).toMatchObject({ ready: true, reason: 'resident' });
+    }
+  });
+
+  it('gives up on missing ring chunks after the timeout rather than lock a player out, and starts over once ready', () => {
+    const gate = new SpawnReadinessGate();
+    const waiting = on({ store: store(ring(6, 6).filter(key => key !== '7:7'), window(6, 6)) });
     expect(gate.update(waiting, 1_000).ready).toBe(false);
     expect(gate.update(waiting, 1_000 + SPAWN_READINESS_TIMEOUT_MS - 1).ready).toBe(false);
     expect(gate.update(waiting, 1_000 + SPAWN_READINESS_TIMEOUT_MS)).toMatchObject({ ready: true, reason: 'timeout' });

@@ -8,7 +8,7 @@ import type {ChunkBlobCache} from './chunk-shadow-cache.js';
 import {OverworldConnection} from './net/overworld-connection.js';
 
 const assets=new TextEncoder().encode('{"assetPacks":{}}'),assetRevision=worldChunkHash(assets);
-const source:ChunkRuntimeSource={mapRevision:3,mapHash:'map-3',contentHash:'content-1'};
+const source:ChunkRuntimeSource={contentHash:'content-1'};
 const view=[0,0,0,0] as const;
 
 /** One published revision: every chunk solid or open, pinned to the served asset revision. */
@@ -106,17 +106,40 @@ describe('on mode',()=>{
    await vi.waitFor(()=>expect(h.controller.status.state).toBe('stale'));
    expect(h.controller.status).toMatchObject({stale:true,staleReasons:['content'],staleObservations:1,servingRevision:'0:1'});
    expect(h.controller.store?.pinnedReady).toBe(true);
-   h.controller.update(h.connection,0n,view,{...source,mapRevision:4,mapHash:'map-4'});
-   await vi.waitFor(()=>expect(h.controller.status.staleReasons).toEqual(['content','map']));
-   expect(h.controller.status.staleObservations).toBe(2);expect(h.controller.store?.pinnedReady).toBe(true);
+   // Static world S6: the client has no live map document, so only content and assets are compared.
    // A newer published revision is still adopted while stale.
    const rev2=revision(1,'assets-other');h.publish(2,rev2,{contentHash:'content-1'});
    await vi.waitFor(()=>expect(h.controller.status.servingRevision).toBe('0:2'));
-   expect(h.controller.status).toMatchObject({state:'stale',staleReasons:['map','asset']});
-   h.controller.update(h.connection,0n,view,{...source,mapRevision:3,mapHash:'map-3'});
+   expect(h.controller.status).toMatchObject({state:'stale',staleReasons:['asset']});
    const rev3=revision(0);h.publish(3,rev3);
    await vi.waitFor(()=>expect(h.controller.status.state).toBe('on'));
    expect(h.controller.status).toMatchObject({stale:false,staleReasons:[],servingRevision:'0:3'});
+  }finally{h.controller.dispose();}
+ });
+
+ it('keeps the serving store through a content-only republish (same manifest, new revision), and while its load keeps failing (S6)',async()=>{
+  const h=harness({authority:'on'}),rev1=revision(0);
+  try{
+   h.publish(1,rev1);h.controller.update(h.connection,0n,view,source);
+   await vi.waitFor(()=>expect(h.controller.status.state).toBe('on'));
+   const serving=h.controller.store;
+   expect(serving).toBeDefined();
+   // Content R23 in production: the heads move to shadow revision 2 with an identical manifest.
+   const release=h.hold(rev1.hash);h.publish(2,rev1,{contentHash:'content-2'});
+   h.controller.update(h.connection,0n,view,{...source,contentHash:'content-2'});
+   await vi.waitFor(()=>expect(h.controller.status.pendingRevision).toBe('0:2'));
+   expect(h.controller.authorityGate()).toBe('superseded');
+   expect(h.controller.store).toBe(serving); // WorldSource keeps serving its collision (world-source.test)
+   // A chunk of the new revision that keeps failing: the resident revision keeps serving.
+   h.failing.add(rev1.hash);release();
+   await vi.waitFor(()=>expect(h.controller.status.state).toBe('chunk_fetch_404'));
+   expect(h.controller.store).toBe(serving);
+   expect(h.controller.authorityGate()).toBe('superseded');
+   // The load succeeds on a retry and swaps in.
+   h.failing.delete(rev1.hash);h.controller.retry();
+   await vi.waitFor(()=>expect(h.controller.status.servingRevision).toBe('0:2'));
+   expect(h.controller.authorityGate()).toBeNull();
+   expect(h.controller.store).toBeDefined();
   }finally{h.controller.dispose();}
  });
 
@@ -133,9 +156,7 @@ describe('on mode',()=>{
    expect(connectionGate(source)).toBeNull();
    // SW-D2: a live map or content ahead of the publication is not a gate; the server keeps serving the
    // pinned publication, so the client keeps using it too (the lag shows in status.staleReasons).
-   expect(connectionGate({...source,mapRevision:4})).toBeNull();
    expect(connectionGate({...source,contentHash:'content-9'})).toBeNull();
-   expect(connectionGate({...source,mapHash:'map-9'})).toBeNull();
    // A newer publication loading behind the serving store: the server already reads it.
    const rev2=revision(1),release=h.hold(rev2.hash);h.publish(2,rev2);
    await vi.waitFor(()=>expect(h.controller.status.state).toBe('loading'));

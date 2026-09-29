@@ -477,6 +477,7 @@ import {
   resourceGatherResult,
   settleMovementRun,
   sprintIntentSuppressesVigourRegen,
+  type HomesteadIslandBiomeSource,
 } from './world-rules.js';
 import {
   collisionWithinChunkScope,
@@ -4100,6 +4101,7 @@ function collisionForSpace(
     placeables,
     residenceExpansionRank === undefined || instance == null ? instance : {...instance, residenceExpansionRank},
     [...ctx.db.cellar_excavation.by_space.filter(spaceId)],
+    homesteadIslandSource(ctx, spaceId),
   ), liveMapRuntime);
   // Topside collision includes every homestead tent. Instanced homestead
   // exteriors have a unique space id, so their equivalent lookup is indexed.
@@ -4176,7 +4178,7 @@ function waterCollisionForSpace(
 ) {
   const scoped = collisionWithinChunkScope(
     liveMapCollisionForSpace(ctx, spaceId, 'water', createAuthoritySpaceCollisionMap(
-      contentRegistry(ctx), spaceId, [], [], 'water', [], instanceForSpace(ctx, spaceId),
+      contentRegistry(ctx), spaceId, [], [], 'water', [], instanceForSpace(ctx, spaceId), [], homesteadIslandSource(ctx, spaceId),
     ), prefetchedLiveMapRuntime),
     chunkScope,
   );
@@ -4268,6 +4270,15 @@ function homesteadForSpace(ctx: IndexedLookupContext, spaceId: number) {
 
 function rogueRunForSpace(ctx: WorldReducerContext, spaceId: number): RogueRunRow | null {
   return firstIndexRow(ctx.db.rogue_run.by_space.filter(spaceId));
+}
+
+/** Static world S6: a homestead exterior's island is the published topside map (the live island
+ * runtime's static view), the one the client samples from the same chunks. Null elsewhere. */
+function homesteadIslandSource(ctx: WorldReducerContext, spaceId: number): HomesteadIslandBiomeSource | undefined {
+  if (spaceId === TOPSIDE_SPACE_ID || ctx.db.homestead.spaceId.find(spaceId) === null) return undefined;
+  const runtime = liveIslandCollisionRuntime(ctx);
+  if (runtime === null) return undefined;
+  return { key: `island:${runtime.key}`, biomeAt: (tileX, tileY) => runtime.staticView.biomeAt(tileX, tileY) };
 }
 
 function instanceForSpace(ctx: WorldReducerContext, spaceId: number) {
@@ -22325,7 +22336,8 @@ function collisionForWildlife(
   const ground = collisionForSpace(ctx, npc.spaceId);
   const water = waterCollisionForSpace(ctx, npc.spaceId);
   const legacy = medium === 'ground' ? ground : medium === 'water' ? water
-    : createAuthoritySpaceCollisionMap(contentRegistry(ctx), npc.spaceId, [], [], medium, [], homesteadForSpace(ctx, npc.spaceId));
+    : createAuthoritySpaceCollisionMap(contentRegistry(ctx), npc.spaceId, [], [], medium, [], homesteadForSpace(ctx, npc.spaceId), [],
+      homesteadIslandSource(ctx, npc.spaceId));
   return runtimeActorCollision(contentRegistry(ctx), legacy,
     { kind: 'definition', definitionId: runtimeCreatureDefinition(contentRegistry(ctx), species)?.id ?? '' },
     ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n, traversalSolidGeometry(ground, water));

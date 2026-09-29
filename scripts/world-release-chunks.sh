@@ -68,6 +68,12 @@ case "$status" in
   3) ;;
   *) printf 'World chunk heads: the check itself failed (exit %s); see %s.\n' "$status" "$evidence" >&2; exit "$status" ;;
 esac
+# Static world S6: heads from another island generator version are refused by the server
+# (stale_generator), and S6 clients then show "world updating" until the chunks are republished.
+if grep -q '"generator"' "$evidence/check-before.json" 2>/dev/null; then
+  printf 'World chunk heads are stale_generator (SURVIVAL_WORLD_VERSION changed): republish them with WORLD_RELEASE_CHUNKS=publish in this release.\n' >&2
+  [[ "$mode" = publish ]] || exit 3
+fi
 if [[ "$mode" = check ]]; then
   printf 'World chunk heads are stale or unpublished: see %s/check-before.json.\n' "$evidence" >&2
   exit 3

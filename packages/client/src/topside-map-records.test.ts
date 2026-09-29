@@ -10,8 +10,8 @@ import type { WorldDepthItem } from '@orchard/engine/renderer';
 import type { TerrainArray } from '@orchard/engine/terrain';
 import { enqueueGameplayDecorations } from './gameplay-painter-decorations.js';
 import { protocolPondTies } from './render-protocol-ponds.js';
-import { topsideAuthoredFixture, topsideFixtureRow } from './topside-map-records.fixture.js';
-import { legacyTopsideDecorations, topsideDecorationLightCasters, topsideDecorationsFor, topsideMapRecords } from './topside-map-records.js';
+import { legacyTopsideDecorations, topsideAuthoredFixture, topsideFixtureRow } from './topside-map-records.fixture.js';
+import { topsideDecorationLightCasters, topsideDecorationsFor, topsideMapRecords } from './topside-map-records.js';
 import { WorldSource } from './world-source.js';
 
 const terrainFormulas = vi.hoisted(() => ({
@@ -97,12 +97,14 @@ const offOrShadow = new WorldSource({ store: () => undefined, pin: () => undefin
 async function legacyOutputs(document: MapDocumentV3) {
   const row = topsideFixtureRow(document, 'topside-golden');
   const live = liveIslandDocument(row, registry)!;
-  const records = topsideMapRecords(offOrShadow, registry, () => liveIslandDocument(row, registry));
-  // The same document object as before S4e, so every retained cache keeps its identity.
-  expect(records).toBe(live);
-  await preloadMapObjectAssets(records!);
-  const decorations = topsideDecorationsFor(records, SURVIVAL_WORLD_SEED, registry, () => liveIslandDocument(row, registry));
-  expect(decorations).toBe(legacyTopsideDecorations(live, SURVIVAL_WORLD_SEED, registry));
+  // Static world S6: the client resolves no records without a chunk window (it has no document);
+  // the golden keeps pinning the pre-S4e painters over the legacy document, which the nightly
+  // chunk parity (scripts/chunk-map-records-parity.test.ts) compares with the chunk records.
+  expect(topsideMapRecords(offOrShadow, registry)).toBeNull();
+  expect(topsideDecorationsFor(null)).toEqual([]);
+  const records: MapDocumentV3 = live;
+  await preloadMapObjectAssets(records);
+  const decorations = legacyTopsideDecorations(live, SURVIVAL_WORLD_SEED, registry);
   const outputs: Record<string, unknown> = { decorations };
   for (const hour of [12, 22]) {
     const queued: unknown[] = [];

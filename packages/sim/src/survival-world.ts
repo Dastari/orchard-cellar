@@ -103,8 +103,13 @@ export {
   survivalBiomeAllowsHorseJump,
   survivalResourceInitialHealth,
   survivalDecorationResource,
+  survivalLandmarkPathTiles,
+  survivalLandmarkPathTiles as generateSurvivalLandmarkPathTiles,
+  type SurvivalCampPathTile,
 } from './survival-rules.js';
 import {
+  survivalLandmarkPathTiles as generateSurvivalLandmarkPathTiles,
+  type SurvivalCampPathTile,
   survivalFishermanDockWalkableAt,
   type GeneratedSurvivalResource,
   survivalResourceObstacle,
@@ -194,11 +199,6 @@ export interface SurvivalSpawnTile {
 
 
 
-export interface SurvivalCampPathTile {
-  readonly tileX: number;
-  readonly tileY: number;
-}
-
 export interface SurvivalResourceCollision {
   readonly kind: string;
   readonly tileX: number;
@@ -216,10 +216,9 @@ export interface SurvivalResourceCollision {
 
 
 
-const BOOTSTRAP_SURVIVAL_REGISTRY = Object.freeze({
-  ...BOOTSTRAP_RESOURCE_REGISTRY,
-  ...BOOTSTRAP_LANDMARK_REGISTRY,
-});
+// Object.assign, not spread: bundlers treat a spread as a possible getter call and keep it (S6).
+const BOOTSTRAP_SURVIVAL_REGISTRY: typeof BOOTSTRAP_RESOURCE_REGISTRY & typeof BOOTSTRAP_LANDMARK_REGISTRY = /* @__PURE__ */ Object.freeze(
+  /* @__PURE__ */ Object.assign({}, BOOTSTRAP_RESOURCE_REGISTRY, BOOTSTRAP_LANDMARK_REGISTRY));
 
 interface SurvivalDecorationGenerator {
   readonly natureKinds: readonly string[];
@@ -343,48 +342,27 @@ export function survivalAuthoredLandmarkDecorations(): readonly SurvivalAuthored
   return authoredLandmarkDecorationCache;
 }
 
-const bootstrapAuthoredLandmarkDecorationIds = new Set(
-  survivalAuthoredLandmarkDecorations().map((decoration) => decoration.id),
-);
+// Lazy, so importing this module runs nothing: a bundle that reaches it only through the
+// `@orchard/sim` barrel drops it entirely (static world S6, the generator-free client audit).
+let bootstrapAuthoredLandmarkDecorationIds: ReadonlySet<number> | null = null;
 
 export function isSurvivalAuthoredLandmarkDecoration(
   decoration: Pick<GeneratedSurvivalDecoration, 'id'>,
   landmarks?: readonly SpaceLandmarkDefinition[],
 ): boolean {
   return landmarks === undefined
-    ? bootstrapAuthoredLandmarkDecorationIds.has(decoration.id)
+    ? (bootstrapAuthoredLandmarkDecorationIds ??= new Set(
+      survivalAuthoredLandmarkDecorations().map(({ id }) => id))).has(decoration.id)
     : generateSurvivalLandmarkDecorations(landmarks).some(({ id }) => id === decoration.id);
 }
 
 /** A two-tile-wide campsite track with a short southern spur. The authored
  * mask deliberately extends beyond the reserved clearing so the path tapers
  * back into the surrounding world rather than ending at an invisible radius. */
-export function generateSurvivalLandmarkPathTiles(
-  landmarks: readonly SpaceLandmarkDefinition[],
-  role?: string,
-): readonly SurvivalCampPathTile[] {
-  const tiles: SurvivalCampPathTile[] = [];
-  const seen = new Set<string>();
-  for (const landmark of role === undefined ? landmarks : survivalLandmarksForRole(landmarks, role)) {
-    for (const area of landmark.pathAreas ?? []) {
-      for (let tileY = area.minimumTileY; tileY <= area.maximumTileY; tileY += 1) {
-        for (let tileX = area.minimumTileX; tileX <= area.maximumTileX; tileX += 1) {
-          const key = `${tileX}:${tileY}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          tiles.push({ tileX, tileY });
-        }
-      }
-    }
-  }
-  return Object.freeze(tiles);
-}
-
-const marlowCampPathTiles = generateSurvivalLandmarkPathTiles(
-  bootstrapIslandLandmarks(), 'automated_campfire',
-);
+let marlowCampPathTiles: readonly SurvivalCampPathTile[] | null = null;
 
 export function generateMarlowCampPathTiles(): readonly SurvivalCampPathTile[] {
+  marlowCampPathTiles ??= generateSurvivalLandmarkPathTiles(bootstrapIslandLandmarks(), 'automated_campfire');
   return marlowCampPathTiles;
 }
 
@@ -441,7 +419,9 @@ export interface SurvivalTerrainSample {
   readonly coastRuggedness: number;
 }
 
-const ISLAND_CENTER = (SURVIVAL_ISLAND_SIZE - 1) / 2;
+// (SURVIVAL_ISLAND_SIZE - 1) / 2 for the 320-tile island, as a literal: rolldown keeps the derived
+// form at module load, which would put this module in every bundle that reaches the barrel (S6).
+const ISLAND_CENTER = 159.5;
 const ISLAND_RADIUS_X = 145;
 const ISLAND_RADIUS_Y = 139;
 

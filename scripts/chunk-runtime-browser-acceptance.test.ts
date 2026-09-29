@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   acceptancePatch, AcceptancePatchError, assertAcceptanceBuildEnvironment, GATE_ANCHOR, GATE_FIX, LOCAL_PROFILES_ANCHOR, PROBE_ANCHOR, SEAM_ANCHOR, SEAM_HOOK,
 } from './chunk-runtime-acceptance-patch.js';
 import {
-  AcceptanceUsageError, assertSwapDirOnDisk, assertSwapDirShape, diffRgba, drillPhaseFailures, evictionsFrom, movementWhileWaiting, nearestWalkableIn, notServingReason, occupancyVerdict, parityVerdict, parseAcceptanceArgs, pinCoverage, sweepPlan,
+  AcceptanceUsageError, assertSwapDirOnDisk, assertSwapDirShape, decodedAtlasBytes, diffRgba, loadCategory, drillPhaseFailures, evictionsFrom, movementWhileWaiting, nearestWalkableIn, notServingReason, occupancyVerdict, parityVerdict, parseAcceptanceArgs, pinCoverage, sweepPlan,
   type PixelDiff, type StepRecord,
 } from './chunk-runtime-browser-acceptance.js';
 
@@ -127,6 +127,27 @@ describe('S4g acceptance driver', () => {
     }
   });
 
+  it('categorises downloaded bytes', () => {
+    expect(['/world/0/abc.bin', '/generated/atlas-1.png', '/generated/atlas.packs.json', '/assets/index-1.js', '/assets/a.css', '/index.html', '/service-worker.js']
+      .map(loadCategory)).toEqual(['world', 'atlas', 'atlas', 'script', 'script', 'other', 'other']);
+  });
+
+  it('sums the decoded bytes of the atlas pages a session downloaded, consolidated or packed (S6)', async () => {
+    const files: Record<string, unknown> = {
+      '/generated/atlas.meta.json': { atlases: { 'ui:p000:summer': 'atlas-a.png' }, pages: { 'ui:p000': { decodedBytes: 400 } } },
+      '/generated/atlas.packs.json': { packs: { 'trees-oak': 'pack-1.json' } },
+      '/generated/pack-1.json': { atlases: { 'trees:trees-oak:p000:summer': 'atlas-b.png' }, pages: { 'trees:trees-oak:p000': { decodedBytes: 64 } } },
+    };
+    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+      const body = files[new URL(String(url)).pathname];
+      return body === undefined ? new Response('', { status: 404 }) : new Response(JSON.stringify(body));
+    });
+    try {
+      expect(await decodedAtlasBytes('http://127.0.0.1:1', new Set(['/generated/atlas-b.png', '/generated/atlas-a.png', '/generated/atlas-x.png'])))
+        .toEqual({ pages: 2, decodedBytes: 464 });
+    } finally { fetch.mockRestore(); }
+  });
+
   it('judges each rollback drill phase', () => {
     const quiet = { pixels: 100, anyChange: 0, changed: 0, ratio: 0, maxDelta: 0, bbox: null };
     const base = { followMs: 400, worldRequests: 0, terrain: quiet, noise: quiet, collisionFallback: null };
@@ -136,8 +157,14 @@ describe('S4g acceptance driver', () => {
     expect(drillPhaseFailures({ ...base, phase: 'on-again', buildMode: 'on', effectiveMode: 'on', servingStore: true }, 0.002)).toEqual([]);
     expect(drillPhaseFailures({ ...base, phase: 'server-off', buildMode: 'on', effectiveMode: 'on', servingStore: true }, 0.002))
       .toEqual(['server-off: still on the chunk runtime (mode on)']);
-    expect(drillPhaseFailures({ ...base, phase: 'previous-build', buildMode: 'on', effectiveMode: null, servingStore: false }, 0.002))
-      .toEqual(['previous-build: served build mode on']);
+    // The previous release's `on` client is a valid previous build once the server is off (static world S6).
+    expect(drillPhaseFailures({ ...base, phase: 'previous-build', buildMode: 'on', effectiveMode: 'off', servingStore: false }, 0.002)).toEqual([]);
+    // Static world S6: the S6 client shows "world updating" with the server off (no frame comparison) ...
+    expect(drillPhaseFailures({ ...base, phase: 'server-off', buildMode: 'on', effectiveMode: 'off', servingStore: false,
+      terrain: { ...quiet, ratio: 0.5 }, worldUpdating: true }, 0.002)).toEqual([]);
+    // ... but a previous build that shows it is no rollback.
+    expect(drillPhaseFailures({ ...base, phase: 'previous-build', buildMode: 'on', effectiveMode: 'off', servingStore: false, worldUpdating: true }, 0.002))
+      .toEqual(['previous-build: the previous client shows "world updating"']);
     expect(drillPhaseFailures({ ...base, phase: 'on-again', buildMode: 'on', effectiveMode: 'on', servingStore: true, collisionFallback: 'not_on', followMs: null }, 0.002))
       .toEqual(['on-again: the page never reached the expected mode', 'on-again: not serving from chunks (mode on, fallback not_on)']);
     expect(drillPhaseFailures({ ...base, phase: 'on', buildMode: 'on', effectiveMode: 'on', servingStore: true, terrain: { ...quiet, ratio: 0.01 } }, 0.002))

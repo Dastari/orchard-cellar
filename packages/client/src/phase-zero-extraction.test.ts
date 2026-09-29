@@ -279,7 +279,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // is its own 20-rect layout constant, and a model without a projected capacity falls back to the shipped bag's authored
 // capacity. inventory-menus-held-stack (a 1,000-slot bag) and overworld-ui tests cover it; lab snapshot hashes are
 // unchanged; the other four seams are unchanged.
-const STRUCTURAL_SEAM_DIGEST = 'b6b512f4151696de18713392e8572336a01be4197c4c85cc7256dff5aaed2a9c';
+// Static world S6: engine/collision.ts takes the island generator's whole-map inputs by injection
+// (collision-island.ts) and live-map-runtime re-exports the generator-free terrain sampler.
+const STRUCTURAL_SEAM_DIGEST = 'cd9ea52bc51ac6513891b0db8632ac61d160ab9a2b4dde7bc55ac2457c01620e';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

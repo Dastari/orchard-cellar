@@ -168,8 +168,8 @@ describe('WorldSource (static world S4c)', () => {
     const main = readFileSync(new URL('./overworld-main.ts', import.meta.url), 'utf8');
     const render = main.indexOf('worldSource.setView(estimatedCameraTiles(localX, localY));');
     expect(render).toBeGreaterThan(0);
-    expect(main.indexOf('const terrain = terrainForSnapshot(snapshot);', render)).toBeGreaterThan(render);
-    const beforeTerrain = main.slice(render, main.indexOf('const terrain = terrainForSnapshot(snapshot);', render));
+    expect(main.indexOf('const terrain = renderTerrainFor(snapshot);', render)).toBeGreaterThan(render);
+    const beforeTerrain = main.slice(render, main.indexOf('const terrain = renderTerrainFor(snapshot);', render));
     expect(beforeTerrain).not.toContain('beginWorld');
     // S4f: the prepared window advances one stage before this frame's terrain is served.
     expect(beforeTerrain).toContain('worldSource.advance(snapshot.content.registry);');
@@ -212,14 +212,20 @@ describe('WorldSource collision (static world S4d)', () => {
     expect(off.authority(registry)).toBeUndefined();
     expect(off.suppressesGeneratedResource(42n, registry)).toBeUndefined();
     expect(off.collisionStatus.fallbackReason).toBeNull();
-    // The gate: a newer publication still loading here, or nothing published (never a lag or the atlas).
+    expect(off.collisionBlocked).toBeNull();
+    // The gate. Nothing published: no collision, and (S6) "world updating" (collisionBlocked).
     const { source, state } = onSource();
-    for (const gate of ['superseded', 'shadow_missing'] as const) {
-      state.gate = gate;
-      expect(source.collision(registry), gate).toBeUndefined();
-      expect(source.suppressesGeneratedResource(42n, registry), gate).toBeUndefined();
-      expect(source.collisionStatus.fallbackReason).toBe(gate);
-    }
+    state.gate = 'shadow_missing';
+    expect(source.collision(registry)).toBeUndefined();
+    expect(source.suppressesGeneratedResource(42n, registry)).toBeUndefined();
+    expect(source.collisionStatus.fallbackReason).toBe('shadow_missing');
+    expect(source.collisionBlocked).toBe('shadow_missing');
+    // Static world S6: a newer publication still loading (every republish) keeps the resident revision
+    // serving; the client has no other map, so it never freezes on an empty collision.
+    state.gate = 'superseded';
+    expect(source.collision(registry)).toBeDefined();
+    expect(source.suppressesGeneratedResource(42n, registry)).toBe(true);
+    expect(source.collisionBlocked).toBeNull();
     state.gate = null;
     expect(source.collision(registry)).toBeDefined();
     expect(source.collisionStatus).toMatchObject({ fallbackReason: null, authorityIncomplete: false, missingChunks: 0 });
@@ -242,11 +248,36 @@ describe('WorldSource collision (static world S4d)', () => {
       const refused = onSource({ manifest: change as (manifest: WorldChunkManifest) => WorldChunkManifest }).source;
       expect(refused.collision(registry), reason).toBeUndefined();
       expect(refused.collisionStatus.fallbackReason, reason).toBe(reason);
+      expect(refused.collisionBlocked, reason).toBe(reason); // S6: "world updating", retried
       expect(refused.authority(registry), reason).toBeUndefined();
     }
     // Another space never serves chunk collision.
     const other = servingStore(7, undefined, true);
     expect(new WorldSource({ store: () => other.store, pin: other.pin }).collision(registry)).toBeUndefined();
+  });
+
+  it('reports a window or collision that fails to build as blocked, never as walkable nothing (S6)', () => {
+    const serving = servingStore(0, undefined, true);
+    const broken = { window: false, collision: false };
+    const store = Object.create(serving.store, { peekChunk: { value: (cx: number, cy: number) => {
+      if (broken.window || broken.collision) throw new Error('chunk_decode_failed');
+      return serving.store.peekChunk(cx, cy);
+    } } }) as BoundedChunkTerrainStore;
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      broken.window = true;
+      const failing = new WorldSource({ store: () => store, pin: serving.pin, authorityGate: () => null, worldSize: FIXTURE_SIZE });
+      failing.setView(VIEW);
+      expect(failing.collision(registry)).toBeUndefined();
+      expect(failing.collisionBlocked).toMatch(/^(window_unavailable|collision_build_failed)$/u);
+      broken.window = false;
+      const source = new WorldSource({ store: () => store, pin: serving.pin, authorityGate: () => null, worldSize: FIXTURE_SIZE });
+      source.setView(VIEW);
+      expect(source.window(registry)).toBeDefined();
+      broken.collision = true;
+      expect(source.collision(registry)).toBeUndefined();
+      expect(source.collisionBlocked).toBe('collision_build_failed');
+    } finally { warn.mockRestore(); }
   });
 
   it('keeps a not-yet-resident window chunk solid, but falls back when a resident one is malformed', () => {
@@ -299,10 +330,10 @@ describe('WorldSource map records (static world S4e)', () => {
     const source = new WorldSource({ store: () => serving.store, pin: serving.pin, authorityGate: () => state.gate, worldSize: FIXTURE_SIZE });
     source.setView(VIEW);
     expect(source.mapRecords(registry)).toBeDefined();
-    for (const gate of ['superseded', 'shadow_missing'] as const) {
-      state.gate = gate;
-      expect(source.mapRecords(registry), gate).toBeUndefined();
-    }
+    state.gate = 'shadow_missing';
+    expect(source.mapRecords(registry)).toBeUndefined();
+    state.gate = 'superseded'; // S6: the resident revision keeps serving through a republish
+    expect(source.mapRecords(registry)).toBeDefined();
     // No authority extension at all: neither collision nor records.
     const legacyOnly = servingStore();
     const unextended = new WorldSource({ store: () => legacyOnly.store, pin: legacyOnly.pin });
@@ -373,6 +404,7 @@ describe('WorldSource map records (static world S4e)', () => {
     expect(source.collision(registry)).toBeUndefined();
     expect(source.collisionStatus).toMatchObject({ fallbackReason: 'incomplete: map_records:chunk_map_record_invalid:decoration@2,1#0',
       authorityIncomplete: true });
+    expect(source.collisionBlocked).toBe('incomplete: map_records:chunk_map_record_invalid:decoration@2,1#0');
     expect(source.window(registry)).toBeDefined();
     expect(warn).toHaveBeenCalledTimes(1);
     warn.mockRestore();
@@ -612,4 +644,5 @@ describe('WorldSource staged window moves (static world S4f)', () => {
     early.setView(BAND); early.advance(registry);
     expect(early.stagingStatus.pending).toBeNull();
   });
+
 });

@@ -59,7 +59,7 @@ function controllerFor(buildMode: ChunkRuntimeMode) {
   const authority = spaceAdminFlagChunkAuthority();
   const controller = new ChunkRuntimeController({ buildMode, authority: authority.source, watchAuthority: authority.watch, cache: null,
     fetchBlob: async () => new Uint8Array() });
-  controller.update(w.connection, 0n, [0, 0, 128, 128], { mapRevision: 1, mapHash: 'map', contentHash: 'content' });
+  controller.update(w.connection, 0n, [0, 0, 128, 128], { contentHash: 'content' });
   return { ...w, controller, mode: () => controller.status.mode };
 }
 
@@ -128,7 +128,7 @@ describe('BUG-053: the chunk runtime follows the server chunkAuthority row', () 
     const first = world(), second = world();
     const controller = new ChunkRuntimeController({ buildMode: 'on', authority: authority.source, watchAuthority: authority.watch, cache: null,
       fetchBlob: async () => new Uint8Array() });
-    const source = { mapRevision: 1, mapHash: 'map', contentHash: 'content' };
+    const source = { contentHash: 'content' };
     try {
       first.insert({ spaceId: 0, flagsJson: flags('on') });
       controller.update(first.connection, 0n, [0, 0, 128, 128], source);
@@ -161,7 +161,7 @@ describe('BUG-053: the chunk runtime follows the server chunkAuthority row', () 
   it('OverworldConnection.updateChunkRuntime wires the seam: its runtime follows a row event (#236 review)', () => {
     const h = world();
     const self = { chunkRuntimeMode: 'on', chunkRuntime: undefined as ChunkRuntimeController | undefined,
-      chunkPinFor: () => [0, 0, 128, 128], chunkRuntimeSource: () => ({ mapRevision: 1, mapHash: 'map', contentHash: 'content' }) };
+      chunkPinFor: () => [0, 0, 128, 128], chunkRuntimeSource: () => ({ contentHash: 'content' }) };
     const updateChunkRuntime = (OverworldConnection.prototype as unknown as {
       updateChunkRuntime(this: typeof self, connection: DbConnection, position: { spaceId: number }): void }).updateChunkRuntime;
     try {
