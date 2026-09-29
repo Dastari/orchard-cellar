@@ -400,6 +400,39 @@ describe('container cells (Uncapped Storage step 4c)', () => {
     expect(mocked.ensure).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps a live session on its last good content when a publish brings rows this client cannot parse, until content it can', async () => {
+    // Uncapped Storage step 5 (review of #272): a client older than the content (one that cannot parse `entitySlots:
+    // "all"`, before 0.52) must report content_registry_invalid, which the game shows as CONTENT UPDATE REQUIRED with a
+    // RELOAD (initial-world-loading.test.ts), and never adopt a half-understood registry.
+    const { network, connection } = await ready();
+    const good = network.view().content;
+    expect(good.status).toBe('ready');
+    expect(good.registry.frames.get('frame:chest')?.panes.find(pane => pane.id === 'contents')?.bind).toEqual({ entitySlots: 'all' });
+    const publish = (next: typeof rows, revision: bigint) => {
+      connection.table('runtimeContentDefinitions').rows = next.map(row => ({ ...row }));
+      connection.table('contentHead').rows = [{ packId: 'live', revision, engineVersion: CLIENT_CONTENT_ENGINE_VERSION,
+        contentHash: contentDefinitionRowsHash(next), definitionCount: next.length }];
+      for (const callback of connection.table('contentHead').updated) callback({ event: { id: `publish-${revision}` } }, {}, {});
+    };
+    // A binding form from a newer engine than this bundle's parser, correctly hashed and counted.
+    const newer = rows.map(row => row.id !== 'frame:chest' ? row : { ...row, json: JSON.stringify({ ...JSON.parse(String(row.json)),
+      panes: (JSON.parse(String(row.json)).panes as { bind: object }[]).map(pane => 'entitySlots' in pane.bind ? { ...pane, bind: { entitySlots: 'visible' } } : pane) }) });
+    publish(newer, 2n); await flush();
+    const stale = network.view();
+    expect(stale.error).toBe('content_registry_invalid');
+    expect(stale.content.status).toBe('invalid');
+    expect(stale.content.issues.filter(issue => issue.endsWith(':frame:chest'))).not.toEqual([]);
+    expect(stale.content.issues).not.toContain('content_hash_mismatch');
+    expect(stale.content.registry).toBe(good.registry);
+    // The session itself stays up (no reconnect loop, no sign-in): only a newer client can read the content.
+    expect(stale.connected).toBe(true);
+    expect(network.recoveryState).toBe('ready');
+    expect(connections).toHaveLength(1);
+    publish(rows, 3n); await flush();
+    expect(network.view().error).toBeNull();
+    expect(network.view().content.status).toBe('ready');
+  });
+
   it('maps own_player_container_cells rows into the container model: all five containers, u32 indices, no legacy rows', async () => {
     const { network, connection } = await ready();
     const cells = network.view().playerCells;

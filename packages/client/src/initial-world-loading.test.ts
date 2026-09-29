@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 import { drawInitialWorldLoading } from './initial-world-loading.js';
-import { RECONNECT_GRACE_MS, WORLD_GAP_GRACE_MS, worldGapPresentation } from './connection-recovery-overlay.js';
-import { drawOrchardBackdrop, type LoadedAsset } from '@orchard/ui';
+import { ConnectionRecoveryOverlay, RECONNECT_GRACE_MS, WORLD_GAP_GRACE_MS, worldGapPresentation } from './connection-recovery-overlay.js';
+import { drawOrchardBackdrop, type LoadedAsset, type PixelUi, type UiSkin } from '@orchard/ui';
 import type { UiKitArt } from '@orchard/ui/game';
 
 vi.mock('@orchard/ui', () => ({ drawOrchardBackdrop: vi.fn() }));
@@ -84,6 +84,23 @@ describe('initial world loading versus reconnection', () => {
     run(location, network)('reload');
     expect(location.reload).toHaveBeenCalledOnce();
     expect(location.assign).not.toHaveBeenCalled();
+    expect(network.retryConnection).not.toHaveBeenCalled();
+  });
+  it('turns live content this client cannot parse into CONTENT UPDATE REQUIRED whose action reloads the page', () => {
+    // A stale bundle meeting content it cannot parse (for example `entitySlots: "all"` before client 0.52) keeps its
+    // last good registry and reports content_registry_invalid; over the retained world that is a reload, not a retry.
+    const f = fixture(); f.deps.hasRenderedWorldFrame = true; f.deps.network.recoveryState = 'ready';
+    f.deps.latestSnapshot.error = 'content_registry_invalid';
+    f.render();
+    expect(f.deps.connectionRecoveryOverlay.composite).toHaveBeenCalledWith(f.deps.renderer, expect.any(Object), 'content-incompatible', true);
+    const action = new ConnectionRecoveryOverlay({} as PixelUi, {} as UiSkin).primaryAction('content-incompatible');
+    expect(action).toBe('reload');
+    const activate = declaration('activateConnectionRecovery');
+    const run = new Function('location', 'network', `${ts.transpileModule(activate.getText(source), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText}\nreturn activateConnectionRecovery;`);
+    const location = { assign: vi.fn(), reload: vi.fn() };
+    const network = { retryConnection: vi.fn() };
+    run(location, network)(action);
+    expect(location.reload).toHaveBeenCalledOnce();
     expect(network.retryConnection).not.toHaveBeenCalled();
   });
   it('keeps the last world frame while a returning tab re-syncs, then a neutral note without RETRY (BUG-040)', () => {
