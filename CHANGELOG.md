@@ -2,6 +2,13 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.53.1 / UI 0.54.1 / Studio 0.16.20 / Assets 0.24.1 — Uncapped Storage step 5 (part 1): whole-container storage panes, barrel scrolling
+
+**Routine release: content and client, no world change.**
+- **Whole-container panes (#285):** the chest, barrel and hearth stash frames bind `entitySlots: 'all'`, so each window shows every slot its object has (16, 8 and 20 today; nothing changes on screen). Clients from 0.52.1 onwards parse this.
+- **Content refresh (#285):** a client that can't parse live content now offers **RELOAD** ("GAME CONTENT HAS CHANGED. / RELOAD TO UPDATE.") instead of a retry that could never succeed.
+- **Barrel scrolling (#286):** a station's multi-cell pane with more cells than its authored columns × rows scrolls like a chest's contents. Today's 8-slot barrel is unchanged.
+
 ## Client 0.53.0 / UI 0.54.0 / Sim 0.35.0 / World 0.31.0 / World bindings 0.20.0 — Uncapped Storage step 4: container-scoped storage (migration release)
 
 **Schema migration release: new tables, with a one-time migration of all items.** The migration lane runs with `WORLD_RELEASE_CONTAINER_CELL_MIGRATION=run`.
