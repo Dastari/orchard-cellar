@@ -2,9 +2,13 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
-## Client 0.53.1 / UI 0.54.1 / Studio 0.16.20 / Assets 0.24.1 — Uncapped Storage step 5 (part 1): whole-container storage panes, barrel scrolling
+## Client 0.54.0 / UI 0.54.1 / Sim 0.35.1 / World 0.31.1 / World bindings 0.20.1 / Studio 0.16.20 / Assets 0.24.1 / Tools 0.24.8 / Lifecycle authoring 0.16.3 — Uncapped Storage step 5 (part 1): whole-container panes, barrel scrolling, no global-slot adapters
 
-**Routine release: content and client, no world change.**
+**Routine release: content, client and world module together; no schema change or data migration.** Inventory protocol 3: open tabs from before this release get UPDATE REQUIRED for inventory actions and must reload.
+- **Container-addressed carried cells (#287):**
+  - Loadouts, expedition readiness, bow ammunition (hotbar first, then backpack by index), the merchant deed check and behaviour item references read `player_container_cell` rows directly.
+  - `use_selected` sends `equipmentIndex` (0–9) instead of the legacy global slot.
+  - `legacy-global-slots.ts` and the world's legacy-slot adapters are deleted. The deed check now also sees backpack cells past 20.
 - **Whole-container panes (#285):** the chest, barrel and hearth stash frames bind `entitySlots: 'all'`, so each window shows every slot its object has (16, 8 and 20 today; nothing changes on screen). Clients from 0.52.1 onwards parse this.
 - **Content refresh (#285):** a client that can't parse live content now offers **RELOAD** ("GAME CONTENT HAS CHANGED. / RELOAD TO UPDATE.") instead of a retry that could never succeed.
 - **Barrel scrolling (#286):** a station's multi-cell pane with more cells than its authored columns × rows scrolls like a chest's contents. Today's 8-slot barrel is unchanged.
