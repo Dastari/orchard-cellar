@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
-import { HOTBAR_SLOT_COUNT, INVENTORY_SLOT_COUNT, MAIN_HAND_EQUIPMENT_INDEX, MAIN_HAND_SELECTED_SLOT, migrateEquipmentLayout, CURRENT_EQUIPMENT_LAYOUT_VERSION, CURRENT_CONTAINER_LAYOUT_VERSION, cellToLegacyGlobalSlot, isPlayerContainerId, legacyGlobalSlotToCell, playerContainerCellsFingerprint, type PlayerContainerMigrationPlan } from '@orchard/sim';
+import { HOTBAR_SLOT_COUNT, INVENTORY_SLOT_COUNT, bootstrapContentRegistry, inventoryContainerSlotCount, planNewPlayerLoadout, MAIN_HAND_EQUIPMENT_INDEX, MAIN_HAND_SELECTED_SLOT, migrateEquipmentLayout, CURRENT_EQUIPMENT_LAYOUT_VERSION, CURRENT_CONTAINER_LAYOUT_VERSION, cellToLegacyGlobalSlot, isPlayerContainerId, legacyGlobalSlotToCell, playerContainerCellsFingerprint, type PlayerContainerMigrationPlan } from '@orchard/sim';
 import * as containerCells from './container-cells.js';
 import { playerCellDependencies, playerCellTable } from './player-cells.fixture.js';
 import { contentRecoveryConnection } from './content/recovery.js';
@@ -32,8 +32,9 @@ function table(initial: readonly Row[] = [], key = 'identity') {
 interface AuthoredLoadoutFixture {
   readonly selectedSlot: number;
   readonly equippedKind: string;
-  readonly slots: readonly {
-    readonly slot: number;
+  readonly cells: readonly {
+    readonly container: 'hotbar' | 'backpack' | 'equipment' | 'crafting';
+    readonly index: number;
     readonly itemKind: string;
     readonly quantity: number;
     readonly durability: number;
@@ -44,17 +45,9 @@ interface AuthoredLoadoutFixture {
 const starterLoadout: AuthoredLoadoutFixture = {
   selectedSlot: 0,
   equippedKind: 'axe',
-  slots: Array.from({ length: INVENTORY_SLOT_COUNT }, (_, slot) => {
-    const items = ['axe', 'pickaxe', 'hoe', 'watering_can', 'bow', 'arrow'];
-    const itemKind = items[slot] ?? 'empty';
-    return {
-      slot,
-      itemKind,
-      quantity: itemKind === 'empty' ? 0 : itemKind === 'arrow' ? 32 : 1,
-      durability: 0,
-      lit: true,
-    };
-  }),
+  cells: ['axe', 'pickaxe', 'hoe', 'watering_can', 'bow', 'arrow'].map((itemKind, index) => ({
+    container: 'hotbar', index, itemKind, quantity: itemKind === 'arrow' ? 32 : 1, durability: 0, lit: true,
+  })),
 };
 
 interface LegacyFixture {
@@ -127,10 +120,10 @@ function runInventoryConnection(
     requireContentEditor: () => { throw new Error('unexpected_recovery_authorization'); },
     ensureContentPublicationBase: () => { throw new Error('unexpected_recovery_integrity_check'); },
     prepareConnection: () => ({ connectionId: ctx.connectionId, firstLiveConnection: false, firstStatisticSession: false }),
-    HOTBAR_SLOT_COUNT, INVENTORY_SLOT_COUNT, migrateEquipmentLayout, CURRENT_EQUIPMENT_LAYOUT_VERSION, CURRENT_HOTBAR_LAYOUT_VERSION: 1,
+    HOTBAR_SLOT_COUNT, INVENTORY_SLOT_COUNT, inventoryContainerCapacity: inventoryContainerSlotCount, migrateEquipmentLayout, CURRENT_EQUIPMENT_LAYOUT_VERSION, CURRENT_HOTBAR_LAYOUT_VERSION: 1,
     hotbarSlotCountForLayoutVersion: (version:number)=>version===0?9:HOTBAR_SLOT_COUNT,
     planNewPlayerLoadout: (_registry: unknown, request: { existingCharacter: boolean }) => request.existingCharacter
-      ? { ok: true, apply: false, slots: [] }
+      ? { ok: true, apply: false, cells: [] }
       : { ok: true, apply: true, definitionId: 'loadout:fixture', ...authoredLoadout },
     HUNGER_MAX_CENTI: 10000, TOPSIDE_SPACE_ID: 0,
     findSurvivalSpawnTile: () => ({ tileX: 1, tileY: 1 }), storedDurability: () => 0,
@@ -212,13 +205,25 @@ describe('inventory preservation on reconnect', () => {
     expect(secondConnectWrites).toEqual([]);
   });
 
+  it('writes the bootstrap starter kit to exactly the cells the legacy global slots 0-5 addressed', () => {
+    const plan = planNewPlayerLoadout(bootstrapContentRegistry(), {
+      existingCharacter: false, containerCapacity: inventoryContainerSlotCount,
+    });
+    if (!plan.ok || !plan.apply) throw new Error('bootstrap starter kit was not planned');
+    const { rows, survival } = runInventoryConnection(true, false, undefined, plan);
+    expect(survival).toMatchObject({ selectedSlot: 0 });
+    // The output before container addressing: legacy slots 0-5, each the hotbar cell of the same number.
+    expect(rows.map((row) => `${row['slot']}=${row['container']}:${row['index']}:${row['itemKind']}x${row['quantity']}d${row['durability']}:${row['lit']}`)).toEqual([
+      '0=hotbar:0:axex1d200:true', '1=hotbar:1:pickaxex1d250:true', '2=hotbar:2:hoex1d180:true',
+      '3=hotbar:3:watering_canx1d160:true', '4=hotbar:4:bowx1d180:true', '5=hotbar:5:arrowx32d0:true',
+    ]);
+  });
+
   it('persists arbitrary authored slots and selection without a starter-kind branch', () => {
     const authored: AuthoredLoadoutFixture = {
       selectedSlot: 3,
       equippedKind: 'survey_hatchet',
-      slots: Array.from({ length: INVENTORY_SLOT_COUNT }, (_, slot) => slot === 3
-        ? { slot, itemKind: 'survey_hatchet', quantity: 1, durability: 777, lit: false }
-        : { slot, itemKind: 'empty', quantity: 0, durability: 0, lit: true }),
+      cells: [{ container: 'hotbar', index: 3, itemKind: 'survey_hatchet', quantity: 1, durability: 777, lit: false }],
     };
     const { rows, survival } = runInventoryConnection(true, false, undefined, authored);
     expect(survival).toMatchObject({ selectedSlot: 3 });

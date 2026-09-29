@@ -24,7 +24,9 @@ describe('P0 active-content world wiring', () => {
     expect(connect.indexOf('putPlayerCell(ctx.db, ctx.sender, cell.container, cell.index')).toBeGreaterThan(planning);
     expect(connect).not.toContain('ctx.db.inventory_slot.insert(');
     expect(connect).toContain('selectedSlot: newPlayerLoadout.selectedSlot');
-    expect(connect).toContain('for (const slot of newPlayerLoadout.slots)');
+    expect(connect).toContain('for (const cell of newPlayerLoadout.cells)');
+    expect(connect).toContain('containerCapacity: inventoryContainerCapacity');
+    expect(connect).not.toContain('legacyGlobalSlotToCell');
     expect(connect).not.toContain('STARTER_HOTBAR_ITEMS');
     expect(connect).not.toContain('STARTER_ITEM_QUANTITIES');
   });
