@@ -88,3 +88,34 @@ export async function fetchChunkBlob(path: string,maxBytes: number): Promise<Uin
     return bytes;
   } finally { clearTimeout(timeout); }
 }
+
+/** A published blob read from the world database (`readWorldChunkBlob`), for a head of the manifest. */
+export type ChunkBlobFallback = (head: { readonly spaceId: number; readonly cx: number; readonly cy: number; readonly contentHash: string }) => Promise<Uint8Array>;
+
+/**
+ * Static world S7b: `fetchBlob` for one manifest that reads a blob from the world database when the
+ * origin does not serve it (404 only: a Studio publication commits its blobs to the database, and the
+ * host installs them into `/world/` later). Every other failure is the origin's, unchanged. The caller
+ * verifies the bytes against the manifest exactly as it verifies a served blob.
+ */
+export function withDatabaseBlobFallback(fetchBlob: (path: string, maxBytes: number) => Promise<Uint8Array>, manifest: WorldChunkManifest,
+  fallback: ChunkBlobFallback): (path: string, maxBytes: number) => Promise<Uint8Array> {
+  return async (path, maxBytes) => {
+    try {
+      return await fetchBlob(path, maxBytes);
+    } catch (error) {
+      if (!(error instanceof Error) || error.message !== 'chunk_fetch_404') throw error;
+      const head = manifest.chunks.find(entry => chunkBlobPath(manifest.spaceId, entry.contentHash) === path);
+      if (head === undefined) throw error;
+      let bytes: Uint8Array;
+      try {
+        bytes = await fallback({ spaceId: manifest.spaceId, cx: head.cx, cy: head.cy, contentHash: head.contentHash });
+      } catch (databaseError) {
+        // Still the origin's miss for the caller's status and retry; the database refusal is the cause.
+        throw new Error(error.message, { cause: databaseError });
+      }
+      if (bytes.byteLength > maxBytes) throw new Error('chunk_response_too_large', { cause: error });
+      return bytes;
+    }
+  };
+}

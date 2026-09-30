@@ -727,7 +727,8 @@ export class OverworldConnection {
     if (this.#homesteadChunkCache === undefined) this.#homesteadChunkCache = browserChunkBlobCache() ?? null;
     const row = connection.db.worldChunkShadow.spaceId.find(BigInt(TOPSIDE_SPACE_ID));
     return ensureHomesteadIslandPatch(site, sizeTiles, row ? { revision: Number(row.revision), manifestJson: row.manifestJson } : null,
-      fetchChunkBlob, this.#homesteadChunkCache ?? undefined);
+      fetchChunkBlob, this.#homesteadChunkCache ?? undefined, head => connection.procedures.readWorldChunkBlob({
+        spaceId: BigInt(head.spaceId), cx: head.cx, cy: head.cy, contentHash: head.contentHash }));
   }
 
   private releaseConnection(): void {

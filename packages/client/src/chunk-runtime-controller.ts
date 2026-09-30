@@ -3,7 +3,7 @@ import type { DbConnection, SubscriptionHandle } from '@orchard/world-bindings';
 import type { WorldChunkHead } from '@orchard/world-bindings/types';
 import { validateRuntimeManifest, type ChunkCollisionSample, type ChunkRuntimeMode } from '@orchard/sim/chunk-runtime';
 import type { BoundedChunkTerrainStore } from '@orchard/engine/bounded-chunk-terrain-store';
-import { ChunkShadowLoader, fetchChunkBlob } from './chunk-shadow-loader.js';
+import { ChunkShadowLoader, fetchChunkBlob, withDatabaseBlobFallback } from './chunk-shadow-loader.js';
 import { browserChunkBlobCache, type ChunkBlobCache, type IndexedDbChunkCache } from './chunk-shadow-cache.js';
 
 export type ChunkView = readonly [number, number, number, number];
@@ -271,8 +271,11 @@ export class ChunkRuntimeController {
     if (this.#active === buffer) this.#active = undefined;
     if (this.#pending === buffer) this.#pending = undefined;
   }
-  #buffer(revision: string, spaceId: bigint, manifest: WorldChunkManifest): ChunkBuffer {
-    return { revision, spaceId, manifest, loader: new ChunkShadowLoader(manifest, this.#fetchBlob, this.#cache) };
+  #buffer(revision: string, spaceId: bigint, manifest: WorldChunkManifest, connection: DbConnection): ChunkBuffer {
+    // S7b: a blob the origin does not serve yet comes from the world database (readWorldChunkBlob).
+    const fetchBlob = withDatabaseBlobFallback(this.#fetchBlob, manifest, head => connection.procedures.readWorldChunkBlob({
+      spaceId: BigInt(head.spaceId), cx: head.cx, cy: head.cy, contentHash: head.contentHash }));
+    return { revision, spaceId, manifest, loader: new ChunkShadowLoader(manifest, fetchBlob, this.#cache) };
   }
   #assetRevision(): Promise<string> {
     this.#assetHash ??= this.#fetchBlob('/generated/atlas.packs.json', 1024 * 1024).then(worldChunkHash)
@@ -328,7 +331,7 @@ export class ChunkRuntimeController {
     if (revision !== this.#active?.revision) {
       if (this.#active) this.#drop(this.#active);
       if (this.#pending) this.#drop(this.#pending);
-      this.#active = this.#buffer(revision, input.spaceId, manifest);
+      this.#active = this.#buffer(revision, input.spaceId, manifest, input.connection);
     }
     const buffer = this.#active!;
     if (!headsConsistent) throw new Error('chunk_head_revision_mismatch');
@@ -365,7 +368,7 @@ export class ChunkRuntimeController {
     } else if (input.spaceId === this.#latest?.spaceId) {
       if (this.#pending?.revision !== revision) {
         if (this.#pending) this.#drop(this.#pending);
-        this.#pending = this.#buffer(revision, input.spaceId, manifest);
+        this.#pending = this.#buffer(revision, input.spaceId, manifest, input.connection);
       }
       target = this.#pending;
     }
