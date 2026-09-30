@@ -35,6 +35,7 @@ export interface AppliedNewPlayerLoadoutPlan {
   readonly ok: true;
   readonly apply: true;
   readonly definitionId: LoadoutDefinitionId;
+  readonly knownRecipeIds: readonly string[];
   /** The stored `player_survival.selectedSlot` value: a hotbar index, or `MAIN_HAND_SELECTED_SLOT`. */
   readonly selectedSlot: number;
   readonly selectedCell: LoadoutCellDefinition;
@@ -45,7 +46,7 @@ export interface AppliedNewPlayerLoadoutPlan {
 
 export interface FailedNewPlayerLoadoutPlan {
   readonly ok: false;
-  readonly code: 'loadout_unavailable' | 'loadout_capacity_exceeded' | 'loadout_item_invalid';
+  readonly code: 'loadout_unavailable' | 'loadout_capacity_exceeded' | 'loadout_item_invalid' | 'loadout_recipe_invalid';
 }
 
 export type NewPlayerLoadoutPlan =
@@ -91,7 +92,7 @@ export function activeNewPlayerLoadout(
 }
 
 export function planNewPlayerLoadout(
-  registry: Pick<ContentRegistry, 'items' | 'loadouts'>,
+  registry: Pick<ContentRegistry, 'items' | 'loadouts' | 'recipes'>,
   request: NewPlayerLoadoutRequest,
 ): NewPlayerLoadoutPlan {
   // This must precede all content resolution: a missing or temporarily invalid
@@ -99,6 +100,10 @@ export function planNewPlayerLoadout(
   if (request.existingCharacter) return Object.freeze({ ok: true, apply: false, cells: [] as const });
   const loadout = activeNewPlayerLoadout(registry);
   if (loadout === null) return Object.freeze({ ok: false, code: 'loadout_unavailable' });
+  const recipes = loadout.recipes ?? [];
+  if (recipes.some(id => { const recipe = registry.recipes.get(id); return !recipe || recipe.retired === true; })) {
+    return Object.freeze({ ok: false, code: 'loadout_recipe_invalid' });
+  }
   const fits = (cell: LoadoutCellDefinition | null): cell is LoadoutCellDefinition => {
     if (cell === null) return false;
     const capacity = request.containerCapacity(cell.container);
@@ -137,6 +142,7 @@ export function planNewPlayerLoadout(
     ok: true,
     apply: true,
     definitionId: loadout.id,
+    knownRecipeIds: Object.freeze(recipes.map(id => id.slice('recipe:'.length))),
     selectedSlot,
     selectedCell: Object.freeze({ container: selectedCell.container, index: selectedCell.index }),
     equippedKind,

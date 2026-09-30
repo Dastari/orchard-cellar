@@ -171,3 +171,13 @@ describe('authored new-player loadout planning', () => {
       .toEqual({ ok: false, code: 'loadout_item_invalid' });
   });
 });
+it('plans the seven basic crafting guides only for a new character, without changing its carried kit', () => {
+  const registry = bootstrapContentRegistry();
+  const plan = planNewPlayerLoadout(registry, { existingCharacter: false, containerCapacity: inventoryContainerSlotCount });
+  if (!plan.ok || !plan.apply) throw Error('missing new-player plan');
+  expect(plan.knownRecipeIds).toEqual(['planks', 'sticks', 'axe', 'pickaxe', 'hoe', 'shovel', 'workbench']);
+  expect(plan.cells).toHaveLength(6);
+  expect(planNewPlayerLoadout(registry, { existingCharacter: true, containerCapacity: inventoryContainerSlotCount })).toEqual({ ok: true, apply: false, cells: [] });
+  const recipes = new Map(registry.recipes); recipes.delete('recipe:workbench');
+  expect(planNewPlayerLoadout({ ...registry, recipes }, { existingCharacter: false, containerCapacity: inventoryContainerSlotCount })).toEqual({ ok: false, code: 'loadout_recipe_invalid' });
+});

@@ -162,3 +162,13 @@ describe('loadout content definitions', () => {
     }));
   });
 });
+it('validates starter recipe ids and active recipe references while accepting older packs', () => {
+  const loadout = bootstrapLoadout();
+  expect(loadout.recipes).toHaveLength(7);
+  expect(() => parseContentDefinition('loadout', { ...loadout, recipes: ['recipe:axe', 'recipe:axe'] })).toThrow('recipe ids must be unique');
+  expect(() => parseContentDefinition('loadout', { ...loadout, recipes: ['item:axe'] })).toThrow('invalid recipe definition id');
+  const { recipes: omitted, ...old } = loadout; void omitted;
+  expect(parseContentDefinition('loadout', old)).not.toHaveProperty('recipes');
+  const missing = buildContentRegistry(bootstrapContentRows().map(row => row.id !== loadout.id ? row : { ...row, json: JSON.stringify({ ...loadout, recipes: ['recipe:missing'] }) }));
+  expect(missing.report.errors).toContainEqual(expect.objectContaining({ code: 'unresolved_reference', definitionId: loadout.id }));
+});

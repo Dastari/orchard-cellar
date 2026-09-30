@@ -37,6 +37,15 @@
         "slot": 5
       }
     ],
+    "recipes": [
+      "recipe:planks",
+      "recipe:sticks",
+      "recipe:axe",
+      "recipe:pickaxe",
+      "recipe:hoe",
+      "recipe:shovel",
+      "recipe:workbench"
+    ],
     "appearance": {
       "hairKinds": [
         "hair_1_brown",

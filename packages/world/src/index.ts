@@ -13842,6 +13842,18 @@ function migrateLegacyPlayerStorage(ctx: WorldReducerContext, identity: Identity
   return withSenderErrors(() => movePlayerToContainerCells(ctx.db, identity, CURRENT_HOTBAR_LAYOUT_VERSION));
 }
 
+/** Initial discovery belongs only to the new-character plan, never reconnect or content migration. */
+function grantNewPlayerRecipeKnowledge(ctx: WorldReducerContext, plan: ReturnType<typeof planNewPlayerLoadout>): void {
+  if (!plan.ok || !plan.apply) return;
+  const identityHex = ctx.sender.toHexString();
+  const learnedAtTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
+  for (const recipeId of plan.knownRecipeIds) {
+    const id = `${identityHex}:${recipeId}`;
+    if (ctx.db.player_known_recipe.id.find(id) !== null) continue;
+    ctx.db.player_known_recipe.insert({ id, identity: ctx.sender, recipeId, learnedAtTick, sourceKind: 'new_player' });
+  }
+}
+
 export const onConnect = spacetimedb.clientConnected((ctx) => {
   if (ctx.connectionId === null) throw new SenderError('missing_connection_id');
   if (contentRecoveryConnection({
@@ -13946,6 +13958,7 @@ export const onConnect = spacetimedb.clientConnected((ctx) => {
     if (ctx.db.inventory_migration.identity.find(ctx.sender) === null) ctx.db.inventory_migration.insert(currentMigration);
     else ctx.db.inventory_migration.identity.update(currentMigration);
   }
+  grantNewPlayerRecipeKnowledge(ctx, newPlayerLoadout);
   const survivalMigration = ctx.db.player_survival_migration.identity.find(ctx.sender);
   if (survivalMigration === null || survivalMigration.hungerVersion < 1) {
     const authorityTick = ctx.db.world_clock.id.find(0)?.authorityTick ?? 0n;
