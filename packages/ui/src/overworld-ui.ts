@@ -1471,7 +1471,7 @@ export class OverworldUi {
         setPinned: (id, pinned) => this.callbacks.setQuestPinned(id, pinned),
         drop: id => this.callbacks.abandonQuest(id),
       }, () => { this.openWindow = null; }, page => { this.openWindow = page; });
-      this.helpBook = new HelpBook(art, () => { this.openWindow = 'system'; });
+      this.helpBook = new HelpBook(art, () => { this.openWindow = 'system'; }, undefined, (context, rect, itemKind) => this.drawItemIcon(context, rect, itemKind));
       for (const root of [this.questLog.root, this.helpBook.root]) {
         for (const { element } of root.entries()) if (element.id === 'game.quests' || element.id === 'game.help.frame') {
           element.setProps({ touchScroll: true, singlePointer: true });

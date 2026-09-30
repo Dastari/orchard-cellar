@@ -1,4 +1,6 @@
-import { HELP_TOPICS } from '../../help-topics.js';
+import type { UiRect } from '../../geometry.js';
+import { uiFixed } from '../layout/box.js';
+import { HELP_TOPICS, type HelpIllustration } from '../../help-topics.js';
 import { parseGameMarkdown, type GameMarkdownInline } from '../../design-system/game-markdown.js';
 import type { UiTextLinkTarget } from '../../design-system/rich-text.js';
 import { uiBookWindow, type UiBookWindowElement } from './book-window.js';
@@ -12,7 +14,7 @@ import { uiText } from './text.js';
 import { uiPageScroll, uiSelectablePageRow, uiWrappedPageHeading } from './quest-log.js';
 
 /** A guide topic in reading case, with a stable anchor for `[text](#anchor)` page links. */
-export interface UiHelpTopic { readonly id: string; readonly title: string; readonly entries: readonly string[] }
+export interface UiHelpTopic { readonly id: string; readonly title: string; readonly entries: readonly string[]; readonly illustrations?: readonly HelpIllustration[] }
 export interface UiHelpChapter { readonly id: string; readonly label: string; readonly icon: string; readonly topics: readonly UiHelpTopic[] }
 
 const readingCase = (title: string) => title.charAt(0) + title.slice(1).toLowerCase();
@@ -20,16 +22,18 @@ const anchorOf = (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/gu, 
 /** The guide's chapters: each existing help topic sits in exactly one; anything unassigned joins the last chapter. */
 const CHAPTER_TOPICS: readonly { readonly id: string; readonly label: string; readonly icon: string; readonly titles: readonly string[] }[] = [
   { id: 'basics', label: 'Basics', icon: 'chapter.quests', titles: ['MOVEMENT', 'ACTIONS', 'WINDOWS', 'CHAT AND COMMANDS', 'HELP BOOK'] },
-  { id: 'crafting', label: 'Crafting', icon: 'chapter.skills', titles: ['INVENTORY', 'CRAFTING', 'ITEMS AND TOOLS', 'HOMESTEAD DEEDS'] },
-  { id: 'world', label: 'World', icon: 'chapter.statistics', titles: ['DIALOGUE AND TRADE', 'SHARED WORLD', 'HORSES'] },
+  { id: 'crafting', label: 'Crafting', icon: 'chapter.skills', titles: ['INVENTORY', 'CRAFTING', 'TOOLS AND REPAIR', 'FURNACE', 'COOKING FIRES', 'FRUIT PRESS', 'FERMENTATION CASK', 'PRESERVING BARREL', 'BUILDING AND HOMESTEADS'] },
+  { id: 'world', label: 'World', icon: 'chapter.statistics', titles: ['FARMING', 'ORCHARD', 'MINING AND CELLARS', 'FISHING', 'WILDLIFE AND ANIMALS', 'WEATHER AND TIME', 'HORSES AND TRAVEL', 'DIALOGUE AND TRADE'] },
+  { id: 'adventures', label: 'Adventures', icon: 'chapter.character', titles: ['QUESTS AND ORDERS', 'VITALS AND FOOD', 'SKILLS AND EQUIPMENT', 'COMBAT AND EXPEDITIONS', 'DELVES'] },
 ];
 export const UI_HELP_CHAPTERS: readonly UiHelpChapter[] = CHAPTER_TOPICS.map((chapter, index) => ({ id: chapter.id, label: chapter.label, icon: chapter.icon,
   topics: HELP_TOPICS.filter(topic => chapter.titles.includes(topic.title) || index === CHAPTER_TOPICS.length - 1 && !CHAPTER_TOPICS.some(entry => entry.titles.includes(topic.title)))
-    .map(topic => ({ id: anchorOf(topic.title), title: readingCase(topic.title), entries: topic.entries })) }));
+    .map(topic => ({ id: anchorOf(topic.title), title: readingCase(topic.title), entries: topic.entries, ...(topic.illustrations ? { illustrations: topic.illustrations } : {}) })) }));
 /** Every topic as one authored markdown source, in chapter order (kept for content checks and the migration lab). */
 export const UI_HELP_BOOK_SOURCE = UI_HELP_CHAPTERS.flatMap(chapter => chapter.topics).map(topic => `## ${topic.title}\n\n${topic.entries.map(entry => `- ${entry}`).join('\n')}`).join('\n\n');
 
 export interface UiHelpBookOptions {
+  readonly renderItem?: (context: CanvasRenderingContext2D, bounds: UiRect, itemKind: string) => void;
   readonly art?: UiKitArt; readonly onClose?: () => void; readonly onLink?: (target: UiTextLinkTarget) => void; readonly layout?: UiStyle;
   /** Leaf size; defaults to the approved desktop spread. */
   readonly page?: { readonly width: number; readonly height: number };
@@ -81,6 +85,13 @@ export function uiHelpBook(options: UiHelpBookOptions): UiHelpBookElement {
   const renderTopic = () => {
     for (const child of [...headingHost.children, ...body.children]) child.dispose();
     headingHost.append(uiWrappedPageHeading(topic.title));
+    for (const illustration of topic.illustrations ?? []) {
+      body.append(uiFlex({ direction: page.width < 160 ? 'column' : 'row', align: 'center', gap: 6, alignSelf: 'stretch' }, [
+        new UiElement({ kind: 'help-illustration', label: illustration.caption, style: { width: uiFixed(32), height: uiFixed(32), shrink: 0 },
+          paint(element, { context }) { options.renderItem?.(context, element.rect, illustration.itemKind); } }),
+        uiText(illustration.caption, { wrap: true, layout: { width: 'grow', alignSelf: 'stretch' } }),
+      ]).setProps({ helpFigure: true }));
+    }
     for (const entry of topic.entries) for (const node of paragraph(entry, link)) body.append(node);
     scrollUiElement(bodyScroll, 0, 0);
     for (const row of rows.values()) row.invalidateRoot?.(false);
@@ -147,7 +158,10 @@ export function uiHelpBook(options: UiHelpBookOptions): UiHelpBookElement {
     onDismiss: () => options.onClose?.() });
   build(); renderTopic();
   const focusBook = () => { frame.setStyle({ visible: true }); rows.get(topic.id)?.requestFocus(); };
-  const setBookPage = (next: { readonly width: number; readonly height: number }) => { page = next; book?.setBookPage(next); };
+  const setBookPage = (next: { readonly width: number; readonly height: number }) => {
+    page = next; book?.setBookPage(next);
+    for (const figure of body.children) if (figure.props['helpFigure']) figure.setStyle({ direction: next.width < 160 ? 'column' : 'row' });
+  };
   return Object.defineProperties(Object.assign(host, { handleHelpKey, reset: () => { show(chapters[0]!, chapters[0]!.topics[0]!); }, focusBook, openTopic, setBookPage }), {
     chapter: { get: () => chapter.id }, topic: { get: () => topic.id },
   }) as UiHelpBookElement;

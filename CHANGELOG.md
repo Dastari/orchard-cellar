@@ -2,6 +2,11 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Root 0.83.0 / Client 0.57.0 / UI 0.55.0 — Illustrated player guide
+
+- Refresh the help book into 27 player-facing topics across Basics, Crafting, World and Adventures. Explain current activities, storage, equipment, gathering, food, weather, travel, trade, progression and expeditions; remove administrative commands and server/debug details.
+- Illustrate all processing stations, workbench and anvil with existing lazy-loaded item art and readable process captions. Narrow pages stack figures and captions. Recipe patterns remain in the recipe book; ordinary crafting and special learned requirements are explained without ingredient formulas.
+
 ## Root 0.82.0 / World 0.34.0 / Sim 0.37.0 / Assets 0.25.0 — Basic starter recipe guides
 
 - New characters begin with book entries for planks, sticks, four wooden tools and a workbench. Knowledge is authored beside the starter loadout, validated against active recipes and granted once during creation. Returning characters and starter items are unchanged; ordinary pattern crafting and special learning requirements retain their current rules.

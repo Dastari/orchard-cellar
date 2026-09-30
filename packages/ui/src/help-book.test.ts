@@ -43,7 +43,7 @@ const topicRow = (id: string) => `game.help.topic.${id}`;
 describe('production help book retained adapter', () => {
   it('documents every current top-level key and the homestead deed workflow', () => {
     const help = HELP_TOPICS.flatMap((topic) => topic.entries).join(' ');
-    for (const key of ['1-0', 'Shift', 'E:', 'F:', 'Q:', 'Space:', 'I:', 'C:', 'L:', 'N:', 'Z:', 'F3:', 'G:', 'H:']) {
+    for (const key of ['1-0', 'Shift', 'E:', 'F:', 'Q:', 'Space:', 'I:', 'C:', 'L:', 'N:', 'Z:']) {
       expect(help).toContain(key);
     }
     expect(help).toContain('homestead deed');
