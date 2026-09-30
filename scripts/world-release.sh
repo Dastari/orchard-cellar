@@ -272,8 +272,8 @@ npm run lifecycle:integrity
 npm run build --workspace @orchard/world
 npm run typecheck
 npm run world:release:typecheck
-# The repository gate never sees the lane's own client chunk inputs (the tests set them explicitly).
-env -u WORLD_RELEASE_CLIENT_CHUNK_RUNTIME -u WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION -u WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK npm test
+# Fixtures set their own client/history lane inputs; clear them only in the repository test child.
+env -u WORLD_RELEASE_CLIENT_CHUNK_RUNTIME -u WORLD_RELEASE_CLIENT_CHUNK_ACTIVATION -u WORLD_RELEASE_CLIENT_CHUNK_ROLLBACK -u WORLD_RESTORE_STATIC_MAP_HISTORY -u WORLD_RESTORE_STATIC_MAP_HISTORY_REPORT npm test
 npm run content:validate
 
 module_source_manifest=$(mktemp /tmp/orchard-world-module-source.XXXXXX)
