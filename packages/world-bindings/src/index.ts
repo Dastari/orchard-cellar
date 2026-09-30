@@ -158,6 +158,7 @@ import PlaceHomesteadBuildableReducer from "./place_homestead_buildable_reducer"
 import PrioritizeEquipmentSkillReducer from "./prioritize_equipment_skill_reducer";
 import PublishContentChangeSetReducer from "./publish_content_change_set_reducer";
 import PublishLiveMapDocumentReducer from "./publish_live_map_document_reducer";
+import PublishLiveMapWithChunksReducer from "./publish_live_map_with_chunks_reducer";
 import PublishWorldChunkShadowReducer from "./publish_world_chunk_shadow_reducer";
 import PurchaseHomesteadUpgradeReducer from "./purchase_homestead_upgrade_reducer";
 import PurchaseResidenceExpansionReducer from "./purchase_residence_expansion_reducer";
@@ -1547,6 +1548,7 @@ const reducersSchema = __reducers(
   __reducerSchema("prioritize_equipment_skill", PrioritizeEquipmentSkillReducer),
   __reducerSchema("publish_content_change_set", PublishContentChangeSetReducer),
   __reducerSchema("publish_live_map_document", PublishLiveMapDocumentReducer),
+  __reducerSchema("publish_live_map_with_chunks", PublishLiveMapWithChunksReducer),
   __reducerSchema("publish_world_chunk_shadow", PublishWorldChunkShadowReducer),
   __reducerSchema("purchase_homestead_upgrade", PurchaseHomesteadUpgradeReducer),
   __reducerSchema("purchase_residence_expansion", PurchaseResidenceExpansionReducer),
