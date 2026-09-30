@@ -71,9 +71,9 @@ describe('BUG-053: the chunk runtime follows the server chunkAuthority row', () 
       expect(CHUNK_AUTHORITY_QUERY).toBe('SELECT * FROM space_admin_flag WHERE space_id = 0');
       // Unknown authority: an on build never activates before the row is known.
       expect(h.mode()).toBe('shadow');
-      // Applied with no row: the server default is off, so the client rolls back to off.
+      // Applied with no row: the server default is on since static world S3-final (a fresh database).
       h.applyAuthority();
-      expect(h.mode()).toBe('off');
+      expect(h.mode()).toBe('on');
       h.insert({ spaceId: CHUNK_AUTHORITY_SPACE_ID, flagsJson: flags('shadow') });
       expect(h.mode()).toBe('shadow');
       h.update({ spaceId: CHUNK_AUTHORITY_SPACE_ID, flagsJson: flags('on') });
@@ -84,12 +84,12 @@ describe('BUG-053: the chunk runtime follows the server chunkAuthority row', () 
       expect(h.controller.store).toBeUndefined();
       h.update({ spaceId: CHUNK_AUTHORITY_SPACE_ID, flagsJson: flags('on') });
       expect(h.mode()).toBe('on');
-      // Deleting the row is the default, off.
+      // Deleting the row is the default, on (S3-final).
       h.delete(CHUNK_AUTHORITY_SPACE_ID);
-      expect(h.mode()).toBe('off');
-      // An invalid value parses as off, exactly as on the server.
+      expect(h.mode()).toBe('on');
+      // An invalid value parses as the default, exactly as on the server.
       h.insert({ spaceId: CHUNK_AUTHORITY_SPACE_ID, flagsJson: flags('sideways') });
-      expect(h.mode()).toBe('off');
+      expect(h.mode()).toBe('on');
     } finally {
       h.controller.dispose();
     }

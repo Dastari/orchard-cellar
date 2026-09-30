@@ -1,6 +1,6 @@
 /**
  * The server's chunkAuthority switch as stored (static world S2a): the `chunkAuthority` key of the
- * public `space_admin_flag` row of space 0 (`flagsJson`). Absent or invalid values mean `off`.
+ * public `space_admin_flag` row of space 0 (`flagsJson`). Absent or invalid values mean `on` (S3-final).
  *
  * Shared by the world module (`chunkAuthorityMode(ctx)`) and the client (BUG-053: the chunk
  * runtime follows the server switch), so both read the row exactly the same way. Generator-free leaf.
@@ -12,7 +12,9 @@ export type ChunkAuthorityMode = (typeof CHUNK_AUTHORITY_MODES)[number];
 /** The space whose admin flag row carries the world-wide switch (topside). */
 export const CHUNK_AUTHORITY_SPACE_ID = 0;
 export const CHUNK_AUTHORITY_FLAG_KEY = 'chunkAuthority';
-export const CHUNK_AUTHORITY_DEFAULT_MODE: ChunkAuthorityMode = 'off';
+/** Static world S3-final: the published chunks are the only source, so a world with no flags (a fresh
+ * database) serves them; `off` is an explicit maintenance freeze. */
+export const CHUNK_AUTHORITY_DEFAULT_MODE: ChunkAuthorityMode = 'on';
 
 type FlagObject = Readonly<Record<string, unknown>>;
 
@@ -40,7 +42,7 @@ export function chunkAuthorityModeFromFlags(flags: FlagObject): ChunkAuthorityMo
   return parseChunkAuthorityMode(flags[CHUNK_AUTHORITY_FLAG_KEY]) ?? CHUNK_AUTHORITY_DEFAULT_MODE;
 }
 
-/** The mode a space-0 row's flagsJson selects; `off` for no row (undefined), bad JSON or a bad value. */
+/** The mode a space-0 row's flagsJson selects; the default (`on`) for no row, bad JSON or a bad value. */
 export function chunkAuthorityModeFromFlagsJson(flagsJson: string | null | undefined): ChunkAuthorityMode {
   return chunkAuthorityModeFromFlags(parseSpaceFlagsJson(flagsJson));
 }

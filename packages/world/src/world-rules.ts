@@ -45,7 +45,6 @@ import {
   type MovementMedium,
   type RuntimeToolDefinition,
 } from '@orchard/sim';
-import { precomputedSurvivalCollisionMap } from './precomputed-survival-collision.js';
 
 export { AUTHORITY_HZ, SIM_STEPS_PER_AUTHORITY_TICK };
 export const CHUNK_TILES = 16;
@@ -77,6 +76,20 @@ export const MAX_SETTLE_BACKLOG_STEPS = 24;
 /** Drain every accepted confirmed batch atomically once server-time credit permits. */
 export const MAX_SETTLE_STEPS_PER_TICK = MAX_SETTLE_BACKLOG_STEPS;
 const SPACE_TERRAIN_COLLISION = new Map<string, CollisionMap>();
+
+/**
+ * Static world S3-final: the topside base collision is solid everywhere, with no obstacles. The live
+ * island runtime (the pinned chunk publication) replaces every channel and supplies the static base
+ * obstacles when it serves (`liveMapCollisionForSpace`), so this only ever stands alone while the
+ * island is unservable: nothing moves on topside then (fail safe; clients show "world updating").
+ */
+const ISLAND_FAIL_SAFE_COLLISION: Readonly<Record<'ground' | 'water', CollisionMap>> = {
+  ground: { width: SURVIVAL_WORLD_SIZE, height: SURVIVAL_WORLD_SIZE, blocked: new Uint8Array(SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE).fill(1), obstacles: [] },
+  water: { width: SURVIVAL_WORLD_SIZE, height: SURVIVAL_WORLD_SIZE, blocked: new Uint8Array(SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE).fill(1), obstacles: [] },
+};
+function islandFailSafeCollision(medium: 'ground' | 'water'): CollisionMap {
+  return ISLAND_FAIL_SAFE_COLLISION[medium];
+}
 /** Shared fallback for a collision map without a horse-jump plane (reads as all clear). */
 const NO_HORSE_JUMPABLE_TERRAIN = new Uint8Array(0);
 const DYNAMIC_EXCAVATION_COLLISION = new WeakMap<CollisionMap, {
@@ -165,7 +178,7 @@ export function terrainCollisionForSpace(
           blocked: new Uint8Array(SURVIVAL_WORLD_SIZE * SURVIVAL_WORLD_SIZE),
           obstacles: [],
         }
-      : precomputedSurvivalCollisionMap(medium);
+      : islandFailSafeCollision(medium);
   } else if (definition?.generator === 'roguelike' && definition.rogueRoom !== undefined) {
     const layout = generateRogueRoomLayout(
       definition.rogueRoom.seed,

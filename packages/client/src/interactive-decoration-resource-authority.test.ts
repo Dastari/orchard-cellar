@@ -45,8 +45,11 @@ describe('authored landmark decoration collision wiring', () => {
     // Static world S6: topside collision comes only from chunk records; no whole-map obstacles in the client.
     expect(main).not.toMatch(/survivalDecorationObstacle\(|liveMapObjectCollisionObstacles\(/u);
     expect(engineCollision).toContain('survivalDecorationObstacle(decoration, medium, contentRegistry)');
-    expect(world).toContain('mapLandmarkCollisionObstacle(landmark, medium, registry)');
-    expect(world).toContain('survivalDecorationObstacle(decoration, medium, registry)');
+    // Static world S3-final: the compiled island (the chunk materializer's reference) authors them now.
+    const compiledIsland = readFileSync(new URL('../../../scripts/world-chunk-compiled-island.ts', import.meta.url), 'utf8');
+    expect(compiledIsland).toContain('mapLandmarkCollisionObstacle(landmark, medium, registry)');
+    expect(compiledIsland).toContain('survivalDecorationObstacle(decoration, medium, registry)');
+    expect(world).not.toContain('survivalDecorationObstacle(decoration, medium, registry)');
   });
 });
 
@@ -68,7 +71,10 @@ describe('authored procedural decoration palette wiring', () => {
     expect(engineCollision).toContain('contentRegistry.spaces.size > 0');
     expect(engineCollision).toContain('island.decorations(terrain.seed, decorationRegistry)');
     expect(readFileSync(new URL('../../engine/src/collision-island.ts', import.meta.url), 'utf8')).toContain('generateSurvivalDecorations(seed, registry)');
-    expect(world).toContain('generateSurvivalProceduralDecorations(');
-    expect(world).toContain('generateSurvivalDecorations(');
+    // Static world S3-final: the server runs no generator; the compiled island (materializer reference) does.
+    const compiledIsland = readFileSync(new URL('../../../scripts/world-chunk-compiled-island.ts', import.meta.url), 'utf8');
+    expect(compiledIsland).toContain('generateSurvivalProceduralDecorations(');
+    expect(compiledIsland).toContain('generateSurvivalDecorations(');
+    expect(world).not.toContain('generateSurvivalDecorations(');
   });
 });

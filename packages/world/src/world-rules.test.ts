@@ -14,7 +14,6 @@ import {
   buildContentRegistry,
   generateSurvivalResources,
   survivalBiomeAt,
-  survivalTerrainTransitions,
   terrainWalkingStepAllowed,
   runtimeVigourDefinition,
   runtimeResourceDefinition,
@@ -290,12 +289,12 @@ describe('overworld authority rules', () => {
     expect(debug.blocked[0]).toBe(1);
     expect(debug.blocked[5 * debug.width + 5]).toBe(0);
     expect(debug.obstacles).toHaveLength(1);
-    expect(topside.obstacles?.length).toBeGreaterThan(1);
+    // Static world S3-final: the topside authority base is solid with no static obstacles; the pinned
+    // chunk publication supplies every channel and the static obstacles when it serves.
+    expect(topside.blocked.every(value => value === 1)).toBe(true);
+    expect(topside.obstacles).toEqual([]);
     expect(debug.elevations).toBeUndefined();
     expect(debug.terrainTransitions).toBeUndefined();
-    expect(topside.elevations).toHaveLength(SURVIVAL_WORLD_SIZE ** 2);
-    expect(topside.terrainTransitions).toEqual(survivalTerrainTransitions(SURVIVAL_WORLD_SEED));
-    expect(topside.terrainPlaneBlocked).toBeDefined();
   // This compiles every space collision map and can queue behind other
   // CPU-heavy world suites; its isolated runtime is much lower than the
   // full-suite ceiling, so retain assertions and allow scheduler headroom.
@@ -377,32 +376,14 @@ describe('overworld authority rules', () => {
     )).toBe(true);
   });
 
-  it('blocks water and solid ridges while projected cliff rows remain lower-plane walkable', () => {
-    const terrain = Array.from({ length: SURVIVAL_WORLD_SIZE ** 2 }, (_, index) => ({
-      tileX: index % SURVIVAL_WORLD_SIZE,
-      tileY: Math.floor(index / SURVIVAL_WORLD_SIZE),
-    }));
-    const water = terrain.find(({ tileX, tileY }) => survivalBiomeAt(SURVIVAL_WORLD_SEED, tileX, tileY) === 'water');
-    const projectedCliff = terrain.find(({ tileX, tileY }) => survivalBiomeAt(
-      SURVIVAL_WORLD_SEED, tileX, tileY,
-    ) === 'ridge');
-    const solidRidge = terrain.find(({ tileX, tileY }) => {
-      const biome = survivalBiomeAt(SURVIVAL_WORLD_SEED, tileX, tileY);
-      return biome === 'desert_ridge' || biome === 'coastal_cliff';
-    });
-    const resource = generateSurvivalResources().find((candidate) => candidate.kind.startsWith('tree_'));
-    if (!water || !projectedCliff || !solidRidge || !resource) throw new Error('missing generated-world fixture');
-
+  it('keeps live rows on the solid topside base: resource boxes follow depletion (S3-final)', () => {
+    const resource = { kind: 'tree_oak', definitionId: 'resource:tree_oak', tileX: 400, tileY: 400 };
     const live = createAuthoritySurvivalCollisionMap(contentRegistry, [{ ...resource, depleted: false }]);
     const depleted = createAuthoritySurvivalCollisionMap(contentRegistry, [{ ...resource, depleted: true }]);
-    expect(live.blocked[water.tileY * live.width + water.tileX]).toBe(1);
-    expect(live.blocked[solidRidge.tileY * live.width + solidRidge.tileX]).toBe(1);
-    expect(live.blocked[projectedCliff.tileY * live.width + projectedCliff.tileX]).toBe(0);
+    // Terrain, water and ridges come from the published chunks (chunk parity suites); the base alone is solid.
+    expect(live.blocked[resource.tileY * live.width + resource.tileX]).toBe(1);
     expect(live.obstacles).toHaveLength((depleted.obstacles?.length ?? 0) + 1);
-    expect(live.blocked[resource.tileY * live.width + resource.tileX]).toBe(0);
-    expect(depleted.obstacles?.length).toBeGreaterThan(0);
-    expect(depleted.blocked[resource.tileY * depleted.width + resource.tileX]).toBe(0);
-  }, 20_000);
+  });
 
   it('Systems/Crafting: blocks closed placeables but lets open gates and standing lights pass', () => {
     const collision = createAuthoritySurvivalCollisionMap(contentRegistry, [], [], 'ground', [
@@ -421,20 +402,10 @@ describe('overworld authority rules', () => {
     expect(dynamic.some((obstacle) => obstacle.left === 22 * TILE_SIZE_FIXED)).toBe(false);
   });
 
-  it('allows water traversal while blocking shorelines and water rocks', () => {
+  it('keeps topside water solid until the published chunks serve (S3-final fail safe)', () => {
     const collision = createAuthoritySurvivalCollisionMap(contentRegistry, [], [], 'water');
-    let waterIndex = -1;
-    let beachIndex = -1;
-    for (let tileY = 0; tileY < SURVIVAL_WORLD_SIZE && (waterIndex < 0 || beachIndex < 0); tileY += 1) {
-      for (let tileX = 0; tileX < SURVIVAL_WORLD_SIZE && (waterIndex < 0 || beachIndex < 0); tileX += 1) {
-        const biome = survivalBiomeAt(SURVIVAL_WORLD_SEED, tileX, tileY);
-        if (biome === 'water') waterIndex = tileY * SURVIVAL_WORLD_SIZE + tileX;
-        if (biome === 'beach') beachIndex = tileY * SURVIVAL_WORLD_SIZE + tileX;
-      }
-    }
-    expect(collision.blocked[waterIndex]).toBe(0);
-    expect(collision.blocked[beachIndex]).toBe(1);
-    expect(collision.obstacles?.length).toBeGreaterThan(0);
+    expect(collision.blocked.every(value => value === 1)).toBe(true);
+    expect(collision.obstacles).toEqual([]);
   });
 
   it('requires the matching tool and gives axes a broader authoritative reach', () => {

@@ -93,11 +93,14 @@ it('preserves planted outdoor trees during generated resource reconciliation', (
   const removed: bigint[] = [];
   const ctx = { db: { world_resource: { iter: () => [{ id, spaceId: 0 }, { id: 42n, spaceId: 0 }], id: { delete: (value: bigint) => removed.push(value) } },
     world_resource_mining_claim: { resourceId: { delete: () => {} } } } };
-  const actions = compile(['reconcileGeneratedSurvivalResources', 'placedLiveIslandResources'], { ...sim, SenderError: Error,
+  const reconcile = (runtime: unknown) => compile(['reconcileGeneratedSurvivalResources', 'placedLiveIslandResources'], { ...sim, SenderError: Error,
     TOPSIDE_SPACE_ID: 0, contentRegistry: () => registry,
-    liveIslandCollisionRuntime: () => null, liveIslandGeneratedResources: () => [],
-  });
-  actions.reconcileGeneratedSurvivalResources(ctx);
+    liveIslandCollisionRuntime: () => runtime, liveIslandGeneratedResources: () => [],
+  }).reconcileGeneratedSurvivalResources(ctx);
+  // Static world S3-final: an unservable island never reconciles (it would delete every generated row).
+  reconcile(null);
+  expect(removed).toEqual([]);
+  reconcile({ staticView: { resourcePlacements: [] }, generatedResources: () => [] });
   expect(removed).toEqual([42n]);
 });
 

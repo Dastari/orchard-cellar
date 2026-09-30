@@ -76,6 +76,10 @@ export interface LiveIslandCollisionRuntime {
   readonly water: CollisionMap;
   readonly generatedSuppressions: ReadonlySet<string>;
   readonly suppressedDecorationObstacleKeys: Readonly<Record<ChunkAuthorityMedium, ReadonlySet<string>>>;
+  /** The static base obstacle group (generated decorations, in precomputed order) that composition
+   * places ahead of the live rows. Chunks: the `base` authority records. A compiled runtime (tools)
+   * leaves it empty: its composition base still carries them. */
+  readonly baseObstacles: Readonly<Record<ChunkAuthorityMedium, readonly CollisionObstacle[]>>;
   /** The static document view (S3b): built once per runtime and cached with it, so consumers
    * that cache by object identity (`mapStreetlampPlans`) keep one entry per runtime.
    * Compiled: `documentStaticView(document)`. */

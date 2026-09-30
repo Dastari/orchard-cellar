@@ -6,8 +6,10 @@ import {
   createSurvivalCollisionMap,
 } from '@orchard/sim';
 import { precomputedSurvivalCollisionMap } from './precomputed-survival-collision.js';
-import { terrainCollisionForSpace } from './world-rules.js';
+import { terrainCollisionForSpace } from '../packages/world/src/world-rules.js';
 
+/** Static world S3-final: the materializer's island base (tools only; the world module's topside base is
+ * solid until the published chunks serve). */
 describe('precomputed survival collision', () => {
   const contentRegistry = bootstrapContentRegistry();
   for (const medium of ['ground', 'water'] as const) {
@@ -26,6 +28,14 @@ describe('precomputed survival collision', () => {
       expect(precomputed.obstacles).toEqual(generated.obstacles);
     }, 60_000);
   }
+
+  it('is no longer the world module\'s topside base: that is solid, with no obstacles, until chunks serve', () => {
+    for (const medium of ['ground', 'water'] as const) {
+      const base = terrainCollisionForSpace(contentRegistry, TOPSIDE_SPACE_ID, medium);
+      expect(base.blocked.every(value => value === 1), medium).toBe(true);
+      expect(base.obstacles ?? []).toEqual([]);
+    }
+  });
 
   it('preserves the generated island air semantics', () => {
     const generated = createSurvivalCollisionMap(SURVIVAL_WORLD_SEED, [], 'air');

@@ -92,23 +92,21 @@ describe('revisioned live map authority', () => {
   });
 
   it('compiles the production island revision into terrain and prefab collision authority', () => {
+    // Static world S3-final: compiling is the chunk materializer's (tools); the server composes chunks.
+    const compiled = readFileSync(new URL('../../../scripts/world-chunk-compiled-island.ts', import.meta.url), 'utf8');
     expect(source).toContain('LIVE_ISLAND_MAP_ID,');
-    expect(source).toContain('compiledMapTerrainPlaneCollisionBytes(compiled)');
-    expect(source).toContain('mapObjectCollisionCells(document, object)');
+    expect(compiled).toContain('compiledMapTerrainPlaneCollisionBytes(compiled)');
+    expect(compiled).toContain('mapObjectCollisionCells(document, object)');
+    expect(source).not.toContain('compileMapDocument(');
     expect(source).toContain("liveMapCollisionForSpace(ctx, spaceId, 'ground'");
     expect(source).toContain('liveMapGeneratedResourceSuppressed');
     expect(source).toContain("throw new SenderError('live_island_base_mismatch')");
   });
 
   it('caches suppression indexes and decoration overlays with the compiled revision', () => {
-    const runtime = source.slice(
-      source.indexOf('interface LiveIslandRuntime'),
-      source.indexOf('function validatedLiveMapDocument'),
-    );
-    const collision = runtime.slice(runtime.indexOf('function liveMapCollisionForSpace'));
-    const resourceSuppression = runtime.slice(
-      runtime.indexOf('function liveMapRuntimeGeneratedResourceSuppressed'),
-    );
+    const runtime = readFileSync(new URL('../../../scripts/world-chunk-compiled-island.ts', import.meta.url), 'utf8');
+    const collision = source.slice(source.indexOf('function liveMapCollisionForSpace'), source.indexOf('function validatedLiveMapDocument'));
+    const resourceSuppression = source.slice(source.indexOf('function liveMapRuntimeGeneratedResourceSuppressed'));
 
     expect(runtime).toContain('readonly generatedSuppressions: ReadonlySet<string>');
     expect(runtime).toContain('readonly suppressedDecorationObstacleKeys:');

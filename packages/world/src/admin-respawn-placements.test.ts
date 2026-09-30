@@ -10,7 +10,7 @@ import { TOPSIDE_SPACE_ID, type GeneratedSurvivalResource } from '@orchard/sim';
  */
 const source = ts.createSourceFile('index.ts', readFileSync(new URL('./index.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
 const NAMES = ['writeAdminObjectPlan', 'adminResourceCandidates', 'reconcileGeneratedSurvivalResources', 'placedLiveIslandResources',
-  'liveIslandGeneratedResources', 'generatedSurvivalResources', 'adminObjectSpaceId'];
+  'liveIslandGeneratedResources', 'adminObjectSpaceId'];
 const javascript = ts.transpileModule(`${NAMES.map(name => {
   const fn = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === name);
   if (fn === undefined) throw new Error(`missing production ${name}`);
