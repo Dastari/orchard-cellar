@@ -1,100 +1,19 @@
+/**
+ * Node side of the chunk materializer's server reference. The reference itself is browser-safe and
+ * lives with Studio (packages/studio/src/world-chunks/server-reference.ts, static world S7b); this
+ * module adds the guard that fails closed when the world-module source it mirrors by hand drifts.
+ */
 import { readFileSync } from 'node:fs';
-import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
-import * as sim from '@orchard/sim';
+import type * as sim from '@orchard/sim';
 import { worldChunkHash } from '@orchard/sim/world-chunk';
 import type { LiveMapDocumentRow } from '@orchard/engine/live-map-runtime';
-import { createAuthoritySpaceCollisionMap } from '../packages/world/src/world-rules.js';
-import { COMPILED_ISLAND_FUNCTIONS } from './world-chunk-compiled-island.js';
-import { precomputedSurvivalCollisionMap } from './precomputed-survival-collision.js';
-import { documentStaticView, type LiveIslandStaticView } from '../packages/world/src/content/chunk-authority-runtime.js';
+import { serverLiveIslandReference as studioServerLiveIslandReference, type ServerLiveIslandReference } from '../packages/studio/src/world-chunks/server-reference.js';
 
-/** One generated resource as reconcile would install it: the generator fields
- * (optional ones only when set) plus the map placement and runtime suppression. */
-export interface ServerStaticResource {
-  readonly id: number;
-  readonly kind: string;
-  readonly generatedTile: { readonly tileX: number; readonly tileY: number };
-  readonly effectiveTile: { readonly tileX: number; readonly tileY: number };
-  readonly suppressed: boolean;
-  readonly nodeClass?: string;
-  readonly richness?: number;
-  readonly spawnSiteId?: number;
-  readonly activationOrdinal?: number;
-}
-/** A placement whose id is not generated; reconcile keeps an existing row with it. */
-export interface ServerOrphanResourcePlacement {
-  readonly id: string;
-  readonly originTile: { readonly tileX: number; readonly tileY: number };
-  readonly tile: { readonly tileX: number; readonly tileY: number };
-}
-export interface ServerLiveIslandReference {
-  /** The compiled live-island overlay only (`compiledLiveIslandRuntime().ground/water`). */
-  readonly ground: sim.CollisionMap;
-  readonly water: sim.CollisionMap;
-  /** The server's full static composition: precomputed base (no live rows),
-   * compiled terrain overwrite, suppressed-AABB filter of every base obstacle,
-   * then the authored obstacles appended (`liveMapCollisionForSpace`). */
-  readonly composed: Readonly<Record<'ground' | 'water', sim.CollisionMap>>;
-  /** `createAuthoritySpaceCollisionMap(registry, TOPSIDE, [], [], medium)`, before live-map composition. */
-  readonly base: Readonly<Record<'ground' | 'water', sim.CollisionMap>>;
-  readonly document: sim.MapDocumentV3;
-  readonly generatedSuppressions: ReadonlySet<string>;
-  readonly suppressedDecorationObstacleKeys: Readonly<Record<'ground' | 'water', ReadonlySet<string>>>;
-  readonly combatPolicy: sim.CombatRegionPolicy;
-  readonly combatRegions: readonly sim.CombatRegion[];
-  /** `generateSurvivalResources(SURVIVAL_WORLD_SEED)` order with the reconcile placement and runtime suppression. */
-  readonly resources: readonly ServerStaticResource[];
-  /** Placements reconcile uses only to keep rows whose ids are not generated (document order). */
-  readonly orphanResourcePlacements: readonly ServerOrphanResourcePlacement[];
-  /** The actual `compiledLiveIslandRuntime(ctx)` result (with its cache key). */
-  readonly runtime: ServerCompiledLiveIslandRuntime;
-  /** Static composition WITH live rows, as collisionForSpace/waterCollisionForSpace do it (mirrored,
-   * see SERVER_MIRRORED_FRAGMENTS): the real `createAuthoritySpaceCollisionMap` with live resources
-   * (runtime-suppressed ones dropped), chests and placeables, then the real
-   * `liveMapCollisionForSpace` over the given runtime (compiled, or a chunk-assembled one). */
-  composeWithLiveRows(medium: 'ground' | 'water', runtime: unknown, rows: ServerLiveCollisionRows): sim.CollisionMap;
-}
-export interface ServerCompiledLiveIslandRuntime {
-  readonly key: string;
-  readonly combatPolicy: sim.CombatRegionPolicy;
-  /** `document.combatRegions` (undefined when the map declares none). */
-  readonly combatRegions: readonly sim.CombatRegion[] | undefined;
-  /** `documentStaticView(document)`, built once per runtime (S3b). */
-  readonly staticView: LiveIslandStaticView;
-  /** The generator's resources for the runtime's registry (S3c; runs the generator per call). */
-  generatedResources(): readonly sim.GeneratedSurvivalResource[];
-  readonly document: sim.MapDocumentV3;
-  readonly ground: sim.CollisionMap;
-  readonly water: sim.CollisionMap;
-  readonly generatedSuppressions: ReadonlySet<string>;
-  readonly suppressedDecorationObstacleKeys: Readonly<Record<'ground' | 'water', ReadonlySet<string>>>;
-  /** Empty: the reference composition base (the precomputed island) carries the static base group. */
-  readonly baseObstacles: Readonly<Record<'ground' | 'water', readonly sim.CollisionObstacle[]>>;
-}
-/** Live rows in the shape collisionForSpace passes to createAuthoritySpaceCollisionMap. */
-export interface ServerLiveCollisionRows {
-  readonly resources: readonly { readonly id: bigint; readonly kind: string; readonly definitionId?: string; readonly tileX: number; readonly tileY: number; readonly depleted: boolean }[];
-  readonly chests: readonly { readonly tileX: number; readonly tileY: number; readonly carriedBy?: unknown }[];
-  readonly placeables: readonly { readonly tileX: number; readonly tileY: number; readonly blocksMovement: boolean }[];
-}
-
-/** The world module's own composition, executed as is. */
-const SERVER_FUNCTIONS = ['liveMapCollisionForSpace', 'liveMapRuntimeGeneratedResourceSuppressed'] as const;
-
-/**
- * Static world S3-final: the world module's topside base is solid with no obstacles (the published
- * chunks supply everything). The reference composes over the island base the chunks were built
- * from, the precomputed generator collision, exactly as the server did before S3-final: its
- * channels, and its obstacles ahead of the live rows.
- */
-function referenceAuthorityCollisionMap(...args: Parameters<typeof createAuthoritySpaceCollisionMap>): sim.CollisionMap {
-  const collision = createAuthoritySpaceCollisionMap(...args);
-  const [, spaceId, , , medium] = args;
-  if (spaceId !== sim.TOPSIDE_SPACE_ID || (medium !== 'ground' && medium !== 'water')) return collision;
-  const base = precomputedSurvivalCollisionMap(medium);
-  return { ...collision, ...base, obstacles: [...(base.obstacles ?? []), ...(collision.obstacles ?? [])] };
-}
+export type {
+  ServerCompiledLiveIslandRuntime, ServerComposableRuntime, ServerLiveCollisionRows, ServerLiveIslandReference, ServerOrphanResourcePlacement,
+  ServerStaticResource,
+} from '../packages/studio/src/world-chunks/server-reference.js';
 
 /** Server source the oracle mirrors by hand rather than executes. Any change to
  * these fragments must be reviewed against serverLiveIslandReference (and the
@@ -113,6 +32,10 @@ export const SERVER_MIRRORED_FRAGMENTS: Readonly<Record<string, string>> = Objec
   'reconcileGeneratedSurvivalResources:orphan-keep': 'd89e3767d6eecf15a37dca8909ca55343bf676f8db621a37d5b54ddc0c1c19ea',
   // Row construction reads only generator fields that authority.resource carries.
   'generatedWorldResourceRow': '81308373b03baac3f6afb36d13dfa0fd7da34a8ea6a0245ee56187bf69c48c99',
+  // S7b: the reference calls composeLiveIslandCollision / runtimeSuppressesGeneratedResource directly
+  // (browser-safe); these pin that the server still delegates to exactly them.
+  'liveMapCollisionForSpace': '06d6046270149fa9bf9e68d52526a64d78d1a310e481d0fb4d215fbb35c1d6e7',
+  'liveMapRuntimeGeneratedResourceSuppressed': 'a4defdc0c00955bf4819c8688a36f09bfa55337f2ff5ac2d25c1d2639b9f1e01',
 });
 
 function topLevelFunction(source: ts.SourceFile, name: string): ts.FunctionDeclaration {
@@ -152,6 +75,8 @@ export function serverMirroredFragments(sourceText: string): Record<string, stri
     'reconcileGeneratedSurvivalResources:orphan-keep': single(descendants(reconcile, node => ts.isIfStatement(node)
       && node.expression.getText(source) === 'generated === undefined'), 'reconcile orphan keep'),
     'generatedWorldResourceRow': topLevelFunction(source, 'generatedWorldResourceRow'),
+    'liveMapCollisionForSpace': topLevelFunction(source, 'liveMapCollisionForSpace'),
+    'liveMapRuntimeGeneratedResourceSuppressed': topLevelFunction(source, 'liveMapRuntimeGeneratedResourceSuppressed'),
   };
   return Object.fromEntries(Object.entries(nodes).map(([key, node]) => [key, node.getText(source).replace(/\s+/gu, ' ')]));
 }
@@ -160,89 +85,12 @@ export function assertServerMirrorFragments(sourceText: string): void {
   const fragments = serverMirroredFragments(sourceText);
   const drifted = Object.entries(fragments).filter(([key, text]) => SERVER_MIRRORED_FRAGMENTS[key] !== worldChunkHash(new TextEncoder().encode(text)));
   if (drifted.length > 0 || Object.keys(fragments).length !== Object.keys(SERVER_MIRRORED_FRAGMENTS).length) {
-    throw new Error(`Server mirror drifted; review world-chunk-server-reference.ts and re-pin: ${drifted.map(([key, text]) => `\n${key}: ${text}`).join('')}`);
+    throw new Error(`Server mirror drifted; review packages/studio/src/world-chunks/server-reference.ts and re-pin: ${drifted.map(([key, text]) => `\n${key}: ${text}`).join('')}`);
   }
 }
 
-/** Offline audit oracle: execute the actual server functions, without loading
- * SpacetimeDB or publishing a module. AST selection fails closed after renames. */
+/** Offline audit oracle: the Studio reference, after checking the mirrored server source is the reviewed one. */
 export function serverLiveIslandReference(row: LiveMapDocumentRow, registry: sim.ContentRegistry): ServerLiveIslandReference {
-  const sourceText = readFileSync(new URL('../packages/world/src/index.ts', import.meta.url), 'utf8');
-  assertServerMirrorFragments(sourceText);
-  const source = ts.createSourceFile('world.ts', sourceText, ts.ScriptTarget.Latest, true);
-  const names = new Set<string>(SERVER_FUNCTIONS);
-  const functions = source.statements.filter((statement): statement is ts.FunctionDeclaration => ts.isFunctionDeclaration(statement) && names.has(statement.name?.text ?? ''));
-  if (functions.length !== names.size) throw new Error('Server parity oracle changed; review function extraction');
-  // The compiled island (moved out of the world module at S3-final) runs from its own file.
-  const compiledText = readFileSync(new URL('./world-chunk-compiled-island.ts', import.meta.url), 'utf8');
-  const compiledSource = ts.createSourceFile('compiled.ts', compiledText, ts.ScriptTarget.Latest, true);
-  const compiledNames = new Set<string>(COMPILED_ISLAND_FUNCTIONS);
-  const compiledFunctions = compiledSource.statements.filter((statement): statement is ts.FunctionDeclaration => ts.isFunctionDeclaration(statement)
-    && compiledNames.has(statement.name?.text ?? ''));
-  if (compiledFunctions.length !== compiledNames.size) throw new Error('Compiled island oracle changed; review function extraction');
-  // Mirrored (see SERVER_MIRRORED_FRAGMENTS): the composition is collisionForSpace/
-  // waterCollisionForSpace with no live rows; resources follow reconcile's desired set.
-  const javascript = ts.transpileModule(`let liveIslandRuntimeCache = null;
-${compiledFunctions.map(fn => fn.getText(compiledSource).replace(/^export /u, '')).join('\n')}
-${functions.map(fn => fn.getText(source)).join('\n')}
-const runtime = compiledLiveIslandRuntime(ctx);
-const base = runtime === null ? null : {
-  ground: createAuthoritySpaceCollisionMap(contentRegistry(ctx), TOPSIDE_SPACE_ID, [], [], 'ground', [], null, []),
-  water: createAuthoritySpaceCollisionMap(contentRegistry(ctx), TOPSIDE_SPACE_ID, [], [], 'water', [], null),
-};
-const placements = new Map((runtime?.staticView.resourcePlacements ?? []).map(placement => [BigInt(placement.id), placement]));
-const generated = runtime === null ? [] : runtime.generatedResources();
-const generatedIds = new Set(generated.map(resource => BigInt(resource.id)));
-runtime === null ? null : ({
-  runtime,
-  base,
-  composed: {
-    ground: liveMapCollisionForSpace(ctx, TOPSIDE_SPACE_ID, 'ground', base.ground, runtime),
-    water: liveMapCollisionForSpace(ctx, TOPSIDE_SPACE_ID, 'water', base.water, runtime),
-  },
-  resources: generated.map(({ id, kind, tileX, tileY, ...optional }) => {
-    const placement = placements.get(BigInt(id));
-    return { id, kind,
-      generatedTile: { tileX, tileY },
-      effectiveTile: placement === undefined ? { tileX, tileY } : { tileX: placement.tileX, tileY: placement.tileY },
-      suppressed: liveMapRuntimeGeneratedResourceSuppressed(runtime, BigInt(id)),
-      ...Object.fromEntries(Object.entries(optional).filter(([, value]) => value !== undefined)) };
-  }),
-  orphanResourcePlacements: [...placements.values()].filter(placement => !generatedIds.has(BigInt(placement.id)))
-    .map(placement => ({ id: placement.id, originTile: { tileX: placement.originTileX, tileY: placement.originTileY }, tile: { tileX: placement.tileX, tileY: placement.tileY } })),
-  // A chunk runtime composes over the server's own (solid, obstacle-free) island base, as it does live;
-  // the compiled reference over the precomputed island.
-  composeWithLiveRows: (medium, liveRuntime, rows) => {
-    const authority = liveRuntime?.source === 'chunks' ? serverAuthoritySpaceCollisionMap : createAuthoritySpaceCollisionMap;
-    return liveMapCollisionForSpace(ctx, TOPSIDE_SPACE_ID, medium, medium === 'ground'
-      ? authority(contentRegistry(ctx), TOPSIDE_SPACE_ID,
-        rows.resources.filter(resource => !liveMapRuntimeGeneratedResourceSuppressed(liveRuntime, resource.id)), rows.chests, 'ground', rows.placeables, null, [])
-      : authority(contentRegistry(ctx), TOPSIDE_SPACE_ID, [], [], 'water', [], null), liveRuntime);
-  },
-});`, { compilerOptions: { target: ts.ScriptTarget.ES2023, module: ts.ModuleKind.None } }).outputText;
-  const result: unknown = runInNewContext(javascript, {
-    ...sim,
-    LIVE_CONTENT_PACK_ID: 'live',
-    contentRegistry: () => registry,
-    createAuthoritySpaceCollisionMap: referenceAuthorityCollisionMap,
-    serverAuthoritySpaceCollisionMap: createAuthoritySpaceCollisionMap,
-    documentStaticView,
-    ctx: { db: {
-      live_map_document: { mapId: { find: () => row } },
-      content_head: { packId: { find: () => ({ contentHash: registry.contentHash }) } },
-    } },
-  }, { timeout: 120_000 });
-  if (result === null || typeof result !== 'object' || !('runtime' in result)) throw new Error('Server rejected live island parity fixture');
-  const { runtime, base, composed, resources, orphanResourcePlacements, composeWithLiveRows } = result as {
-    runtime: ServerCompiledLiveIslandRuntime;
-    base: Record<'ground' | 'water', sim.CollisionMap>;
-    composed: Record<'ground' | 'water', sim.CollisionMap>;
-    resources: ServerStaticResource[];
-    orphanResourcePlacements: ServerOrphanResourcePlacement[];
-    composeWithLiveRows: ServerLiveIslandReference['composeWithLiveRows'];
-  };
-  return { ground: runtime.ground, water: runtime.water, composed, base, document: runtime.document,
-    generatedSuppressions: runtime.generatedSuppressions, suppressedDecorationObstacleKeys: runtime.suppressedDecorationObstacleKeys,
-    combatPolicy: runtime.combatPolicy, combatRegions: runtime.document.combatRegions ?? [], resources, orphanResourcePlacements,
-    runtime, composeWithLiveRows };
+  assertServerMirrorFragments(readFileSync(new URL('../packages/world/src/index.ts', import.meta.url), 'utf8'));
+  return studioServerLiveIslandReference(row, registry);
 }

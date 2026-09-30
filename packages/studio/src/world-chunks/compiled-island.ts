@@ -1,32 +1,22 @@
 /**
- * Static world S3-final: the compiled live-island runtime, moved out of the world module. The server
- * no longer compiles the map or runs the generator (it serves the published chunks only); this is
- * the chunk materializer's reference compiler (world-chunk-server-reference.ts executes these
- * functions, with the world module's own composition, to produce and verify every publication).
- * The functions keep their server-era shape (`ctx` with `live_map_document` and `content_head`).
- * Tools only: never imported by the world module or the client.
+ * The compiled live-island runtime: the chunk materializer's reference compiler (static world
+ * S3-final moved it out of the world module, which serves the published chunks only; S7b made it
+ * browser-safe so Studio can materialise its own publications). Never imported by the world module
+ * or the game client.
  */
 import {
   activeSpaceGroundWalkableTiles, activeSurvivalLandmarks, cellFlagsWhere, CombatRegionPolicy, compileMapDocument,
   compiledMapTerrainPlaneCollisionBytes, createLiveIslandMapDocument, generateSurvivalDecorations, generateSurvivalLandmarkDecorations,
-  generateSurvivalProceduralDecorations, generateSurvivalResources, LIVE_ISLAND_MAP_ID, MAP_PREFAB_COLLISION_RESOLUTION,
+  generateSurvivalProceduralDecorations, generateSurvivalResources, MAP_PREFAB_COLLISION_RESOLUTION,
   mapDocumentUsesSurvivalIslandBase, mapLandmarkCollisionObstacle, mapObjectCollisionCells, mapTraversalChannels, parseMapDocumentV3,
   resolvedMapBiomeAt, runtimeTilesetResolver, runtimeTraversalPolicy, survivalBiomeAllowsHorseJump, survivalDecorationObstacle,
   SURVIVAL_WORLD_SEED, SURVIVAL_WORLD_SIZE, SURVIVAL_WORLD_VERSION, terrainDocumentForMapV3, TILE_SIZE_FIXED, TOPSIDE_SPACE_ID,
   type CollisionMap, type CollisionObstacle, type CombatRegion, type ContentRegistry, type GeneratedSurvivalResource, type MapDocumentV3,
 } from '@orchard/sim';
-import { documentStaticView, type LiveIslandStaticView } from '../packages/world/src/content/chunk-authority-runtime.js';
+import { documentStaticView, type LiveIslandStaticView } from '../../../world/src/content/chunk-authority-runtime.js';
 
-/** The context slice the compiled runtime reads (the server's `WorldReducerContext` shape). */
-export interface CompiledIslandContext {
-  readonly db: {
-    readonly live_map_document: { readonly mapId: { find(id: string): { readonly revision: number; readonly contentHash: string; readonly documentJson: string } | null } };
-    readonly content_head: { readonly packId: { find(id: string): { readonly contentHash: string } | null } };
-  };
-}
-type WorldReducerContext = CompiledIslandContext;
-declare const LIVE_CONTENT_PACK_ID: string;
-declare function contentRegistry(ctx: WorldReducerContext): ContentRegistry;
+/** A live map row (the map document table row), or null for the seed bootstrap. */
+export interface CompiledIslandRow { readonly revision: number; readonly contentHash: string; readonly documentJson: string }
 
 export interface LiveIslandRuntime {
   readonly combatPolicy: CombatRegionPolicy;
@@ -103,20 +93,7 @@ export function suppressedGeneratedDecorationObstacleKeys(
   return keys;
 }
 
-export function compiledLiveIslandRuntime(ctx: WorldReducerContext): LiveIslandRuntime | null {
-  const row = ctx.db.live_map_document.mapId.find(LIVE_ISLAND_MAP_ID);
-  const contentHead = ctx.db.content_head.packId.find(LIVE_CONTENT_PACK_ID);
-  const storedKey = row === null || contentHead === null
-    ? null
-    : `${row.revision}:${row.contentHash}:${contentHead.contentHash}`;
-  // Content publication advances the head and map publication advances the
-  // row revision/hash atomically. Those indexed rows are therefore sufficient
-  // to validate the compiled cache without materializing every definition on
-  // every 20 Hz collision pass.
-  if (storedKey !== null && liveIslandRuntimeCache?.key === storedKey) {
-    return liveIslandRuntimeCache;
-  }
-  const registry = contentRegistry(ctx);
+export function compiledLiveIslandRuntime(row: CompiledIslandRow | null, registry: ContentRegistry): LiveIslandRuntime | null {
   const landmarks = activeSurvivalLandmarks(registry, TOPSIDE_SPACE_ID);
   const key = row === null
     ? `seed:${SURVIVAL_WORLD_SEED}:${SURVIVAL_WORLD_VERSION}:${registry.contentHash}`
@@ -200,5 +177,3 @@ export function generatedSurvivalResources(registry: ContentRegistry): readonly 
   return generateSurvivalResources(SURVIVAL_WORLD_SEED, registry);
 }
 
-/** The functions the reference oracle runs, in this file's text. */
-export const COMPILED_ISLAND_FUNCTIONS = ['authoredMapCollisionObstacles', 'suppressedGeneratedDecorationObstacleKeys', 'compiledLiveIslandRuntime', 'generatedSurvivalResources'] as const;

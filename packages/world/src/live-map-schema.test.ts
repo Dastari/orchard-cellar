@@ -93,7 +93,7 @@ describe('revisioned live map authority', () => {
 
   it('compiles the production island revision into terrain and prefab collision authority', () => {
     // Static world S3-final: compiling is the chunk materializer's (tools); the server composes chunks.
-    const compiled = readFileSync(new URL('../../../scripts/world-chunk-compiled-island.ts', import.meta.url), 'utf8');
+    const compiled = readFileSync(new URL('../../studio/src/world-chunks/compiled-island.ts', import.meta.url), 'utf8');
     expect(source).toContain('LIVE_ISLAND_MAP_ID,');
     expect(compiled).toContain('compiledMapTerrainPlaneCollisionBytes(compiled)');
     expect(compiled).toContain('mapObjectCollisionCells(document, object)');
@@ -104,9 +104,16 @@ describe('revisioned live map authority', () => {
   });
 
   it('caches suppression indexes and decoration overlays with the compiled revision', () => {
-    const runtime = readFileSync(new URL('../../../scripts/world-chunk-compiled-island.ts', import.meta.url), 'utf8');
-    const collision = source.slice(source.indexOf('function liveMapCollisionForSpace'), source.indexOf('function validatedLiveMapDocument'));
-    const resourceSuppression = source.slice(source.indexOf('function liveMapRuntimeGeneratedResourceSuppressed'));
+    const runtime = readFileSync(new URL('../../studio/src/world-chunks/compiled-island.ts', import.meta.url), 'utf8');
+    // S7b: the server delegates to the shared composition (live-island-composition.ts), which the
+    // Studio materializer runs too.
+    const composition = readFileSync(new URL('./content/live-island-composition.ts', import.meta.url), 'utf8');
+    expect(source.slice(source.indexOf('function liveMapCollisionForSpace'), source.indexOf('function validatedLiveMapDocument')))
+      .toContain('composeLiveIslandCollision(base, runtime, medium)');
+    expect(source.slice(source.indexOf('function liveMapRuntimeGeneratedResourceSuppressed')))
+      .toContain('return runtimeSuppressesGeneratedResource(runtime, resourceId);');
+    const collision = composition.slice(composition.indexOf('export function composeLiveIslandCollision'), composition.indexOf('export function runtimeSuppressesGeneratedResource'));
+    const resourceSuppression = composition.slice(composition.indexOf('export function runtimeSuppressesGeneratedResource'));
 
     expect(runtime).toContain('readonly generatedSuppressions: ReadonlySet<string>');
     expect(runtime).toContain('readonly suppressedDecorationObstacleKeys:');
@@ -125,10 +132,11 @@ describe('revisioned live map authority', () => {
 
     const compile = runtime.slice(
       runtime.indexOf('function compiledLiveIslandRuntime'),
-      runtime.indexOf('function liveMapCollisionForSpace'),
+      runtime.indexOf('export function generatedSurvivalResources'),
     );
-    expect(compile).toContain('ctx.db.content_head.packId.find(LIVE_CONTENT_PACK_ID)');
-    expect(compile.indexOf('liveIslandRuntimeCache?.key === storedKey'))
-      .toBeLessThan(compile.indexOf('const registry = contentRegistry(ctx)'));
+    // S7b: the caller passes the row and registry; the key covers both, and a hit skips the compile.
+    expect(compile).toContain('`${row.revision}:${row.contentHash}:${registry.contentHash}`');
+    expect(compile.indexOf('liveIslandRuntimeCache?.key === key'))
+      .toBeLessThan(compile.indexOf('parseMapDocumentV3(row.documentJson'));
   });
 });

@@ -5,6 +5,7 @@ import { shadowPublicationRefusalCode, validateShadowBlob, validateShadowPublica
 import { ChunkAuthorityDispatcher, type ChunkAuthoritySource } from './content/chunk-authority-dispatch.js';
 import { chunkAuthorityAuditClock, chunkAuthoritySnapshotContext, runChunkAuthorityAudit, snapshotChunkAuthorityTables } from './content/chunk-authority-audit.js';
 import { LIVE_ISLAND_OUTSIDE_MAP_BIOME, type LiveIslandCollisionRuntime, type LiveIslandStaticView } from './content/chunk-authority-runtime.js';
+import { composeLiveIslandCollision, runtimeSuppressesGeneratedResource } from './content/live-island-composition.js';
 import { CHUNK_AUTHORITY_AUDIT_TARGET_KEY, CHUNK_AUTHORITY_SPACE_ID, adminSpaceFlagsBySpace, adminVisibleSpaceFlags, chunkAuthorityAuditPayload, chunkAuthorityMode, parseChunkAuthorityMode, planChunkAuthorityFlags, preserveOwnerOnlySpaceFlags } from './chunk-authority-setting.js';
 import { CONTENT_SCOPES, isStudioScope, resolveStudioScopes, requireContentScopes, requireScriptApproval, type StudioScope, type ScopeMembership, type ScopeGrant, type ScopeOverride } from '../../sim/src/studio-scopes.js';
 import { buildSpaceRegistry } from '@orchard/sim';
@@ -13153,26 +13154,14 @@ function liveMapCollisionForSpace(
   const runtime = prefetchedRuntime === undefined
     ? liveIslandCollisionRuntime(ctx)
     : prefetchedRuntime;
-  if (runtime === null) return base;
-  const authored = medium === 'ground' ? runtime.ground : runtime.water;
-  const suppressedObstacleKeys = runtime.suppressedDecorationObstacleKeys[medium];
-  // S3-final: the static base group (generated decorations) comes from the publication, ahead of the
-  // live rows `base` carries (the island base itself has no obstacles), all filtered by the keys.
-  const retainedBaseObstacles = [...runtime.baseObstacles[medium], ...(base.obstacles ?? [])].filter((obstacle) => !suppressedObstacleKeys.has(
-    `${obstacle.left}:${obstacle.top}:${obstacle.right}:${obstacle.bottom}`,
-  ));
-  return {
-    ...base,
-    ...authored,
-    obstacles: [...retainedBaseObstacles, ...(authored.obstacles ?? [])],
-  };
+  return runtime === null ? base : composeLiveIslandCollision(base, runtime, medium);
 }
 
 function liveMapRuntimeGeneratedResourceSuppressed(
   runtime: Pick<LiveIslandCollisionRuntime, 'generatedSuppressions'> | null,
   resourceId: bigint,
 ): boolean {
-  return runtime?.generatedSuppressions.has(`resource-${resourceId}`) ?? false;
+  return runtimeSuppressesGeneratedResource(runtime, resourceId);
 }
 
 /** `liveMapGeneratedResourceSuppressed` over an already-resolved runtime (topside only). */

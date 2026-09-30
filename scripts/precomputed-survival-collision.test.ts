@@ -5,7 +5,7 @@ import {
   bootstrapContentRegistry,
   createSurvivalCollisionMap,
 } from '@orchard/sim';
-import { precomputedSurvivalCollisionMap } from './precomputed-survival-collision.js';
+import { precomputedSurvivalCollisionMap } from '../packages/studio/src/world-chunks/island-base.js';
 import { terrainCollisionForSpace } from '../packages/world/src/world-rules.js';
 
 /** Static world S3-final: the materializer's island base (tools only; the world module's topside base is

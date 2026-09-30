@@ -5,6 +5,7 @@ import { LIVE_ISLAND_MAP_ID, mapStreetlampPlans, positionCollides, TILE_SIZE_FIX
 import { canonicalChunkJson, decodeWorldChunk, encodeWorldChunk, worldChunkHash, WORLD_CHUNK_STRIDE, type ChunkArray, type ChunkJson, type WorldChunkManifest,
   type WorldChunkRecord } from '@orchard/sim/world-chunk';
 import { chunkAuthorityMode } from '../chunk-authority-setting.js';
+import { composeLiveIslandCollision, runtimeSuppressesGeneratedResource } from './live-island-composition.js';
 import { assembleChunkLiveIslandRuntime, CHUNK_RESOURCE_GENERATOR, compareLiveIslandRuntime, composeChunkIslandCollision, type ChunkLiveIslandRuntime } from './chunk-authority-runtime.js';
 import {
   ChunkAuthorityDispatcher,
@@ -412,7 +413,7 @@ describe('index.ts collision dispatcher wiring (static world S3-final: chunks on
     const dispatcher = new ChunkAuthorityDispatcher({ worldSize: WORLD, logger: { info() {}, warn() {}, time() {}, timeEnd() {} } });
     const functions = serverFunctions({
       chunkAuthorityMode, TOPSIDE_SPACE_ID, LIVE_ISLAND_MAP_ID,
-      chunkAuthorityDispatcher: dispatcher,
+      chunkAuthorityDispatcher: dispatcher, composeLiveIslandCollision, runtimeSuppressesGeneratedResource,
       contentRegistry: () => ({ contentHash: REGISTRY_HASH }), runtimeTraversalPolicy: () => ({}),
     });
     return { ctx, reads, functions, dispatcher, setFlags: (value: string) => { flagsJson = value; } };
