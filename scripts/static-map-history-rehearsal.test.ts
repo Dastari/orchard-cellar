@@ -1,9 +1,13 @@
 import { readFileSync } from 'node:fs';
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { liveMapHeadSource } from '@orchard/sim';
 import { chunkHistoryFixture } from '../packages/world/src/live-map-chunk-history.fixture.js';
 import { repinChunkHistoryManifest } from '../packages/world/src/live-map-chunk-history.js';
-import { assertHistoryRehearsalTarget, runStaticMapHistoryRehearsal } from './static-map-history-rehearsal.js';
+import { assertHistoryRehearsalTarget, candidateAtlasOrigin, runStaticMapHistoryRehearsal } from './static-map-history-rehearsal.js';
+import { httpOrigin, sha256Hex } from './world-chunks-publish.js';
 import type { HistoryWorldPort, LiveState } from './world-chunks-publish.js';
 
 function fixture() {
@@ -30,6 +34,38 @@ function fixture() {
     openAdmin:vi.fn(async()=>admin),verifyRejoin:vi.fn(async()=>{})};
 }
 describe('fixed isolated S7c history rehearsal',()=>{
+  it('reproduces the stopped frontend dependency locally before any history write',async()=>{
+    const deps=fixture();const offline=vi.fn(async()=>new Response('Frontend stopped',{status:503}));
+    await expect(runStaticMapHistoryRehearsal({...deps,origin:httpOrigin('http://127.0.0.1:9999',offline)})).rejects.toThrow('origin_atlas_index_unavailable');
+    expect(offline).toHaveBeenCalledOnce();expect(deps.openAdmin).not.toHaveBeenCalled();expect(deps.world.retireAuditDocuments).not.toHaveBeenCalled();
+  });
+  it('runs complete history restore/inverse offline using the exact validated candidate atlas and its digest',async()=>{
+    const repository=await mkdtemp(join(tmpdir(),'s7c-atlas-'));
+    const directory=join(repository,'packages/client/dist/generated');await mkdir(directory,{recursive:true});
+    const bytes=Buffer.from(JSON.stringify({schemaVersion:5,revision:'candidate-revision',packs:{flora:'flora.json'},assetPacks:{tree:'flora'}}));
+    const path=join(directory,'atlas.packs.json');await writeFile(path,bytes);
+    const unavailable=vi.fn(async()=>{throw new Error('public_frontend_stopped');});vi.stubGlobal('fetch',unavailable);
+    try {
+      const atlas=await candidateAtlasOrigin(repository);expect(atlas.evidence).toEqual({path:'packages/client/dist/generated/atlas.packs.json',sha256:sha256Hex(bytes),byteLength:bytes.byteLength,schemaVersion:5,revision:'candidate-revision'});
+      const deps=fixture();expect(await runStaticMapHistoryRehearsal({...deps,origin:atlas.origin})).toMatchObject({ok:true,reconnectVerified:true});
+      expect(unavailable).not.toHaveBeenCalled();expect(deps.admin.restore).toHaveBeenCalledTimes(2);
+      const copy=await atlas.origin.atlasIndex();copy[0]=0;expect(await atlas.origin.atlasIndex()).toEqual(new Uint8Array(bytes));
+      await writeFile(path,Buffer.from(JSON.stringify({schemaVersion:5,revision:'different',packs:{},assetPacks:{}})));
+      await expect(atlas.assertUnchanged()).rejects.toThrow('candidate_atlas_changed');
+    } finally {vi.unstubAllGlobals();await rm(repository,{recursive:true,force:true});}
+  });
+  it('refuses absent, malformed, wrong-schema or redirected candidate indexes',async()=>{
+    const repository=await mkdtemp(join(tmpdir(),'s7c-atlas-invalid-'));const directory=join(repository,'packages/client/dist/generated');
+    await mkdir(directory,{recursive:true});const path=join(directory,'atlas.packs.json');
+    try {
+      await expect(candidateAtlasOrigin(repository)).rejects.toThrow();
+      for(const body of ['invalid',JSON.stringify({schemaVersion:4,revision:'old',packs:{},assetPacks:{}}),JSON.stringify({schemaVersion:5,revision:'x',packs:{},assetPacks:{tree:'missing'}})]) {
+        await writeFile(path,body);await expect(candidateAtlasOrigin(repository)).rejects.toThrow('candidate_atlas_index_invalid');
+      }
+      const redirected=join(repository,'redirected.json');await writeFile(redirected,JSON.stringify({schemaVersion:5,revision:'x',packs:{},assetPacks:{}}));
+      await rm(path);await symlink(redirected,path);await expect(candidateAtlasOrigin(repository)).rejects.toThrow('candidate_atlas_file_invalid');
+    } finally {await rm(repository,{recursive:true,force:true});}
+  });
   it('refuses production/public targets and live authority port',()=>{
     assertHistoryRehearsalTarget('http://127.0.0.1:3300','orchard-cellar-world');
     for(const host of ['http://127.0.0.1:3000','https://orchard.dastari.net','http://localhost:3300','http://127.0.0.1:3300/x']) expect(()=>assertHistoryRehearsalTarget(host,'orchard-cellar-world')).toThrow('target_refused');
