@@ -101,6 +101,7 @@ import { createMapDocumentExport } from './document-export.js';
 import { MapAutoPublishCoordinator } from './auto-publish.js';
 import { mapResizeImpactLossCount, type MapResizeEdge, type MapResizeImpact } from './resize.js';
 import { verifiedStudioLiveContent } from './live-content-registry.js';
+import type { LiveMapPublicationProgress } from '../../world-chunks/publication.js';
 import {
   OFFLINE_TERRAIN_AUTHORING_PALETTE,
   liveTerrainAuthoringPalette,
@@ -242,9 +243,25 @@ export interface MapEditorPublishPresentation {
   readonly tone?: 'success' | 'danger';
 }
 
+/** Static world S7b-3: the publish button's label and tooltip while a topside publication runs. */
+export function mapPublishProgressText(progress: LiveMapPublicationProgress | null | undefined): { readonly label: string; readonly tooltip: string } {
+  switch (progress?.phase) {
+    case 'predicting': return { label: 'Preparing…', tooltip: 'PUBLISHING — Preparing the island edit' };
+    case 'materialising': return { label: 'Building chunks…', tooltip: 'PUBLISHING — Building the island chunks (about a minute)' };
+    case 'verifying': return { label: 'Checking chunks…', tooltip: 'PUBLISHING — Checking the chunks against the server' };
+    case 'uploading': return {
+      label: `Uploading ${progress.done ?? 0}/${progress.total ?? 0}…`,
+      tooltip: `PUBLISHING — Uploading changed chunks (${progress.done ?? 0} of ${progress.total ?? 0})`,
+    };
+    case 'committing': return { label: 'Going live…', tooltip: 'PUBLISHING — Publishing the map and its chunks together' };
+    default: return { label: 'Publishing…', tooltip: 'PUBLISHING — Waiting for live authority' };
+  }
+}
+
 export function mapEditorPublishPresentation(input: {
   readonly dirty: boolean;
   readonly publishing: boolean;
+  readonly progress?: LiveMapPublicationProgress | null;
   readonly conflictRevision: number | null;
   readonly validation: 'ready' | 'pending' | 'invalid';
   readonly baseRevision: number;
@@ -259,7 +276,7 @@ export function mapEditorPublishPresentation(input: {
   };
   if (input.publishing) return {
     state: 'PUBLISHING', disabled: true, icon: 'cloudConnect',
-    tooltip: 'PUBLISHING — Waiting for live authority',
+    tooltip: mapPublishProgressText(input.progress).tooltip,
   };
   if (!input.dirty) return {
     state: 'CLEAN', disabled: true, icon: 'save',
@@ -1578,11 +1595,11 @@ function armLiveSpawn(state: MapCanvasState, context: StudioCanvasToolContext, m
 
 function mapPublishButton(state:MapCanvasState,context:StudioCanvasToolContext):UiElement {
   const view=context.controller.liveAdapter()?.view();
-  const publish=mapEditorPublishPresentation({dirty:state.model.dirty(),publishing:state.model.publishing()||view?.publishingMap===true,
+  const publish=mapEditorPublishPresentation({dirty:state.model.dirty(),publishing:state.model.publishing()||view?.publishingMap===true,progress:view?.mapPublishProgress??null,
     conflictRevision:state.model.conflictRevision(),validation:state.model.validationState(),baseRevision:state.model.baseRevision(),
     connected:view?.connected===true,synchronizing:view?.synchronizing===true,authorized:context.route.access==='write'&&studioRoleCan(view?.role??null,'publish_map'),
     publishAvailable:context.controller.liveAdapter()?.publishMap!==undefined});
-  return kit.tooltip(publish.tooltip,kit.button({id:'map-publish',ariaLabel:publish.tooltip,label:state.model.publishing()?'Publishing…':state.publishError!==null?'Retry publish':state.model.dirty()?'Publish changes':'Published',
+  return kit.tooltip(publish.tooltip,kit.button({id:'map-publish',ariaLabel:publish.tooltip,label:state.model.publishing()?mapPublishProgressText(view?.mapPublishProgress).label:state.publishError!==null?'Retry publish':state.model.dirty()?'Publish changes':'Published',
     disabled:publish.disabled,onPress:()=>state.autoPublish.requestManual(),layout:{width:'grow',minWidth:uiFixed(0),shrink:0},leading:kit.icon({cf:'save'})}),
     {width:'grow',minWidth:uiFixed(0),shrink:0});
 }

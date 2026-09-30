@@ -11,7 +11,7 @@ import { StudioShellController } from '../../shell/controller.js';
 import type { StudioCanvasToolContext } from '../../shell/canvas-tool.js';
 import type { StudioConnectionView, StudioLiveAdapter } from '../../shell/index.js';
 import { MapEditorModel } from './model.js';
-import { buildMapCanvasTool, mapEditorPublishPresentation } from './canvas.js';
+import { buildMapCanvasTool, mapEditorPublishPresentation, mapPublishProgressText } from './canvas.js';
 
 const CONTROLS = Object.freeze({ x: 10, y: 20, width: 206, height: 620 });
 const WORKSPACE = Object.freeze({ x: 300, y: 20, width: 820, height: 620 });
@@ -90,6 +90,14 @@ describe('Map Editor publish state', () => {
     expect(mapEditorPublishPresentation({ ...base, publishing: true })).toMatchObject({
       state: 'PUBLISHING', disabled: true, tooltip: 'PUBLISHING — Waiting for live authority',
     });
+    // Static world S7b-3: a topside publication reports where it is.
+    expect(mapEditorPublishPresentation({ ...base, publishing: true, progress: { phase: 'uploading', done: 3, total: 12 } })).toMatchObject({
+      state: 'PUBLISHING', disabled: true, tooltip: 'PUBLISHING — Uploading changed chunks (3 of 12)',
+    });
+    expect(mapPublishProgressText({ phase: 'materialising' })).toEqual({
+      label: 'Building chunks…', tooltip: 'PUBLISHING — Building the island chunks (about a minute)' });
+    expect(mapPublishProgressText({ phase: 'committing' }).label).toBe('Going live…');
+    expect(mapPublishProgressText(null).label).toBe('Publishing…');
     expect(mapEditorPublishPresentation({ ...base, conflictRevision: 8 })).toMatchObject({
       state: 'CONFLICT', disabled: true,
       tooltip: 'CONFLICT — Live revision 8 changed; reload latest or keep this local draft',

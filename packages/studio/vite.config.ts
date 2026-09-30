@@ -12,8 +12,16 @@ export function developmentCsp(html: string): string {
     .replace("style-src 'self';", "style-src 'self' 'unsafe-inline';");
 }
 
+/** The game frontend (orchard-frontend.service); Studio reads its atlas index for chunk publications. */
+export const STUDIO_GAME_FRONTEND = 'http://10.0.1.150:5173';
+
 export const studioProxy = {
   '/v1': { target: 'http://127.0.0.1:3000', ws: true },
+  // Static world S7b-3: the served atlas index is the chunks' asset revision (same-origin for the CSP).
+  '/game/atlas.packs.json': {
+    target: STUDIO_GAME_FRONTEND, changeOrigin: true,
+    rewrite: (): string => '/generated/atlas.packs.json',
+  },
 };
 
 export const studioListenOptions = {
