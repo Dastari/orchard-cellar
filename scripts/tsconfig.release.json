@@ -27,6 +27,7 @@
     "content-head-release.ts",
     "world-chunks-publish.ts",
     "world-chunks-history.ts",
+    "static-map-history-rehearsal.ts",
     "chunk-fixture-publication.ts",
     "chunk-authority-soak.ts",
     "chunk-runtime-browser-acceptance.ts",

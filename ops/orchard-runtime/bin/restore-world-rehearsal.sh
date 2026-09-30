@@ -29,6 +29,8 @@ content_release_confirm=${WORLD_RESTORE_CONTENT_CONFIRM:-}
 # Uncapped Storage step 4: run the container-cell migration on the restored schema-only candidate (opt-in).
 container_cell_migration=${WORLD_RESTORE_CONTAINER_CELL_MIGRATION:-skip}
 container_cell_log=${WORLD_RESTORE_CONTAINER_CELL_LOG:-$backup_directory/container-cell-migration-rehearsal.jsonl}
+static_map_history=${WORLD_RESTORE_STATIC_MAP_HISTORY:-skip}
+static_map_history_report=${WORLD_RESTORE_STATIC_MAP_HISTORY_REPORT:-$backup_directory/static-map-history-rehearsal.json}
 
 [[ "$backup_directory" = /* && -d "$backup_directory" ]] || usage
 [[ "$pre_drain_snapshot" = /* && ! -e "$pre_drain_snapshot" ]] || usage
@@ -51,6 +53,13 @@ container_cell_log=${WORLD_RESTORE_CONTAINER_CELL_LOG:-$backup_directory/contain
 [[ "$transition_already_deployed" = true || "$transition_already_deployed" = false ]] || usage
 [[ "$maintenance_nice" =~ ^([0-9]|1[0-9])$ ]] || usage
 [[ "$container_cell_migration" = run || "$container_cell_migration" = skip ]] || usage
+[[ "$static_map_history" = run || "$static_map_history" = skip ]] || usage
+if [[ "$static_map_history" = run ]]; then
+  [[ "$migration_kind" = schema-only && "$transition_already_deployed" = false
+    && "$static_map_history_report" = /* && ! -e "$static_map_history_report"
+    && "$static_map_history_report" != "$pre_drain_snapshot"
+    && "$static_map_history_report" != "$post_drain_snapshot" ]] || usage
+fi
 if [[ "$container_cell_migration" = run ]]; then
   [[ "$migration_kind" = schema-only && "$transition_already_deployed" = false ]] || {
     printf 'The container-cell migration runs only in a schema-only rehearsal that publishes the candidate.\n' >&2
@@ -318,6 +327,18 @@ if [[ "$migration_kind" = schema-only ]]; then
   SPACETIMEDB_HOST="http://127.0.0.1:$port" \
   SPACETIMEDB_DATABASE="$database" \
     npm --prefix "$repository" run world:rejoin-smoke -- verify "$pre_drain_snapshot" "$post_drain_snapshot"
+  # Preserve the expected production snapshots above. Destructive operational proof runs only
+  # on this isolated authority, before cleanup, and a failure blocks production publication.
+  if [[ "$static_map_history" = run ]]; then
+    printf 'Rehearsing complete static map history, atomic restore/inverse, privacy and reconnect...\n'
+    WORLD_REJOIN_TOKENS_FILE="$token_file" \
+    SPACETIMEDB_HOST="http://127.0.0.1:$port" \
+    SPACETIMEDB_DATABASE="$database" \
+    WORLD_RESTORE_STATIC_MAP_HISTORY=run \
+    WORLD_RESTORE_STATIC_MAP_HISTORY_REPORT="$static_map_history_report" \
+    WORLD_RESTORE_CONTENT_OWNER_LABEL="$content_owner_label" \
+      node --import tsx "$repository/scripts/static-map-history-rehearsal.ts"
+  fi
   printf 'Isolated schema-only restore and reconnect passed on loopback port %s (container cells: %s).\n' \
     "$port" "$container_cell_migration"
   exit 0
