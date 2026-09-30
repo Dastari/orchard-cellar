@@ -2,7 +2,7 @@ import {readFileSync} from 'node:fs';
 import ts from 'typescript';
 import {describe,expect,it,vi} from 'vitest';
 import {runtimeChunkFixture} from '@orchard/sim/chunk-runtime-fixture';
-import {shadowPublicationRefusalCode,validateShadowBlob,validateShadowPublication} from './chunk-shadow-runtime.js';
+import {CHUNK_STAGE_QUOTA_BYTES,CHUNK_STAGE_TTL_MICROS,ChunkBlobReadLimiter,planChunkStage,shadowPublicationRefusalCode,validateShadowBlob,validateShadowPublication} from './chunk-shadow-runtime.js';
 const source=ts.createSourceFile('index.ts',readFileSync(new URL('../index.ts',import.meta.url),'utf8'),ts.ScriptTarget.Latest,true);
 class SenderError extends Error {}
 /** The real index.ts refusal mapping, compiled with this test's SenderError. */
@@ -28,8 +28,22 @@ function reducer(name:string,owner:()=>void,extra:Record<string,unknown>={},help
  const t={array:()=>null,u8:()=>null,string:()=>null,u32:()=>null,u64:()=>null,i32:()=>null};
  const dependencies:Record<string,unknown>={spacetimedb:{reducer:(_schema:unknown,handler:unknown)=>handler,procedure:(_schema:unknown,_returns:unknown,handler:unknown)=>handler},t,requireWorldOwner:owner,validateShadowBlob,validateShadowPublication,
   contentRegistry:()=>({contentHash:'content-1'}),TOPSIDE_SPACE_ID:0,LIVE_ISLAND_MAP_ID:'live-island',SenderError,withShadowPublicationRefusals:refusals(),
-  requireLiveMapPublisher:()=>{throw new Error('map_publisher_required');},...extra};
- return new Function(...Object.keys(dependencies),code)(...Object.values(dependencies)) as (ctx:unknown,args:unknown)=>void;
+  requireLiveMapPublisher:()=>{throw new Error('map_publisher_required');},planChunkStage,chunkBlobReadLimiter:new ChunkBlobReadLimiter(),...extra};
+ const handler=new Function(...Object.keys(dependencies),code)(...Object.values(dependencies)) as (ctx:unknown,args:unknown)=>unknown;
+ return ((ctx:unknown,args:unknown)=>handler(withChunkStage(ctx),args)) as (ctx:unknown,args:unknown)=>void;
+}
+/** The stage table, heads index and clock a fixture leaves out (empty, time 0). */
+function withChunkStage(ctx:unknown):unknown{
+ const value=ctx as {timestamp?:unknown;db?:Record<string,Record<string,unknown>>;withTx?:unknown};
+ if(value.withTx!==undefined||value.db===undefined)return ctx;
+ value.timestamp??={microsSinceUnixEpoch:0n};
+ value.db['world_chunk_blob_stage']??={by_staged_by:{filter:()=>[]},contentHash:{delete:()=>true},insert:()=>undefined};
+ const heads=value.db['world_chunk_head'];
+ if(heads!==undefined)heads['by_space']??={filter:()=>[]};
+ else value.db['world_chunk_head']={by_space:{filter:()=>[]}};
+ const blobs=value.db['world_chunk_blob'] as {contentHash?:Record<string,unknown>}|undefined;
+ if(blobs?.contentHash!==undefined)blobs.contentHash['delete']??=()=>true;
+ return ctx;
 }
 it('actual staging reducer enforces ownership before writing and deduplicates immutable blobs',()=>{
  const {blobs}=runtimeChunkFixture();let row:unknown=null;const insert=vi.fn((value:unknown)=>{row=value;});
@@ -84,7 +98,7 @@ describe('publishLiveMapWithChunks (static world S7b): map and chunks in one tra
     map=options.mapCommits??{revision:3,contentHash:'map-3'};events.push('head');afterHead();events.push('resource-moves');
    },
    chunkAuthorityDispatcher:dispatcher,chunkAuthoritySource:()=>({}),
-  },['commitWorldChunkShadow','requireServableChunkPublication']);
+  },['commitWorldChunkShadow','requireServableChunkPublication','requireSameChunkAssetRevision']);
   const args={mapId:'live-island',expectedRevision:2,documentJson:'{}',clientMutationId:'m-1',manifestJson:JSON.stringify(manifest),contentHash:'content-1',expectedChunkRevision:0};
   return {ctx,args,publish,events,inserted,shadow:()=>shadow,setShadow:(value:typeof shadow)=>{shadow=value;}};
  }
@@ -98,6 +112,11 @@ describe('publishLiveMapWithChunks (static world S7b): map and chunks in one tra
  it('refuses (rolling the map back) a manifest not pinned to the head this publication commits, and drops cached runtimes',()=>{
   const w=world({mapCommits:{revision:3,contentHash:'map-3-other'}});
   expect(refusal(()=>w.publish(w.ctx,w.args))).toBe('chunk_shadow_source_conflict');
+  expect(w.events).toEqual(['auth','prepare','head','release']);expect(w.inserted).toHaveLength(0);
+ });
+ it('refuses a publication that changes the current asset revision (only the release lane moves it)',()=>{
+  const w=world();w.setShadow({revision:1,contentHash:'content-1',manifestJson:JSON.stringify({...manifest,assetRevision:'other-art'})});
+  expect(refusal(()=>w.publish(w.ctx,{...w.args,expectedChunkRevision:1}))).toBe('chunk_asset_revision_changed');
   expect(w.events).toEqual(['auth','prepare','head','release']);expect(w.inserted).toHaveLength(0);
  });
  it('refuses a chunk revision conflict and a non-topside map',()=>{
@@ -124,7 +143,7 @@ describe('publishLiveMapWithChunks (static world S7b): map and chunks in one tra
 it('readWorldChunkBlob returns only the blob a current head references, to members',()=>{
  const {blobs}=runtimeChunkFixture();const heads=new Map([['0:1:2',{contentHash:'hash-a'}]]);const stored=new Map([['hash-a',{bytes:blobs[0]}]]);
  let member=true;
- const tx={senderAuth:{jwt:null},sender:'a',db:{membership:{identity:{find:()=>null}},world_chunk_head:{id:{find:(id:string)=>heads.get(id)??null}},
+ const tx={senderAuth:{jwt:null},sender:{toHexString:()=>'a'},timestamp:{microsSinceUnixEpoch:0n},db:{membership:{identity:{find:()=>null}},world_chunk_head:{id:{find:(id:string)=>heads.get(id)??null}},
   world_chunk_blob:{contentHash:{find:(hash:string)=>stored.get(hash)??null}}}};
  const read=reducer('readWorldChunkBlob',()=>{},{requireAuthorizedSender:()=>{if(!member)throw new SenderError('not_authorized');}},[]) as unknown as
   (ctx:unknown,args:{spaceId:bigint;cx:number;cy:number;contentHash:string})=>unknown;
@@ -134,4 +153,54 @@ it('readWorldChunkBlob returns only the blob a current head references, to membe
  expect(()=>read(ctx,{spaceId:0n,cx:2,cy:2,contentHash:'hash-a'})).toThrow(new SenderError('chunk_blob_not_published'));
  stored.clear();expect(()=>read(ctx,{spaceId:0n,cx:1,cy:2,contentHash:'hash-a'})).toThrow(new SenderError('chunk_blob_missing'));
  member=false;expect(()=>read(ctx,{spaceId:0n,cx:1,cy:2,contentHash:'hash-a'})).toThrow(/not_authorized/);
+});
+
+describe('chunk staging quota and expiry (review of #296)',()=>{
+ const row=(contentHash:string,stagedAtMicros:bigint,byteLength=1)=>({contentHash,stagedAtMicros,byteLength});
+ it('expires a sender\'s stage rows after the TTL, removing only the blobs no head references',()=>{
+  const plan=planChunkStage([row('old',0n),row('old-published',0n),row('new',CHUNK_STAGE_TTL_MICROS)],new Set(['old-published']),CHUNK_STAGE_TTL_MICROS,1);
+  expect(plan.expired).toEqual([{contentHash:'old',deleteBlob:true},{contentHash:'old-published',deleteBlob:false}]);
+  expect(plan.allowed).toBe(true);
+ });
+ it('bounds the unreferenced bytes one sender holds',()=>{
+  expect(planChunkStage([row('a',10n,CHUNK_STAGE_QUOTA_BYTES-10)],new Set(),10n,10).allowed).toBe(true);
+  expect(planChunkStage([row('a',10n,CHUNK_STAGE_QUOTA_BYTES-10)],new Set(),10n,11).allowed).toBe(false);
+  // Published (referenced) and expired bytes do not count.
+  expect(planChunkStage([row('a',10n,CHUNK_STAGE_QUOTA_BYTES)],new Set(['a']),10n,11).allowed).toBe(true);
+  expect(planChunkStage([row('a',0n,CHUNK_STAGE_QUOTA_BYTES)],new Set(),CHUNK_STAGE_TTL_MICROS,11).allowed).toBe(true);
+ });
+ it('the staging reducer refuses over quota and removes its expired blobs',()=>{
+  const {blobs}=runtimeChunkFixture();const deleted:string[]=[];const inserted:unknown[]=[];
+  const stageRows=[{contentHash:'stale',stagedAt:{microsSinceUnixEpoch:0n},byteLength:10},{contentHash:'big',stagedAt:{microsSinceUnixEpoch:CHUNK_STAGE_TTL_MICROS},byteLength:CHUNK_STAGE_QUOTA_BYTES}];
+  const ctx={senderAuth:{jwt:null},sender:{toHexString:()=>'a'},timestamp:{microsSinceUnixEpoch:CHUNK_STAGE_TTL_MICROS},db:{membership:{identity:{find:()=>null}},
+   studio_scope_grant:{id:{find:()=>null}},world_chunk_head:{by_space:{filter:()=>[]}},
+   world_chunk_blob:{contentHash:{find:()=>null,delete:(hash:string)=>deleted.push(`blob:${hash}`)},insert:(value:unknown)=>inserted.push(value)},
+   world_chunk_blob_stage:{by_staged_by:{filter:()=>stageRows},contentHash:{delete:(hash:string)=>deleted.push(`stage:${hash}`)},insert:(value:unknown)=>inserted.push(value)}}};
+  const stage=reducer('stageWorldChunkBlob',()=>{});
+  expect(()=>stage(ctx,{bytes:blobs[0]})).toThrow(new SenderError('chunk_stage_quota_exceeded'));
+  expect(deleted).toEqual(['stage:stale','blob:stale']);expect(inserted).toEqual([]);
+  stageRows.pop();deleted.length=0;
+  stage(ctx,{bytes:blobs[0]});expect(inserted).toHaveLength(2);
+  expect(inserted[1]).toMatchObject({stagedBy:ctx.sender,byteLength:blobs[0]!.length});
+ });
+});
+
+describe('blob reads and asset revision (review of #296)',()=>{
+ it('limits blob reads per sender per window',()=>{
+  const limiter=new ChunkBlobReadLimiter(2,100n,2);
+  expect([limiter.take('a',0n),limiter.take('a',1n),limiter.take('a',2n)]).toEqual([true,true,false]);
+  expect(limiter.take('b',2n)).toBe(true);
+  expect(limiter.take('a',100n)).toBe(true);
+  expect(limiter.take('c',100n)).toBe(true); // bounded: an expired sender window is dropped
+ });
+ it('a Studio publication must keep the current asset revision',()=>{
+  const fn=topLevelFunctions(['requireSameChunkAssetRevision']);
+  const code=ts.transpileModule(`${fn}\nreturn requireSameChunkAssetRevision;`,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+  const check=new Function('SenderError','TOPSIDE_SPACE_ID',code)(SenderError,0) as (ctx:unknown,json:string)=>void;
+  let current:unknown=null;const ctx={db:{world_chunk_shadow:{spaceId:{find:()=>current}}}};
+  expect(()=>check(ctx,'{"assetRevision":"a"}')).not.toThrow(); // nothing published yet
+  current={manifestJson:'{"assetRevision":"a"}'};
+  expect(()=>check(ctx,'{"assetRevision":"a"}')).not.toThrow();
+  expect(()=>check(ctx,'{"assetRevision":"b"}')).toThrow(new SenderError('chunk_asset_revision_changed'));
+ });
 });

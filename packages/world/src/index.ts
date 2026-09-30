@@ -1,7 +1,9 @@
 import { RULE_MEDIA, advanceHazardDamage, runtimeTraversalPolicy, runtimeActorCollision, runtimeCreatureDefinition, runtimeTraversalAbilities, traversalSolidGeometry, type RuntimeTraversalActor } from '@orchard/sim';
 import { planObjectStateSettlement } from './content/object-state-runtime.js';
 import { objectEnvironmentIntervals, type ObjectEnvironmentEpoch, effectsResult, type AnyHandlerRegistration, type ExternalStateTransitionEvent } from '@orchard/sim';
-import { shadowPublicationRefusalCode, validateShadowBlob, validateShadowPublication, ShadowChunkCollisionCache } from './content/chunk-shadow-runtime.js';
+import {
+  ChunkBlobReadLimiter, planChunkStage, shadowPublicationRefusalCode, validateShadowBlob, validateShadowPublication, ShadowChunkCollisionCache,
+} from './content/chunk-shadow-runtime.js';
 import { ChunkAuthorityDispatcher, type ChunkAuthoritySource } from './content/chunk-authority-dispatch.js';
 import { chunkAuthorityAuditClock, chunkAuthoritySnapshotContext, runChunkAuthorityAudit, snapshotChunkAuthorityTables } from './content/chunk-authority-audit.js';
 import { LIVE_ISLAND_OUTSIDE_MAP_BIOME, type LiveIslandCollisionRuntime, type LiveIslandStaticView } from './content/chunk-authority-runtime.js';
@@ -1851,6 +1853,11 @@ const world_chunk_blob = table(
   { name: 'world_chunk_blob' },
   { contentHash: t.string().primaryKey(), bytes: t.array(t.u8()) },
 );
+/** Static world S7b: blobs staged that no published head referenced yet, per sender (quota and expiry). */
+const world_chunk_blob_stage = table(
+  { name: 'world_chunk_blob_stage', indexes: [{ accessor: 'by_staged_by', algorithm: 'btree', columns: ['stagedBy'] }] },
+  { contentHash: t.string().primaryKey(), stagedBy: t.identity(), stagedAt: t.timestamp(), byteLength: t.u32() },
+);
 const live_map_document = table(
   { name: 'live_map_document', public: true },
   {
@@ -3155,7 +3162,7 @@ const spacetimedb = schema({
   space_admin_flag,
   admin_world_validation_report,
   live_map_document,
-  world_chunk_head, world_chunk_shadow, world_chunk_blob,
+  world_chunk_head, world_chunk_shadow, world_chunk_blob, world_chunk_blob_stage,
   live_map_revision,
   chat_channel,
   chat_channel_member,
@@ -18029,6 +18036,7 @@ export const publishLiveMapWithChunks = spacetimedb.reducer(
     const chunks = { manifestJson: input.manifestJson, mapId: input.mapId, contentHash: input.contentHash, expectedRevision: input.expectedChunkRevision };
     let committed = false;
     const commitChunks = (): void => {
+      requireSameChunkAssetRevision(ctx, input.manifestJson);
       commitWorldChunkShadow(ctx, chunks);
       requireServableChunkPublication(ctx);
       committed = true;
@@ -26433,7 +26441,21 @@ export const stageWorldChunkBlob = spacetimedb.reducer({ bytes: t.array(t.u8()) 
   if (mapGrant !== null && mapGrant.revokedAt === undefined) requireLiveMapPublisher(ctx);
   else requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
   const chunk = withShadowPublicationRefusals(() => validateShadowBlob(Uint8Array.from(bytes)));
-  if (ctx.db.world_chunk_blob.contentHash.find(chunk.contentHash) === null) ctx.db.world_chunk_blob.insert({ contentHash: chunk.contentHash, bytes });
+  if (ctx.db.world_chunk_blob.contentHash.find(chunk.contentHash) !== null) return;
+  // Review of #296: a sender's unreferenced staged bytes are bounded, and blobs no publication took up
+  // within the expiry are removed (lazily, when that sender stages again).
+  const now = ctx.timestamp.microsSinceUnixEpoch;
+  const rows = [...ctx.db.world_chunk_blob_stage.by_staged_by.filter(ctx.sender)];
+  const referenced = new Set([...ctx.db.world_chunk_head.by_space.filter(BigInt(TOPSIDE_SPACE_ID))].map(head => head.contentHash));
+  const plan = planChunkStage(rows.map(row => ({ contentHash: row.contentHash, stagedAtMicros: row.stagedAt.microsSinceUnixEpoch,
+    byteLength: row.byteLength })), referenced, now, bytes.length);
+  for (const expired of plan.expired) {
+    ctx.db.world_chunk_blob_stage.contentHash.delete(expired.contentHash);
+    if (expired.deleteBlob) ctx.db.world_chunk_blob.contentHash.delete(expired.contentHash);
+  }
+  if (!plan.allowed) throw new SenderError('chunk_stage_quota_exceeded');
+  ctx.db.world_chunk_blob.insert({ contentHash: chunk.contentHash, bytes });
+  ctx.db.world_chunk_blob_stage.insert({ contentHash: chunk.contentHash, stagedBy: ctx.sender, stagedAt: ctx.timestamp, byteLength: bytes.length });
 });
 export const publishWorldChunkShadow = spacetimedb.reducer({ manifestJson: t.string(), mapId: t.string(), contentHash: t.string(), expectedRevision: t.u32() }, (ctx, input) => {
   requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
@@ -26457,9 +26479,27 @@ function commitWorldChunkShadow(ctx: WorldReducerContext,
   if (input.expectedRevision === 0xffffffff) throw new SenderError('chunk_shadow_revision_exhausted');
   const revision = input.expectedRevision + 1;
   for (const row of ctx.db.world_chunk_head.by_space.filter(spaceId)) ctx.db.world_chunk_head.id.delete(row.id);
-  for (const head of manifest.chunks) ctx.db.world_chunk_head.insert({ id: `${spaceId}:${head.cx}:${head.cy}`, spaceId, cx: head.cx, cy: head.cy, contentHash: head.contentHash, revision, byteLength: head.byteLength });
+  for (const head of manifest.chunks) {
+    ctx.db.world_chunk_head.insert({ id: `${spaceId}:${head.cx}:${head.cy}`, spaceId, cx: head.cx, cy: head.cy, contentHash: head.contentHash, revision, byteLength: head.byteLength });
+    // Referenced now: no longer the stager's pending bytes, never expired.
+    ctx.db.world_chunk_blob_stage.contentHash.delete(head.contentHash);
+  }
   const row = { spaceId, revision, mapId: input.mapId, contentHash: input.contentHash, manifestJson: input.manifestJson };
   if (previous === null) ctx.db.world_chunk_shadow.insert(row); else ctx.db.world_chunk_shadow.spaceId.update(row);
+}
+
+/**
+ * Review of #296: a Studio publication keeps the current publication's asset revision. Only the
+ * release lane (`publishWorldChunkShadow`) moves it, together with the art it describes; otherwise
+ * every client would pause with `asset_revision_mismatch`.
+ */
+function requireSameChunkAssetRevision(ctx: WorldReducerContext, manifestJson: string): void {
+  const current = ctx.db.world_chunk_shadow.spaceId.find(BigInt(TOPSIDE_SPACE_ID));
+  if (current === null) return;
+  const assetRevision = (json: string): unknown => {
+    try { return (JSON.parse(json) as { assetRevision?: unknown } | null)?.assetRevision; } catch { return undefined; }
+  };
+  if (assetRevision(manifestJson) !== assetRevision(current.manifestJson)) throw new SenderError('chunk_asset_revision_changed');
 }
 
 /** The chunk publication just committed must serve: assembled completely and pinned to the live head
@@ -26506,10 +26546,13 @@ function chunkShadowCollisionAt(ctx: WorldReducerContext, spaceId: bigint, x: nu
  * the blob the current head at (cx, cy) references is returned: that is public geometry every client
  * downloads anyway. The caller verifies it against its manifest exactly as it verifies a served blob.
  */
+const chunkBlobReadLimiter = new ChunkBlobReadLimiter();
 export const readWorldChunkBlob = spacetimedb.procedure(
   { spaceId: t.u64(), cx: t.i32(), cy: t.i32(), contentHash: t.string() }, t.array(t.u8()),
   (ctx, { spaceId, cx, cy, contentHash }) => ctx.withTx(tx => {
     requireAuthorizedSender(tx.senderAuth.jwt, tx.db.membership.identity.find(tx.sender));
+    // Review of #296: about 170 KB per call; a whole island is 169 reads.
+    if (!chunkBlobReadLimiter.take(tx.sender.toHexString(), tx.timestamp.microsSinceUnixEpoch)) throw new SenderError('chunk_blob_read_rate_limited');
     const head = tx.db.world_chunk_head.id.find(`${spaceId}:${cx}:${cy}`);
     if (head === null || head.contentHash !== contentHash) throw new SenderError('chunk_blob_not_published');
     const blob = tx.db.world_chunk_blob.contentHash.find(contentHash);

@@ -1587,6 +1587,14 @@ export const WorldChunkBlob = __t.object("WorldChunkBlob", {
 });
 export type WorldChunkBlob = __Infer<typeof WorldChunkBlob>;
 
+export const WorldChunkBlobStage = __t.object("WorldChunkBlobStage", {
+  contentHash: __t.string(),
+  stagedBy: __t.identity(),
+  stagedAt: __t.timestamp(),
+  byteLength: __t.u32(),
+});
+export type WorldChunkBlobStage = __Infer<typeof WorldChunkBlobStage>;
+
 export const WorldChunkHead = __t.object("WorldChunkHead", {
   id: __t.string(),
   spaceId: __t.u64(),
