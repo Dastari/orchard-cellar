@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { chunkHistoryFixture } from '../packages/world/src/live-map-chunk-history.fixture.js';
 import { allHistoryRows, historyTokenProvider, runHistory } from './world-chunks-history.js';
 import type { HistoryWorldPort, OriginPort } from './world-chunks-publish.js';
+import { PipelineError } from './world-chunks-publish.js';
+import { historyFailure, type HistoryPhaseEvent } from './static-map-history-diagnostics.js';
 
 function fixture() {
   const publication = chunkHistoryFixture();
@@ -101,7 +103,7 @@ describe('S7c history operations', () => {
     const deps = fixture();
     const plan = await runHistory('plan', deps);
     const bad = { ...deps, confirmation: plan.confirmation!, materialize: async () => { throw new Error('materializer_failed'); } };
-    await expect(runHistory('backfill', bad)).rejects.toThrow('materializer_failed');
+    await expect(runHistory('backfill', bad)).rejects.toMatchObject({ failure: { phase: 'history-materialize', code: 'static_history_rehearsal_failed' } });
     expect(deps.world.resume).toHaveBeenCalledOnce();
     expect(deps.world.stageBlob).not.toHaveBeenCalled();
     const tampered = { ...deps, confirmation: plan.confirmation!, materialize: async () => {
@@ -114,10 +116,48 @@ describe('S7c history operations', () => {
 
   it('requires complete archived history for check and an explicit revision for rematerialization', async () => {
     const deps = fixture();
-    await expect(runHistory('check', deps)).rejects.toThrow('incomplete:1');
+    await expect(runHistory('check', deps)).rejects.toMatchObject({ failure: { phase: 'history-verify-server', code: 'chunk_history_incomplete', historyId: '1' } });
     await expect(runHistory('check', { ...deps, world: { ...deps.world,
       listHistory: async () => ({ rows: [], more: false }) } })).rejects.toThrow('chunk_history_empty');
     await expect(runHistory('rematerialize', deps)).rejects.toThrow('requires_revision');
     await expect(runHistory('plan', { ...deps, revisionId: 8n })).rejects.toThrow('not_found');
+  });
+
+  it.each(['history-archive', 'history-verify-server', 'history-retire-audit'] as const)(
+    'identifies %s SDK/pipeline failure while preserving archive/retirement gates', async phase => {
+      const deps = fixture(); const events: HistoryPhaseEvent[] = [];
+      const plan = await runHistory('plan', deps);
+      const failure = phase === 'history-retire-audit' ? new PipelineError('retire_audit_documents_timeout', 1, 'private-body-marker')
+        : 'Procedure failed: chunk_history_not_backfilled';
+      if (phase === 'history-archive') vi.mocked(deps.world.backfillHistory).mockRejectedValueOnce(failure);
+      if (phase === 'history-verify-server') vi.mocked(deps.world.verifyHistory).mockRejectedValueOnce(failure);
+      if (phase === 'history-retire-audit') vi.mocked(deps.world.retireAuditDocuments).mockRejectedValueOnce(failure);
+      const error = await runHistory('backfill', { ...deps, confirmation: plan.confirmation!, progress: entry => events.push(entry) }).catch(value => value as unknown);
+      expect(historyFailure(error)).toMatchObject({ phase, code: phase === 'history-retire-audit' ? 'retire_audit_documents_timeout' : 'chunk_history_not_backfilled' });
+      expect(JSON.stringify(historyFailure(error))).not.toContain('private-body-marker');
+      expect(events).toContainEqual(expect.objectContaining({ phase, status: 'start' }));
+      expect(events).not.toContainEqual(expect.objectContaining({ phase, status: 'complete' }));
+      if (phase !== 'history-retire-audit') expect(deps.world.retireAuditDocuments).not.toHaveBeenCalled();
+      if (phase === 'history-archive') expect(deps.world.verifyHistory).not.toHaveBeenCalled();
+      if (phase === 'history-retire-audit') expect(events).toContainEqual({ stage: 'phase', phase: 'history-row-complete', status: 'complete', historyId: '1', revision: 7 });
+    });
+
+  it('always resumes after materialization and preserves a primary failure if resume also fails', async () => {
+    const deps = fixture(); const plan = await runHistory('plan', deps);
+    vi.mocked(deps.world.resume).mockRejectedValueOnce(new PipelineError('connect_failed'));
+    const error = await runHistory('backfill', { ...deps, confirmation: plan.confirmation!,
+      materialize: async () => { throw 'chunk_document_sha256_mismatch'; } }).catch(value => value as unknown);
+    expect(historyFailure(error)).toMatchObject({ phase: 'history-materialize', code: 'chunk_document_sha256_mismatch', historyId: '1', revision: 7 });
+    expect((error as Error).cause).toBe('chunk_document_sha256_mismatch');
+    expect(deps.world.resume).toHaveBeenCalledOnce(); expect(deps.world.stageBlob).not.toHaveBeenCalled();
+    expect(deps.world.backfillHistory).not.toHaveBeenCalled();
+  });
+
+  it('reports reconnect as the primary failure when materialization succeeded', async () => {
+    const deps = fixture(); const plan = await runHistory('plan', deps);
+    vi.mocked(deps.world.resume).mockRejectedValueOnce(new PipelineError('connect_failed'));
+    const error = await runHistory('backfill', { ...deps, confirmation: plan.confirmation! }).catch(value => value as unknown);
+    expect(historyFailure(error)).toMatchObject({ phase: 'history-resume', code: 'connect_failed', historyId: '1', revision: 7 });
+    expect(deps.materialize).toHaveBeenCalledOnce(); expect(deps.world.stageBlob).not.toHaveBeenCalled();
   });
 });

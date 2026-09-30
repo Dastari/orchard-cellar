@@ -2,6 +2,10 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Root 0.81.4 / Tools 0.25.4 — Safe history rehearsal failure diagnostics
+
+- **BUG-073:** isolated history acceptance records fixed operation/row phases and recognizes exact known SDK and timeout codes. Unknown error text, bodies and credentials remain redacted; primary failures survive reconnect cleanup, and acceptance gates stay strict.
+
 ## Root 0.81.3 / Tools 0.25.3 — Rejoin capture across public map retirement
 
 - **BUG-072:** rejoin capture explicitly selects the old public map HTTP SQL transport or the new public digest view from deployed schema, retaining all 44 continuity surfaces, exact document digests and audit pins. New private map bodies are never a fallback.

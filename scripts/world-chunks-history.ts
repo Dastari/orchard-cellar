@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { decodeJwtClaims } from '@orchard/auth/oidc-token';
 import { refreshRejoinCredentials } from './world-rejoin-smoke.js';
 import { verifiedChunkHistoryDocument } from '../packages/world/src/live-map-chunk-history.js';
+import { historyPhase, type HistoryPhaseEvent } from './static-map-history-diagnostics.js';
 import {
   connectWorld, httpOrigin, materializeInProcess, readTokenFile, sha256Hex,
   PRODUCTION_DATABASE, PRODUCTION_HOST, PRODUCTION_ORIGIN,
@@ -80,24 +81,30 @@ export async function runHistory(command: 'plan' | 'backfill' | 'check' | 'remat
   readonly world: HistoryWorldPort; readonly origin: OriginPort; readonly materialize: MaterializePort;
   readonly database: string; readonly confirmation?: string; readonly revisionId?: bigint;
   readonly log?: (message: string) => void;
+  readonly progress?: (entry: HistoryPhaseEvent) => void;
 }): Promise<HistoryReport> {
-  const all = await allHistoryRows(deps.world);
+  const phase = <T>(name: Parameters<typeof historyPhase>[0], action: () => T | Promise<T>, row?: HistoryRow) => historyPhase(name, action, deps.progress, row);
+  const all = await phase('history-list', () => allHistoryRows(deps.world));
   const selected = deps.revisionId === undefined ? all : all.filter(row => BigInt(row.id) === deps.revisionId);
   if (deps.revisionId !== undefined && selected.length !== 1) throw new Error('live_map_revision_not_found');
   if (command === 'rematerialize' && deps.revisionId === undefined) throw new Error('chunk_history_rematerialize_requires_revision');
-  const copyStatus = await deps.world.historyCopyStatus();
+  const copyStatus = await phase('history-copy-status', () => deps.world.historyCopyStatus());
   if (command === 'check') {
     if (selected.length === 0) throw new Error('chunk_history_empty');
     for (const row of selected) {
-      if (!row.archived || row.hasDocumentCopy) throw new Error(`chunk_history_incomplete:${row.id}`);
-      const checked = await deps.world.verifyHistory(BigInt(row.id));
-      if (checked.id !== row.id || checked.revision !== row.revision || checked.hasDocumentCopy) throw new Error(`chunk_history_incomplete:${row.id}`);
+      await phase('history-verify-server', async () => {
+        if (!row.archived || row.hasDocumentCopy) throw new Error(`chunk_history_incomplete:${row.id}`);
+        const checked = await deps.world.verifyHistory(BigInt(row.id));
+        if (checked.id !== row.id || checked.revision !== row.revision || checked.hasDocumentCopy) throw new Error(`chunk_history_incomplete:${row.id}`);
+      }, row);
     }
-    if (copyStatus.historyCopies || copyStatus.missingArchives || copyStatus.auditCopies || copyStatus.previewCopies) throw new Error('chunk_history_document_copies_remaining');
+    await phase('history-copy-status', () => {
+      if (copyStatus.historyCopies || copyStatus.missingArchives || copyStatus.auditCopies || copyStatus.previewCopies) throw new Error('chunk_history_document_copies_remaining');
+    });
     return { command, rows: selected.length, processed: selected.map(row => row.id) };
   }
   const pending = command === 'rematerialize' ? selected : selected.filter(row => !row.archived || row.hasDocumentCopy);
-  const atlasIndex = await deps.origin.atlasIndex();
+  const atlasIndex = await phase('history-atlas', () => deps.origin.atlasIndex());
   const state = deps.world.read();
   const confirmation = `history:${sha256Hex(JSON.stringify({ database: deps.database,
     rows: selected, copyStatus, contentHash: state.contentHead?.contentHash ?? null, assetHash: sha256Hex(atlasIndex) }))}:${deps.database}`;
@@ -105,30 +112,42 @@ export async function runHistory(command: 'plan' | 'backfill' | 'check' | 'remat
   if (deps.confirmation !== confirmation) throw new Error(`chunk_history_confirmation_required:${confirmation}`);
   const processed: string[] = [];
   for (const row of pending) {
-    const historical = await deps.world.readHistory(BigInt(row.id));
-    if (historical.mapId !== row.mapId || historical.revision !== row.revision || historical.contentHash !== row.contentHash) {
-      throw new Error('chunk_history_revision_conflict');
-    }
+    const historical = await phase('history-read', async () => {
+      const result = await deps.world.readHistory(BigInt(row.id));
+      if (result.mapId !== row.mapId || result.revision !== row.revision || result.contentHash !== row.contentHash) throw new Error('chunk_history_revision_conflict');
+      return result;
+    }, row);
     const contentRows = deps.world.read().contentRows;
     deps.log?.(`Materializing history row ${row.id} (revision ${row.revision})`);
     // The CPU-bound materializer outlasts the host's client timeout. Reconnect before staging.
-    await deps.world.suspend();
-    let candidate: Awaited<ReturnType<MaterializePort>>;
-    try { candidate = await deps.materialize({ mapRow: historical, contentRows, atlasIndex }); }
-    finally { await deps.world.resume(); }
+    await phase('history-suspend', () => deps.world.suspend(), row);
+    const materialized = await phase('history-materialize', () => deps.materialize({ mapRow: historical, contentRows, atlasIndex }), row)
+      .then(candidate => ({ ok: true as const, candidate }), (error: unknown) => ({ ok: false as const, error }));
+    // Always reconnect, but a second failure must not replace the primary materialization error.
+    try { await phase('history-resume', () => deps.world.resume(), row); }
+    catch (error) { if (materialized.ok) throw error; }
+    if (!materialized.ok) throw materialized.error;
+    const candidate = materialized.candidate;
     const blobs = new Map(candidate.blobs.map(blob => [blob.contentHash, blob.bytes]));
-    verifiedChunkHistoryDocument(row, candidate.manifestJson, hash => blobs.get(hash), historical.documentJson);
-    for (const blob of candidate.blobs) await deps.world.stageBlob(blob.bytes);
-    await deps.world.backfillHistory({ revisionId: BigInt(row.id), manifestJson: candidate.manifestJson,
-      registryContentHash: candidate.registryContentHash, expectedManifestHash: historical.manifestHash });
-    const checked = await deps.world.verifyHistory(BigInt(row.id));
-    if (checked.hasDocumentCopy) throw new Error(`chunk_history_document_copy_retained:${row.id}`);
+    await phase('history-verify-local', () => verifiedChunkHistoryDocument(row, candidate.manifestJson, hash => blobs.get(hash), historical.documentJson), row);
+    await phase('history-stage-blobs', async () => {
+      for (const blob of candidate.blobs) await deps.world.stageBlob(blob.bytes);
+    }, row);
+    await phase('history-archive', () => deps.world.backfillHistory({ revisionId: BigInt(row.id), manifestJson: candidate.manifestJson,
+      registryContentHash: candidate.registryContentHash, expectedManifestHash: historical.manifestHash }), row);
+    await phase('history-verify-server', async () => {
+      const checked = await deps.world.verifyHistory(BigInt(row.id));
+      if (checked.hasDocumentCopy) throw new Error(`chunk_history_document_copy_retained:${row.id}`);
+    }, row);
     processed.push(row.id);
+    await phase('history-row-complete', () => undefined, row);
   }
   if (command === 'backfill') {
-    await deps.world.retireAuditDocuments();
-    const remaining = await deps.world.historyCopyStatus();
-    if (remaining.historyCopies || remaining.missingArchives || remaining.auditCopies || remaining.previewCopies) throw new Error('chunk_history_document_copies_remaining');
+    await phase('history-retire-audit', () => deps.world.retireAuditDocuments());
+    await phase('history-copy-status', async () => {
+      const remaining = await deps.world.historyCopyStatus();
+      if (remaining.historyCopies || remaining.missingArchives || remaining.auditCopies || remaining.previewCopies) throw new Error('chunk_history_document_copies_remaining');
+    });
   }
   return { command, rows: selected.length, processed, auditCopiesRetired: command === 'backfill' ? copyStatus.auditCopies : 0 };
 }
