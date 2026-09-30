@@ -338,10 +338,12 @@ describe('live-row parity gate', () => {
     expect(parseParityGateArgs([...args, '--candidate', '/c'], { CHUNK_PARITY_TOKEN_FILE: '/t' })).toMatchObject({ tokenFile: '/t', candidate: '/c' });
   });
 
-  it('is read-only: no reducer or procedure call in the gate or its shared plumbing', async () => {
+  it('is read-only: only the guarded private-base read procedure in shared plumbing', async () => {
     for (const name of ['./chunk-authority-parity-gate.ts', './chunk-authority-live-rows.ts']) {
       const source = await readFile(new URL(name, import.meta.url), 'utf8');
-      expect(source, name).not.toMatch(/\.reducers\b|\.procedures\b|callReducer|callProcedure/u);
+      expect(source, name).not.toMatch(/\.reducers\b|callReducer|callProcedure/u);
+      const procedures = [...source.matchAll(/\.procedures\.([A-Za-z0-9_]+)/gu)].map(match => match[1]);
+      expect(procedures.every(name => name === 'readLiveMapPublicationBase')).toBe(true);
     }
   });
 

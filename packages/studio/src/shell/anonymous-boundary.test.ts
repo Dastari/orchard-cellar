@@ -17,7 +17,8 @@ describe('Studio live dependency boundary', () => {
     expect(connection).toContain('tables.ownMembership');
     expect(connection).toContain('tables.ownContentEditorGrant');
     expect(connection).toContain('tables.ownSupportGrant');
-    expect(connection).toContain('tables.liveMapDocument.where');
+    expect(connection).not.toContain('tables.liveMapDocument');
+    expect(connection).toContain('tables.worldChunkShadow.where');
     expect(connection).toContain("this.environment === 'production' && oidc === null");
     expect(connection).toContain(':studio:token`');
     expect(connection).not.toContain("this.#role !== 'content_editor'");

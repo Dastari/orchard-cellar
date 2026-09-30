@@ -100,9 +100,9 @@ export const READINESS_PROBES: readonly ReadinessProbe[] = [
   {
     id: 'studio.document-json',
     step: 'step6',
-    description: 'Studio reads or writes of the whole-document map (documentJson / publishLiveMapDocument)',
+    description: 'Studio legacy document-only publishes (locally reconstructed editable documents are allowed)',
     roots: STUDIO,
-    patterns: [/\bdocumentJson\b/gu, /\bpublishLiveMapDocument\b/gu],
+    patterns: [/\bpublishLiveMapDocument\b/gu],
   },
   {
     id: 'studio.live-map-document-table',
@@ -114,9 +114,9 @@ export const READINESS_PROBES: readonly ReadinessProbe[] = [
   {
     id: 'server.document-json',
     step: 'step6',
-    description: 'Server references to the whole-document map row',
+    description: 'Public server whole-document map exposure (S7c option C permits one private server base)',
     roots: SERVER,
-    patterns: [/\bdocumentJson\b/gu],
+    patterns: [/name:\s*'live_map_document'[^}]*\bpublic:\s*true/gu],
   },
 ];
 
@@ -130,7 +130,7 @@ export const MANUAL_GATES: readonly ManualGate[] = [
   { id: 'runtime.spawn-readiness', step: 'step5', evidence: 'Spawn-pack prefetch completes before movement is enabled; missing chunks stay void and solid.' },
   { id: 'release.coordinated-switch', step: 'step5', evidence: 'Client and server switch together in one guarded release with a rehearsed rollback to the legacy path.' },
   { id: 'retire.generator-free-build', step: 'step5', evidence: 'ORCHARD_REQUIRE_GENERATOR_FREE=1 npm run client:chunks:check passes and is made mandatory in CI.' },
-  { id: 'studio.chunk-authoring', step: 'step6', evidence: 'Studio reads chunks and publishes chunk edits; the documentJson row is retired by a separate reviewed, additive migration.' },
+  { id: 'studio.chunk-authoring', step: 'step6', evidence: 'Studio reads verified chunks and publishes atomically; S7c option C keeps one private server document base. Retained history uses verified manifests/shared blobs, and the history check proves no full-document copies remain.' },
   { id: 'spaces.f4', step: 'step6', evidence: 'Spaces other than topside stream only after the F4 map-to-space authority contract lands.' },
 ];
 

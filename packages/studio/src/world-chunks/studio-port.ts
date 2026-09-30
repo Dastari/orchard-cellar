@@ -17,15 +17,33 @@ export const STUDIO_GAME_WORLD_PREFIX = '/game/world/';
  * The caller verifies the bytes against its manifest.
  */
 export function studioChunkBlobReader(connection: DbConnection, fetchImpl: typeof fetch = fetch): ChunkMapBlobReader {
-  return async head => {
-    const response = await fetchImpl(`${STUDIO_GAME_WORLD_PREFIX}${head.spaceId}/${head.contentHash}.bin`, { cache: 'force-cache', credentials: 'omit' });
+  return async (head, signal) => {
+    const response = await fetchImpl(`${STUDIO_GAME_WORLD_PREFIX}${head.spaceId}/${head.contentHash}.bin`, { cache: 'force-cache', credentials: 'omit', signal: signal === undefined ? AbortSignal.timeout(15_000) : AbortSignal.any([signal, AbortSignal.timeout(15_000)]) });
     if (response.ok) {
-      const bytes = new Uint8Array(await response.arrayBuffer());
-      if (bytes.byteLength > head.byteLength) throw new Error('chunk_response_too_large');
+      const reader = response.body?.getReader();
+      if (reader === undefined) throw new Error('chunk_response_empty');
+      const chunks: Uint8Array[] = [];
+      let length = 0;
+      try {
+        for (;;) {
+          const next = await reader.read();
+          if (next.done) break;
+          length += next.value.byteLength;
+          if (length > head.byteLength) { await reader.cancel(); throw new Error('chunk_response_too_large'); }
+          chunks.push(next.value);
+        }
+      } finally { reader.releaseLock(); }
+      const bytes = new Uint8Array(length);
+      let offset = 0;
+      for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
       return bytes;
     }
     if (response.status !== 404) throw new Error(`chunk_fetch_${response.status}`);
-    return connection.procedures.readWorldChunkBlob({ spaceId: BigInt(head.spaceId), cx: head.cx, cy: head.cy, contentHash: head.contentHash });
+    return new Promise<Uint8Array>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('chunk_database_read_timeout')), 15_000);
+      connection.procedures.readWorldChunkBlob({ spaceId: BigInt(head.spaceId), cx: head.cx, cy: head.cy, contentHash: head.contentHash })
+        .then(bytes => { clearTimeout(timer); resolve(bytes); }, (error: unknown) => { clearTimeout(timer); reject(error); });
+    });
   };
 }
 

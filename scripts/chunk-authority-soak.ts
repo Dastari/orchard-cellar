@@ -1,3 +1,4 @@
+import { publishFixtureMap } from './chunk-fixture-publication.js';
 import { execFile } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -600,7 +601,7 @@ async function sdkApi(world: WorldConnection, options: SoakOptions): Promise<Soa
     chunkAuthorityMode: mode,
     waitFor,
     publishLiveMap: async (documentJson, expectedRevision) => {
-      await connection.reducers.publishLiveMapDocument({ mapId: 'live-island', expectedRevision, documentJson, clientMutationId: `soak-map-${Date.now()}` });
+      await publishFixtureMap(world, documentJson, expectedRevision, resolve(options.workDir, `atomic-map-${Date.now()}`));
     },
     stageBlob: async bytes => { await connection.reducers.stageWorldChunkBlob({ bytes }); },
     publishShadow: async input => { await connection.reducers.publishWorldChunkShadow(input); },

@@ -7,6 +7,7 @@ import {
   isWindDirectionMode,
   type AdminJsonObject,
 } from '@orchard/sim';
+import { worldChunkHash } from '@orchard/sim/world-chunk';
 import { normalizeMessageOfDay } from '../chat-policy.js';
 import { adminRoleCanMutate, type AdminEffectiveRole } from './auth-policy.js';
 import {
@@ -146,7 +147,10 @@ export function adminWorldControlDocument(state: AdminWorldControlState): AdminJ
     weatherMode: state.weatherMode,
     windDirection: state.windDirection,
     motd: state.motd,
-    mapHead: state.mapHead === null ? null : { ...state.mapHead },
+    mapHead: state.mapHead === null ? null : state.mapHead.mapId === 'live-island'
+      ? { revisionId: state.mapHead.revisionId, mapId: state.mapHead.mapId, revision: state.mapHead.revision,
+        contentHash: state.mapHead.contentHash, documentHash: worldChunkHash(new TextEncoder().encode(state.mapHead.documentJson)) }
+      : { ...state.mapHead },
     homestead: state.homestead === null ? null : { ...state.homestead },
     globalNoticeSequence: state.globalNoticeSequence,
   };
@@ -237,7 +241,7 @@ function inverseFor(before: AdminWorldControlState, operation: AdminWorldControl
     case 'restore_map': return before.mapHead === null ? null : {
       operation: 'restore_map', args: { revisionId: before.mapHead.revisionId, mapId: before.mapHead.mapId,
         revision: before.mapHead.revision, contentHash: before.mapHead.contentHash,
-        documentJson: before.mapHead.documentJson },
+        ...(before.mapHead.mapId === 'live-island' ? {} : { documentJson: before.mapHead.documentJson }) },
     };
     case 'move_homestead': return before.homestead === null ? null : {
       operation: 'move_homestead', args: { spaceId: before.homestead.spaceId,

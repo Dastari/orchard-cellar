@@ -19,11 +19,30 @@ describe('static-world readiness', () => {
     // Static world S6 (step 5): the client neither reads the whole map document nor builds the generated island.
     expect(byId.get('client.live-map-document')!.count).toBe(0);
     expect(byId.get('client.generator-terrain')!.count).toBe(0);
-    expect(byId.get('studio.document-json')!.count).toBeGreaterThan(0);
+    expect(byId.get('studio.document-json')!.count).toBe(0);
+    expect(byId.get('server.document-json')!.count).toBe(0);
     // Step-6 baseline: studio-connection.ts (3) and admin/live-services.ts (1). S7b/S7c drive it to zero.
     expect(byId.get('studio.live-map-document-table')!).toMatchObject({
-      count: 4, files: ['packages/studio/src/admin/live-services.ts', 'packages/studio/src/shell/studio-connection.ts'],
+      count: 0, files: [],
     });
+  });
+
+  it('allows a private server map base, detects renewed public exposure and blocks document-only Studio publishes', () => {
+    const root = mkdtempSync(join(tmpdir(), 'static-world-privacy-'));
+    try {
+      mkdirSync(join(root, 'packages/world/src'), { recursive: true });
+      mkdirSync(join(root, 'packages/studio/src'), { recursive: true });
+      const server = READINESS_PROBES.find(probe => probe.id === 'server.document-json')!;
+      writeFileSync(join(root, 'packages/world/src/index.ts'), "table({ name: 'live_map_document' }, { documentJson: t.string() });");
+      expect(runProbe(server, root).count).toBe(0);
+      writeFileSync(join(root, 'packages/world/src/index.ts'), "table({ name: 'live_map_document', public: true }, { documentJson: t.string() });");
+      expect(runProbe(server, root).count).toBe(1);
+      const studio = READINESS_PROBES.find(probe => probe.id === 'studio.document-json')!;
+      writeFileSync(join(root, 'packages/studio/src/editor.ts'), 'const documentJson = rebuiltChunks();');
+      expect(runProbe(studio, root).count).toBe(0);
+      writeFileSync(join(root, 'packages/studio/src/editor.ts'), 'connection.reducers.publishLiveMapDocument({ documentJson });');
+      expect(runProbe(studio, root).count).toBe(1);
+    } finally { rmSync(root, { recursive: true, force: true }); }
   });
 
   it('keeps every guard probe at zero', () => {

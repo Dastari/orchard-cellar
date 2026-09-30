@@ -316,7 +316,7 @@ export function rebuildWorldChunkDocument(manifest: WorldChunkManifest, readBlob
       continue;
     }
     const source = METADATA_KEYS.includes(key) ? documentMetadata : authored.fields;
-    if (!Object.hasOwn(source, key)) throw new Error(`chunk_document_key_missing: ${key}`);
+    if (!Object.prototype.hasOwnProperty.call(source, key)) throw new Error(`chunk_document_key_missing: ${key}`);
     root[key] = source[key]!;
   }
   if (root['width'] !== manifest.width || root['height'] !== manifest.height) throw new Error('chunk_document_dimensions_mismatch');

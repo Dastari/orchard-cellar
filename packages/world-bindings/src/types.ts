@@ -554,6 +554,13 @@ export const LegacyFarmRetirementControl = __t.object("LegacyFarmRetirementContr
 });
 export type LegacyFarmRetirementControl = __Infer<typeof LegacyFarmRetirementControl>;
 
+export const LiveMapChunkRevision = __t.object("LiveMapChunkRevision", {
+  id: __t.u64(),
+  manifestJson: __t.string(),
+  registryContentHash: __t.string(),
+});
+export type LiveMapChunkRevision = __Infer<typeof LiveMapChunkRevision>;
+
 export const LiveMapDocument = __t.object("LiveMapDocument", {
   mapId: __t.string(),
   revision: __t.u32(),
@@ -565,6 +572,21 @@ export const LiveMapDocument = __t.object("LiveMapDocument", {
   updatedAt: __t.timestamp(),
 });
 export type LiveMapDocument = __Infer<typeof LiveMapDocument>;
+
+export const LiveMapHead = __t.object("LiveMapHead", {});
+export type LiveMapHead = __Infer<typeof LiveMapHead>;
+
+export const LiveMapHeadMetadata = __t.object("LiveMapHeadMetadata", {
+  mapId: __t.string(),
+  revision: __t.u32(),
+  contentHash: __t.string(),
+  documentHash: __t.string(),
+  assetRegistryRevision: __t.string(),
+  clientMutationId: __t.string(),
+  updatedBy: __t.identity(),
+  updatedAt: __t.timestamp(),
+});
+export type LiveMapHeadMetadata = __Infer<typeof LiveMapHeadMetadata>;
 
 export const LiveMapRevision = __t.object("LiveMapRevision", {
   id: __t.u64(),

@@ -11,10 +11,10 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  mapId: __t.string().primaryKey().name("map_id"),
+  mapId: __t.string().name("map_id"),
   revision: __t.u32(),
   contentHash: __t.string().name("content_hash"),
-  documentJson: __t.string().name("document_json"),
+  documentHash: __t.string().name("document_hash"),
   assetRegistryRevision: __t.string().name("asset_registry_revision"),
   clientMutationId: __t.string().name("client_mutation_id"),
   updatedBy: __t.identity().name("updated_by"),

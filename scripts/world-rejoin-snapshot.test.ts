@@ -37,6 +37,22 @@ function snapshot(identity = 'identity-a'): WorldRejoinSnapshot {
 }
 
 describe('world rejoin snapshot normalization', () => {
+  it('preserves every private-map byte through its public digest, including old pre-retirement snapshots', () => {
+    const before = snapshot();
+    const map = { mapId: 'live-island', revision: 7, contentHash: 'head-hash', documentJson: '{"cells":{}}', clientMutationId: 'edit-7' };
+    const { documentJson, ...metadata } = map;
+    const after = { ...before, identities: [{ ...before.identities[0]!, tables: { ...before.identities[0]!.tables,
+      liveMapDocument: [{ ...metadata, documentHash: createHash('sha256').update(documentJson).digest('hex') }] } }] };
+    const legacy = { ...before, identities: [{ ...before.identities[0]!, tables: { ...before.identities[0]!.tables, liveMapDocument: [map] } }] };
+    expect(compareWorldRejoinSnapshots(legacy, after)).toEqual([]);
+    const changedDigest = { ...after, identities: [{ ...after.identities[0]!, tables: { ...after.identities[0]!.tables,
+      liveMapDocument: [{ ...metadata, documentHash: '0'.repeat(64) }] } }] };
+    expect(compareWorldRejoinSnapshots(legacy, changedDigest)).not.toEqual([]);
+    const changedAudit = { ...after, identities: [{ ...after.identities[0]!, tables: { ...after.identities[0]!.tables,
+      liveMapDocument: [{ ...metadata, clientMutationId: 'changed', documentHash: createHash('sha256').update(documentJson).digest('hex') }] } }] };
+    expect(compareWorldRejoinSnapshots(legacy, changedAudit)).not.toEqual([]);
+  });
+
   it('preserves Hearth custody, skill priorities, pending rewards and order revision across reconnect', () => {
     const rows = {
       ownHearthStashSlots: [{ identity: 'identity-a', id: 'stash:0', slot: 0, itemKind: 'sword', quantity: 1, durability: 71, lit: false }],

@@ -11,8 +11,10 @@ import {
 const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
 
 describe('revisioned live map authority', () => {
-  it('stores one public atomic head and a private append-only revision trail', () => {
-    expect(source).toMatch(/name: 'live_map_document', public: true/u);
+  it('stores a private server base and private manifest revision history', () => {
+    expect(source).toMatch(/name: 'live_map_document'/u);
+    expect(source).not.toMatch(/name: 'live_map_document', public: true/u);
+    expect(source).toContain("name: 'live_map_chunk_revision'");
     expect(source).toMatch(/name: 'live_map_revision'/u);
     expect(source).toMatch(/parentRevision: t\.u32\(\)/u);
     expect(source).toMatch(/clientMutationId: t\.string\(\)/u);
@@ -86,8 +88,8 @@ describe('revisioned live map authority', () => {
 
   it('restores history by creating a new head instead of mutating old audit rows', () => {
     const reducer = source.slice(source.indexOf('export const restoreLiveMapRevision'),
-      source.indexOf('/** Owner-only operational grant'));
-    expect(reducer).toContain('commitLiveMapSnapshot');
+      source.indexOf('export const travelHearthFerry'));
+    expect(reducer).toContain('commitRestoredLiveMapSnapshot');
     expect(reducer).not.toContain('live_map_revision.id.update');
     expect(reducer).not.toContain('live_map_revision.id.delete');
   });

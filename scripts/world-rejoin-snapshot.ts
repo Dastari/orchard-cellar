@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   compareDurableWorldSnapshots,
   DURABLE_WORLD_SNAPSHOT_VERSION,
@@ -191,7 +192,18 @@ export function normalizeRejoinValue(value: unknown): unknown {
     .map(([key, child]) => [key, normalizeRejoinValue(child)]));
 }
 
+/** Preserve exact map continuity when the public document retires: compare its SHA-256 and every audit pin. */
+export function mapHeadContinuityRows(rows: readonly unknown[]): readonly unknown[] {
+  return rows.map(row => {
+    const source = record(row);
+    if (source === null || typeof source['documentJson'] !== 'string') return row;
+    const { documentJson, ...metadata } = source;
+    return { ...metadata, documentHash: createHash('sha256').update(documentJson).digest('hex') };
+  });
+}
+
 function normalizedRows(accessor: string, rows: readonly unknown[]): readonly unknown[] {
+  if (accessor === 'liveMapDocument') rows = mapHeadContinuityRows(rows);
   // Observer-effect counters (and the milestones they cross) move because the release's own reconnects count as
   // connections and world entries; a milestone such as world_entries 500 can be crossed mid-release.
   const filtered = accessor !== 'ownPlayerStatistics' && accessor !== 'ownPlayerStatisticMilestones' ? rows : rows.filter((row) => {
@@ -399,7 +411,7 @@ export function compareWorldRejoinSnapshots(
       capturedAt: snapshot.capturedAt,
       tables: Object.fromEntries(snapshot.identities.flatMap((identity) => [
         ...Object.entries(identity.tables).filter(([table]) => comparable(table, identity.label))
-          .map(([table, rows]) => [`${identity.label}:${table}`, rows] as const),
+          .map(([table, rows]) => [`${identity.label}:${table}`, table === 'liveMapDocument' ? mapHeadContinuityRows(rows) : rows] as const),
         ...Object.entries(derivedCustodyTables(identity.tables)).map(([table, rows]) => [`${identity.label}:${table}`, rows] as const),
       ])),
     };

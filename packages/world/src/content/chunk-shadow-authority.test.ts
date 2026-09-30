@@ -2,6 +2,8 @@ import {readFileSync} from 'node:fs';
 import ts from 'typescript';
 import {describe,expect,it,vi} from 'vitest';
 import {runtimeChunkFixture} from '@orchard/sim/chunk-runtime-fixture';
+import {chunkHistoryBlobReferences} from '../live-map-chunk-history.js';
+import {chunkHistoryFixture} from '../live-map-chunk-history.fixture.js';
 import {CHUNK_STAGE_QUOTA_BYTES,CHUNK_STAGE_TTL_MICROS,ChunkBlobReadLimiter,planChunkStage,shadowPublicationRefusalCode,validateShadowBlob,validateShadowPublication} from './chunk-shadow-runtime.js';
 const source=ts.createSourceFile('index.ts',readFileSync(new URL('../index.ts',import.meta.url),'utf8'),ts.ScriptTarget.Latest,true);
 class SenderError extends Error {}
@@ -28,7 +30,7 @@ function reducer(name:string,owner:()=>void,extra:Record<string,unknown>={},help
  const t={array:()=>null,u8:()=>null,string:()=>null,u32:()=>null,u64:()=>null,i32:()=>null};
  const dependencies:Record<string,unknown>={spacetimedb:{reducer:(_schema:unknown,handler:unknown)=>handler,procedure:(_schema:unknown,_returns:unknown,handler:unknown)=>handler},t,requireWorldOwner:owner,validateShadowBlob,validateShadowPublication,
   contentRegistry:()=>({contentHash:'content-1'}),TOPSIDE_SPACE_ID:0,LIVE_ISLAND_MAP_ID:'live-island',SenderError,withShadowPublicationRefusals:refusals(),
-  requireLiveMapPublisher:()=>{throw new Error('map_publisher_required');},planChunkStage,chunkBlobReadLimiter:new ChunkBlobReadLimiter(),...extra};
+  requireLiveMapPublisher:()=>{throw new Error('map_publisher_required');},planChunkStage,chunkHistoryBlobReferences,chunkBlobReadLimiter:new ChunkBlobReadLimiter(),...extra};
  const handler=new Function(...Object.keys(dependencies),code)(...Object.values(dependencies)) as (ctx:unknown,args:unknown)=>unknown;
  return ((ctx:unknown,args:unknown)=>handler(withChunkStage(ctx),args)) as (ctx:unknown,args:unknown)=>void;
 }
@@ -38,6 +40,7 @@ function withChunkStage(ctx:unknown):unknown{
  if(value.withTx!==undefined||value.db===undefined)return ctx;
  value.timestamp??={microsSinceUnixEpoch:0n};
  value.db['world_chunk_blob_stage']??={by_staged_by:{filter:()=>[]},contentHash:{delete:()=>true},insert:()=>undefined};
+ value.db['live_map_chunk_revision']??={iter:()=>[]};
  const heads=value.db['world_chunk_head'];
  if(heads!==undefined)heads['by_space']??={filter:()=>[]};
  else value.db['world_chunk_head']={by_space:{filter:()=>[]}};
@@ -182,6 +185,25 @@ describe('chunk staging quota and expiry (review of #296)',()=>{
   stageRows.pop();deleted.length=0;
   stage(ctx,{bytes:blobs[0]});expect(inserted).toHaveLength(2);
   expect(inserted[1]).toMatchObject({stagedBy:ctx.sender,byteLength:blobs[0]!.length});
+ });
+ it('the actual staging reducer preserves archived blobs after live heads move, including through expiry and quota cleanup',()=>{
+  const history=chunkHistoryFixture();const {blobs}=runtimeChunkFixture();
+  const hash=history.manifest.chunks[0]!.contentHash;const deleted:string[]=[];const inserted:unknown[]=[];let archivedAt=0n;
+  const ctx={senderAuth:{jwt:null},sender:{toHexString:()=>'a'},timestamp:{microsSinceUnixEpoch:CHUNK_STAGE_TTL_MICROS},db:{
+   membership:{identity:{find:()=>null}},studio_scope_grant:{id:{find:()=>null}},world_chunk_head:{by_space:{filter:()=>[]}},
+   live_map_chunk_revision:{iter:()=>[{manifestJson:history.manifestJson}]},
+   world_chunk_blob:{contentHash:{find:()=>null,delete:(value:string)=>deleted.push(`blob:${value}`)},insert:(value:unknown)=>inserted.push(value)},
+   world_chunk_blob_stage:{by_staged_by:{filter:()=>[
+    {contentHash:hash,stagedAt:{microsSinceUnixEpoch:archivedAt},byteLength:CHUNK_STAGE_QUOTA_BYTES},
+    {contentHash:'unreferenced',stagedAt:{microsSinceUnixEpoch:0n},byteLength:1}]},
+    contentHash:{delete:(value:string)=>deleted.push(`stage:${value}`)},insert:(value:unknown)=>inserted.push(value)}}};
+  reducer('stageWorldChunkBlob',()=>{})(ctx,{bytes:blobs[0]});
+  expect(deleted).toEqual([`stage:${hash}`,'stage:unreferenced','blob:unreferenced']);
+  expect(inserted).toHaveLength(2);
+  // A still-fresh historical reference is likewise excluded from temporary sender quota.
+  archivedAt=CHUNK_STAGE_TTL_MICROS;deleted.length=0;inserted.length=0;
+  reducer('stageWorldChunkBlob',()=>{})(ctx,{bytes:blobs[0]});
+  expect(deleted).toEqual(['stage:unreferenced','blob:unreferenced']);expect(inserted).toHaveLength(2);
  });
 });
 
