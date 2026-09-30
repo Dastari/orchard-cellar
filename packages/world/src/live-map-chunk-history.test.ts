@@ -86,8 +86,11 @@ describe('retiring old topside restore audit copies', () => {
     expect(()=>retireTopsideAuditDocuments(wrong,resolve)).toThrow();
   });
   it('leaves other spaces and already retired metadata byte-for-byte unchanged',()=>{
-    const payload=JSON.stringify({inverse:{operation:'restore_map',args:{revisionId:'42',documentJson:JSON.stringify({id:'other-space',revision:7})}}});
+    const payload=JSON.stringify({inverse:{operation:'restore_map',args:{revisionId:'42',mapId:'other-space',documentJson:JSON.stringify({id:'other-space',revision:7})}}});
     expect(retireTopsideAuditDocuments(payload,()=>{throw new Error('out_of_scope');})).toEqual({payloadJson:payload,copies:0});
+    const wrongTopside=payload.replace('"mapId":"other-space"','"mapId":"live-island"');
+    expect(()=>retireTopsideAuditDocuments(wrongTopside,()=>{throw new Error('unexpected');})).toThrow('document_mismatch');
+    expect(()=>retireTopsideAuditDocuments(wrongTopside,()=>{throw new Error('unexpected');},false)).toThrow('document_mismatch');
   });
 });
 
