@@ -281,7 +281,10 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // unchanged; the other four seams are unchanged.
 // Static world S6: engine/collision.ts takes the island generator's whole-map inputs by injection
 // (collision-island.ts) and live-map-runtime re-exports the generator-free terrain sampler.
-const STRUCTURAL_SEAM_DIGEST = 'cd9ea52bc51ac6513891b0db8632ac61d160ab9a2b4dde7bc55ac2457c01620e';
+// Owner-requested Rewards menu removal (wiki Roadmap/Player Guide and Starter Discovery 2026-10-01):
+// overworld-ui drops the obsolete menu control and fits the remaining actions; the four other seams are unchanged.
+// Retained/legacy menu and Character tests cover the change; all five exact source guards remain enforced.
+const STRUCTURAL_SEAM_DIGEST = '95ea1887f244ebd7535839b8eda78e6a05a5b62a65c33bdb805a040ea01c5ba7';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 
