@@ -7,6 +7,7 @@ it('uses current update state and gates admin, delve and unsupported actions', (
   const menu = uiGameMenu({ model: { outdoorRewardCount: 9 }, onAction }); root.mount(menu); root.arrange();
   const find = (id: string) => root.entries().map(entry => entry.element).find(node => node.id === `game-menu.${id}`);
   expect(find('outdoor-rewards')).toBeUndefined();
+  expect(find('character')).toBeUndefined();
   expect(find('developer')).toBeUndefined(); expect(find('exit-delve')).toBeUndefined(); expect(find('update')).toBeUndefined();
   menu.updateGameMenu({ canAdministerWorld: true, delveActive: true, pwaUpdateStatus: 'current' }); root.arrange();
   const update = find('update')!;

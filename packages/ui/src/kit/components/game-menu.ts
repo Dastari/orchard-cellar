@@ -35,7 +35,6 @@ export function uiGameMenu(options: UiGameMenuOptions): UiGameMenuElement {
   const definitions: readonly { id: string; label: () => string; tone: () => UiMenuTone;
     action: () => UiGameMenuAction; visible?: () => boolean; disabled?: () => boolean }[] = [
     { id: 'resume', label: () => 'Resume', tone: () => 'success', action: () => 'resume' },
-    { id: 'character', label: () => 'Character', tone: () => 'primary', action: () => 'character' },
     { id: 'settings', label: () => 'Settings', tone: () => 'primary', action: () => 'settings' },
     { id: 'help', label: () => 'Help', tone: () => 'primary', action: () => 'help' },
     { id: 'developer', label: () => 'Developer', tone: () => 'primary', action: () => 'developer', visible: () => model.canAdministerWorld === true },
