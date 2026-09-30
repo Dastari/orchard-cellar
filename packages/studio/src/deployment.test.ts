@@ -40,7 +40,10 @@ describe('Orchard Studio static deployment', () => {
       allowedHosts: ['cellar.dastari.net'],
     });
     expect(studioProxy['/v1']).toEqual({ target: 'http://127.0.0.1:3000', ws: true });
-    expect(Object.keys(studioProxy)).toEqual(['/v1']);
+    // Static world S7b-3: the game frontend's atlas index, and only that path.
+    expect(Object.keys(studioProxy)).toEqual(['/v1', '/game/atlas.packs.json']);
+    expect(studioProxy['/game/atlas.packs.json'].target).toBe('http://10.0.1.150:5173');
+    expect(studioProxy['/game/atlas.packs.json'].rewrite()).toBe('/generated/atlas.packs.json');
     expect(studioSecurityHeaders['Content-Security-Policy']).toBe(STUDIO_PRODUCTION_CSP);
     expect(studioSecurityHeaders['Cache-Control']).toBe('no-store');
   });

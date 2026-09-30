@@ -27,6 +27,8 @@ import {
   type StudioConnectionRefreshBatch,
   type StudioConnectionRefreshKind,
 } from './studio-connection-refresh.js';
+import { publishLiveMapWithChunks, type LiveMapPublicationProgress } from '../world-chunks/publication.js';
+import { studioChunkPublicationPort } from '../world-chunks/studio-port.js';
 import {
   StudioMapRegionHandover,
   type StudioMapChunkBounds,
@@ -124,6 +126,8 @@ export interface StudioConnectionView {
   readonly mapRevision: number | null;
   readonly mapDocument: StudioMapHead | null;
   readonly publishingMap: boolean;
+  /** Static world S7b-3: where a topside publication with its chunks is (null when none is running). */
+  readonly mapPublishProgress?: LiveMapPublicationProgress | null;
   readonly worldMutating: boolean;
   readonly error: string | null;
   readonly rows: StudioLiveRows;
@@ -559,6 +563,7 @@ export class StudioConnection implements StudioLiveAdapter {
   #contentEditorGrant: ContentEditorGrant | null = null;
   #supportGrant: SupportGrant | null = null;
   #publishingMap = false;
+  #mapPublishProgress: LiveMapPublicationProgress | null = null;
   #worldMutating = false;
   #error: string | null = null;
   #rows: StudioLiveRows = EMPTY_ROWS;
@@ -604,6 +609,7 @@ export class StudioConnection implements StudioLiveAdapter {
       mapRevision: this.#mapRevision,
       mapDocument: this.#mapDocument,
       publishingMap: this.#publishingMap,
+      mapPublishProgress: this.#mapPublishProgress,
       worldMutating: this.#worldMutating,
       error: this.#error,
       rows: this.#rows,
@@ -732,17 +738,29 @@ export class StudioConnection implements StudioLiveAdapter {
     this.#error = null;
     this.onChanged();
     try {
-      await connection.reducers.publishLiveMapDocument({
-        mapId: document.id,
-        expectedRevision,
-        documentJson,
-        clientMutationId: crypto.randomUUID(),
-      });
+      if (document.id === LIVE_MAP_ID) {
+        // Static world S7b-3: the island players walk on is the chunk publication, so a topside edit
+        // publishes its chunks in the same transaction as the map.
+        const head = this.#mapDocument;
+        if (head === null || head.mapId !== LIVE_MAP_ID || head.revision !== expectedRevision) throw new Error('live_map_head_unavailable');
+        const contentRows = this.#contentHead === null ? null
+          : this.#contentDefinitions.map(({ id, kind, slug, json }) => ({ id, kind, slug, json }));
+        await publishLiveMapWithChunks({ head, deltaJson: documentJson, expectedRevision, clientMutationId: crypto.randomUUID(), contentRows },
+          studioChunkPublicationPort(connection), (progress) => { this.#mapPublishProgress = progress; this.onChanged(); });
+      } else {
+        await connection.reducers.publishLiveMapDocument({
+          mapId: document.id,
+          expectedRevision,
+          documentJson,
+          clientMutationId: crypto.randomUUID(),
+        });
+      }
     } catch (error: unknown) {
       this.#error = error instanceof Error ? error.message : String(error);
       throw error;
     } finally {
       this.#publishingMap = false;
+      this.#mapPublishProgress = null;
       this.onChanged();
     }
   }
@@ -923,6 +941,7 @@ export class StudioConnection implements StudioLiveAdapter {
     this.#contentEditorGrant = null;
     this.#supportGrant = null;
     this.#publishingMap = false;
+    this.#mapPublishProgress = null;
     this.#worldMutating = false;
     this.#rowsProjection.reset();
     this.#rows = EMPTY_ROWS;
