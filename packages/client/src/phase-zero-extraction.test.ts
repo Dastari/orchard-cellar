@@ -284,9 +284,9 @@ const PRE_EXTRACTION_STRUCTURAL_SEAM_DIGEST = '78799177788c0b958e490dddfaaaa2fcc
 // Owner-requested Rewards menu removal (wiki Roadmap/Player Guide and Starter Discovery 2026-10-01):
 // overworld-ui drops the obsolete menu control and fits the remaining actions; the four other seams are unchanged.
 // Retained/legacy menu and Character tests cover the change; all five exact source guards remain enforced.
-// Illustrated player guide: overworld-ui supplies the existing item icon painter to HelpBook.
-// Guide/host layout and icon tests cover that wiring; all five source and import guards remain enforced.
-const STRUCTURAL_SEAM_DIGEST = 'd4611747a69bc5515c29362a61fd9d6f1f7ca1ceb3ccfff7c707808dcf05ddae';
+// Illustrated player guide: overworld-ui shares its existing lazy artwork through UiSlotArt; HelpBook renders uiSlot.
+// Guide/host layout, icon and item-slot boundary tests cover that wiring; all five source and import guards remain enforced.
+const STRUCTURAL_SEAM_DIGEST = 'eee3c77768d1018a3300e295b5865c4ac52e115f0471d62b096f1854e5cf3721';
 // Shared authored timing pane: optional projection model and game-safe kit bridge exports.
 // Review: wiki Systems/Weather & Time (timing clock domains); frame, settlement and bundle tests cover the seam.
 

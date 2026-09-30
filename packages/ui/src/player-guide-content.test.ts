@@ -1,10 +1,11 @@
 import { createCanvas } from '@napi-rs/canvas';
 import { expect, it, vi } from 'vitest';
-import { bootstrapContentDefinitions } from '@orchard/sim';
+import { bootstrapContentDefinitions, itemDefinition } from '@orchard/sim';
 import { HELP_TOPICS } from './help-topics.js';
 import { uiHelpBook, UI_HELP_CHAPTERS } from './kit/components/help-book.js';
 import { UiRoot } from './kit/runtime/root.js';
-import { uiTestArt } from './kit/lab/testing/art.js';
+import { uiSlotArt } from './kit/components/slot-art.js';
+import { uiTestArt, uiTestAsset } from './kit/lab/testing/art.js';
 
 it('documents each currently authored processor and resolves every illustration to an existing item', () => {
   const definitions = bootstrapContentDefinitions();
@@ -25,13 +26,16 @@ it('documents each currently authored processor and resolves every illustration 
 });
 
 it.each([124, 200])('renders a machine illustration and caption through the item boundary at leaf width %s', async width => {
-  const art = await uiTestArt(); const renderItem = vi.fn();
+  const art = await uiTestArt(); const asset = uiTestAsset(itemDefinition('fruit_press')!.iconKey!, 'props');
+  const slotArt = uiSlotArt({ artwork: { fruit_press: asset } });
   const root = new UiRoot({ scale: 1, art }); root.resize(width * 2 + 72, 400);
-  const book = uiHelpBook({ art, renderItem, page: { width, height: 248 } }); root.mount(book);
+  const book = uiHelpBook({ art, slotArt, page: { width, height: 248 } }); root.mount(book);
   expect(book.openTopic('fruit-press')).toBe(true); root.arrange(); root.arrange();
-  const image = createCanvas(width * 2 + 72, 400); root.drawInContext(image.getContext('2d') as unknown as CanvasRenderingContext2D);
-  expect(renderItem).toHaveBeenCalled(); expect(renderItem.mock.calls[0]![2]).toBe('fruit_press');
-  const illustration = root.entries().find(entry => entry.element.kind === 'help-illustration')!.element;
+  const image = createCanvas(width * 2 + 72, 400), context = image.getContext('2d'); const draw = vi.spyOn(context, 'drawImage');
+  root.drawInContext(context as unknown as CanvasRenderingContext2D);
+  expect(draw.mock.calls.some(call => Object.is(call[0], asset.image))).toBe(true);
+  const illustration = root.entries().find(entry => entry.element.props['helpIllustration'])!.element;
+  expect(illustration.kind).toBe('slot'); expect(illustration.focusable).toBe(false);
   expect(illustration.label).toContain('must and pomace');
   expect(illustration.rect.width).toBe(32); expect(illustration.rect.height).toBe(32);
   root.dispose(); vi.unstubAllGlobals();

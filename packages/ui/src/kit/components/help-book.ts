@@ -1,4 +1,5 @@
-import type { UiRect } from '../../geometry.js';
+import { uiSlot } from './inventory.js';
+import type { UiSlotArt } from './slot-art.js';
 import { uiFixed } from '../layout/box.js';
 import { HELP_TOPICS, type HelpIllustration } from '../../help-topics.js';
 import { parseGameMarkdown, type GameMarkdownInline } from '../../design-system/game-markdown.js';
@@ -33,7 +34,7 @@ export const UI_HELP_CHAPTERS: readonly UiHelpChapter[] = CHAPTER_TOPICS.map((ch
 export const UI_HELP_BOOK_SOURCE = UI_HELP_CHAPTERS.flatMap(chapter => chapter.topics).map(topic => `## ${topic.title}\n\n${topic.entries.map(entry => `- ${entry}`).join('\n')}`).join('\n\n');
 
 export interface UiHelpBookOptions {
-  readonly renderItem?: (context: CanvasRenderingContext2D, bounds: UiRect, itemKind: string) => void;
+  readonly slotArt?: UiSlotArt;
   readonly art?: UiKitArt; readonly onClose?: () => void; readonly onLink?: (target: UiTextLinkTarget) => void; readonly layout?: UiStyle;
   /** Leaf size; defaults to the approved desktop spread. */
   readonly page?: { readonly width: number; readonly height: number };
@@ -87,8 +88,8 @@ export function uiHelpBook(options: UiHelpBookOptions): UiHelpBookElement {
     headingHost.append(uiWrappedPageHeading(topic.title));
     for (const illustration of topic.illustrations ?? []) {
       body.append(uiFlex({ direction: page.width < 160 ? 'column' : 'row', align: 'center', gap: 6, alignSelf: 'stretch' }, [
-        new UiElement({ kind: 'help-illustration', label: illustration.caption, style: { width: uiFixed(32), height: uiFixed(32), shrink: 0 },
-          paint(element, { context }) { options.renderItem?.(context, element.rect, illustration.itemKind); } }),
+        uiSlot({ label: illustration.caption, art: options.slotArt, stack: { itemKind: illustration.itemKind, quantity: 1 },
+          layout: { width: uiFixed(32), height: uiFixed(32), shrink: 0 } }).setProps({ helpIllustration: true }),
         uiText(illustration.caption, { wrap: true, layout: { width: 'grow', alignSelf: 'stretch' } }),
       ]).setProps({ helpFigure: true }));
     }

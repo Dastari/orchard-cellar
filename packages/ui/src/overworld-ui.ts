@@ -6,6 +6,7 @@ import type { TimingProjection } from '@orchard/sim';
 import { InventoryMenus, type InventoryMenuAuthority } from './game-host/inventory-menus.js';
 import { reportUiFailure, UiFailureLog, uiFailurePolicy } from './kit/runtime/failure-policy.js';
 import type { UiKitArt } from './kit/components/art.js';
+import { uiSlotArt } from './kit/components/slot-art.js';
 import type { UiRoot } from './kit/runtime/root.js';
 import { UiElement } from './kit/runtime/element.js';
 import type { UiInventorySlotRef } from './kit/runtime/inventory.js';
@@ -1432,10 +1433,14 @@ export class OverworldUi {
     const menus = this.createRetainedInventory(); menus.setArt(art); return menus.root;
   }
 
+  private ensureRetainedArtwork(): OverworldUiItemArt {
+    return this.retainedArtwork ??= new Proxy(this.itemArt, { get: (assets, key) => typeof key === 'string'
+      ? overworldItemArtwork(assets, key, this.model.contentRegistry) : Reflect.get(assets, key) });
+  }
+
   private createRetainedInventory(): InventoryMenus {
     if (this.retainedMenus) return this.retainedMenus;
-    this.retainedArtwork = new Proxy(this.itemArt, { get: (assets, key) => typeof key === 'string'
-      ? overworldItemArtwork(assets, key, this.model.contentRegistry) : Reflect.get(assets, key) });
+    this.ensureRetainedArtwork();
     const authority: InventoryMenuAuthority = {
       gestures: this.slotGestures,
       displayedCursor: () => this.quickCraftPreviewCursor === undefined ? this.heldCursorStack() : this.quickCraftOriginalCursor,
@@ -1471,7 +1476,8 @@ export class OverworldUi {
         setPinned: (id, pinned) => this.callbacks.setQuestPinned(id, pinned),
         drop: id => this.callbacks.abandonQuest(id),
       }, () => { this.openWindow = null; }, page => { this.openWindow = page; });
-      this.helpBook = new HelpBook(art, () => { this.openWindow = 'system'; }, undefined, (context, rect, itemKind) => this.drawItemIcon(context, rect, itemKind));
+      this.helpBook = new HelpBook(art, () => { this.openWindow = 'system'; }, undefined, uiSlotArt({ artwork: () => this.ensureRetainedArtwork(),
+        contentRegistry: () => this.model.contentRegistry, iconAnimation: item => itemIconAnimation(item.itemKind, this.model.contentRegistry) }));
       for (const root of [this.questLog.root, this.helpBook.root]) {
         for (const { element } of root.entries()) if (element.id === 'game.quests' || element.id === 'game.help.frame') {
           element.setProps({ touchScroll: true, singlePointer: true });

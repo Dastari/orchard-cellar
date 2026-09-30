@@ -15,9 +15,9 @@ export class HelpBook {
   private page: { readonly width: number; readonly height: number } | undefined;
   private readonly view: UiHelpBookElement;
 
-  constructor(art: UiKitArt, onClose: () => void, onLink?: (target: UiTextLinkTarget) => void, renderItem?: UiHelpBookOptions['renderItem']) {
+  constructor(art: UiKitArt, onClose: () => void, onLink?: (target: UiTextLinkTarget) => void, slotArt?: UiHelpBookOptions['slotArt']) {
     this.root = new UiRoot({ art, scale: 1, label: 'Orchard guide' });
-    this.view = uiHelpBook({ art, onClose, onLink, renderItem });
+    this.view = uiHelpBook({ art, onClose, onLink, slotArt });
     this.root.mount(this.view);
   }
 
