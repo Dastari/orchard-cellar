@@ -111,6 +111,15 @@ export interface WorldPort {
   suspend(): Promise<void>;
   resume(): Promise<void>;
 }
+export interface HistoryRow { readonly id: string; readonly mapId: string; readonly revision: number; readonly contentHash: string;
+  readonly hasDocumentCopy: boolean; readonly archived: boolean }
+export interface HistoryWorldPort extends WorldPort {
+  listHistory(afterId: bigint, limit: number): Promise<{ readonly rows: readonly HistoryRow[]; readonly more: boolean }>;
+  readHistory(revisionId: bigint): Promise<LiveMapRow & { readonly manifestHash: string }>;
+  backfillHistory(input: { readonly revisionId: bigint; readonly manifestJson: string; readonly registryContentHash: string;
+    readonly expectedManifestHash: string }): Promise<void>;
+  verifyHistory(revisionId: bigint): Promise<{ readonly id: string; readonly revision: number; readonly hasDocumentCopy: boolean; readonly manifestHash: string }>;
+}
 export interface ServedBlob { readonly status: number; readonly contentType: string; readonly cacheControl: string; readonly encoding: string; readonly bytes: Uint8Array }
 export interface OriginPort {
   readonly origin: string;
@@ -750,11 +759,15 @@ function withTimeout<T>(label: string, promise: Promise<T>, ms: number): Promise
   });
 }
 
-export async function connectWorld(target: { readonly host: string; readonly database: string }, token: string): Promise<WorldPort & { close(): void }> {
+export async function connectWorld(target: { readonly host: string; readonly database: string }, token: string): Promise<HistoryWorldPort & { close(): void }> {
   const { DbConnection, tables } = await import('@orchard/world-bindings');
   // The SDK logs connection chatter on stdout; keep stdout for the one JSON summary line.
   (await import('spacetimedb')).setGlobalLogLevel('warn');
   type Connection = InstanceType<typeof DbConnection>;
+  let mapRow: LiveMapRow | null = null;
+  const refreshMap = async (connection: Connection): Promise<void> => {
+    mapRow = JSON.parse(await withTimeout('read_map_base', connection.procedures.readLiveMapPublicationBase({}), 60_000)) as LiveMapRow | null;
+  };
   const open = async (): Promise<Connection> => {
     const built = await withTimeout('connect', new Promise<Connection>((resolvePromise, reject) => {
       DbConnection.builder().withUri(target.host).withDatabaseName(target.database).withToken(token)
@@ -767,9 +780,10 @@ export async function connectWorld(target: { readonly host: string; readonly dat
         built.subscriptionBuilder()
           .onApplied(() => resolvePromise())
           .onError(context => reject(new PipelineError('subscription_failed', EXIT.failed, String(context.event))))
-          .subscribe([tables.liveMapDocument, tables.contentHead, tables.contentDefinition, tables.worldChunkShadow, tables.worldChunkHead]);
+          .subscribe([tables.contentHead, tables.contentDefinition, tables.worldChunkShadow, tables.worldChunkHead]);
       }), 120_000);
     } catch (error) { built.disconnect(); throw error; }
+    try { await refreshMap(built); } catch (error) { built.disconnect(); throw error; }
     return built;
   };
   let current: Connection | null = await open();
@@ -779,11 +793,10 @@ export async function connectWorld(target: { readonly host: string; readonly dat
   };
   const read = (): LiveState => {
     const db = live().db;
-    const map = db.liveMapDocument.mapId.find(LIVE_ISLAND_MAP_ID);
     const head = db.contentHead.packId.find(LIVE_CONTENT_PACK_ID);
     const shadow = db.worldChunkShadow.spaceId.find(BigInt(TOPSIDE_SPACE_ID));
     return {
-      mapRow: map === null || map === undefined ? null : { mapId: map.mapId, revision: map.revision, contentHash: map.contentHash, documentJson: map.documentJson },
+      mapRow,
       contentHead: head === null || head === undefined ? null : { revision: head.revision.toString(), contentHash: head.contentHash },
       contentRows: head === null || head === undefined ? null : [...db.contentDefinition.iter()]
         .map(row => ({ id: row.id, kind: row.kind, slug: row.slug, revision: row.revision.toString(), hash: row.hash, json: row.json }))
@@ -795,6 +808,10 @@ export async function connectWorld(target: { readonly host: string; readonly dat
   };
   return {
     read,
+    listHistory: async (afterId, limit) => JSON.parse(await withTimeout('list_history', live().procedures.listLiveMapChunkHistory({ afterId, limit }), 60_000)),
+    readHistory: async revisionId => JSON.parse(await withTimeout('read_history', live().procedures.readLiveMapChunkHistory({ revisionId }), 60_000)),
+    backfillHistory: input => withTimeout('backfill_history', live().reducers.backfillLiveMapChunkHistory(input), 300_000),
+    verifyHistory: async revisionId => JSON.parse(await withTimeout('verify_history', live().procedures.verifyLiveMapChunkHistory({ revisionId }), 60_000)),
     stageBlob: bytes => withTimeout('stage', live().reducers.stageWorldChunkBlob({ bytes }), 120_000),
     publishShadow: input => withTimeout('publish', live().reducers.publishWorldChunkShadow(input), 300_000),
     readBlob: async (spaceId, head) => Uint8Array.from(await withTimeout('read_blob', live().procedures.readWorldChunkBlob({
@@ -802,6 +819,7 @@ export async function connectWorld(target: { readonly host: string; readonly dat
     async settle(predicate, timeoutMs) {
       const deadline = Date.now() + timeoutMs;
       for (;;) {
+        await refreshMap(live());
         const state = read();
         if (predicate(state) || Date.now() >= deadline) return state;
         await new Promise(resolvePromise => setTimeout(resolvePromise, 50));

@@ -469,7 +469,7 @@ export async function connectAuthorityWorld(target: { readonly host: string; rea
       connection.subscriptionBuilder()
         .onApplied(() => { clearTimeout(timer); resolvePromise(); })
         .onError(context => { clearTimeout(timer); reject(new PipelineError('subscription_failed', EXIT.failed, String(context.event))); })
-        .subscribe([tables.spaceAdminFlag, tables.worldChunkShadow, tables.worldChunkHead, tables.liveMapDocument]);
+        .subscribe([tables.spaceAdminFlag, tables.worldChunkShadow, tables.worldChunkHead, tables.liveMapHead]);
     });
   } catch (error) { connection.disconnect(); throw error; }
   const identity = connection.identity?.toHexString() ?? 'unknown';
@@ -483,7 +483,7 @@ export async function connectAuthorityWorld(target: { readonly host: string; rea
     heads: () => [...connection.db.worldChunkHead.iter()].filter(row => row.spaceId === 0n)
       .map(row => ({ cx: row.cx, cy: row.cy, revision: row.revision, contentHash: row.contentHash, byteLength: row.byteLength })),
     liveMap: () => {
-      const row = connection.db.liveMapDocument.mapId.find('live-island');
+      const row = [...connection.db.liveMapHead.iter()].find(row => row.mapId === 'live-island');
       return row === null || row === undefined ? null : { revision: row.revision, contentHash: row.contentHash };
     },
     setChunkAuthority: async mode => { await connection.reducers.setChunkAuthority({ mode }); },

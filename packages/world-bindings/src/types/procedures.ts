@@ -28,10 +28,14 @@ import * as AdminTelemetryProcedure from "../admin_telemetry_procedure";
 import * as AdminValidateWorldProcedure from "../admin_validate_world_procedure";
 import * as AuditChunkAuthorityProcedure from "../audit_chunk_authority_procedure";
 import * as InspectWorldChunkShadowProcedure from "../inspect_world_chunk_shadow_procedure";
+import * as ListLiveMapChunkHistoryProcedure from "../list_live_map_chunk_history_procedure";
 import * as PreviewStudioScopeProcedure from "../preview_studio_scope_procedure";
+import * as ReadLiveMapChunkHistoryProcedure from "../read_live_map_chunk_history_procedure";
+import * as ReadLiveMapPublicationBaseProcedure from "../read_live_map_publication_base_procedure";
 import * as ReadWorldChunkBlobProcedure from "../read_world_chunk_blob_procedure";
 import * as StudioScopeReceiptProcedure from "../studio_scope_receipt_procedure";
 import * as StudioScriptReviewProcedure from "../studio_script_review_procedure";
+import * as VerifyLiveMapChunkHistoryProcedure from "../verify_live_map_chunk_history_procedure";
 
 export type AdminAuditPageArgs = __Infer<typeof AdminAuditPageProcedure.params>;
 export type AdminAuditPageResult = __Infer<typeof AdminAuditPageProcedure.returnType>;
@@ -77,12 +81,20 @@ export type AuditChunkAuthorityArgs = __Infer<typeof AuditChunkAuthorityProcedur
 export type AuditChunkAuthorityResult = __Infer<typeof AuditChunkAuthorityProcedure.returnType>;
 export type InspectWorldChunkShadowArgs = __Infer<typeof InspectWorldChunkShadowProcedure.params>;
 export type InspectWorldChunkShadowResult = __Infer<typeof InspectWorldChunkShadowProcedure.returnType>;
+export type ListLiveMapChunkHistoryArgs = __Infer<typeof ListLiveMapChunkHistoryProcedure.params>;
+export type ListLiveMapChunkHistoryResult = __Infer<typeof ListLiveMapChunkHistoryProcedure.returnType>;
 export type PreviewStudioScopeArgs = __Infer<typeof PreviewStudioScopeProcedure.params>;
 export type PreviewStudioScopeResult = __Infer<typeof PreviewStudioScopeProcedure.returnType>;
+export type ReadLiveMapChunkHistoryArgs = __Infer<typeof ReadLiveMapChunkHistoryProcedure.params>;
+export type ReadLiveMapChunkHistoryResult = __Infer<typeof ReadLiveMapChunkHistoryProcedure.returnType>;
+export type ReadLiveMapPublicationBaseArgs = __Infer<typeof ReadLiveMapPublicationBaseProcedure.params>;
+export type ReadLiveMapPublicationBaseResult = __Infer<typeof ReadLiveMapPublicationBaseProcedure.returnType>;
 export type ReadWorldChunkBlobArgs = __Infer<typeof ReadWorldChunkBlobProcedure.params>;
 export type ReadWorldChunkBlobResult = __Infer<typeof ReadWorldChunkBlobProcedure.returnType>;
 export type StudioScopeReceiptArgs = __Infer<typeof StudioScopeReceiptProcedure.params>;
 export type StudioScopeReceiptResult = __Infer<typeof StudioScopeReceiptProcedure.returnType>;
 export type StudioScriptReviewArgs = __Infer<typeof StudioScriptReviewProcedure.params>;
 export type StudioScriptReviewResult = __Infer<typeof StudioScriptReviewProcedure.returnType>;
+export type VerifyLiveMapChunkHistoryArgs = __Infer<typeof VerifyLiveMapChunkHistoryProcedure.params>;
+export type VerifyLiveMapChunkHistoryResult = __Infer<typeof VerifyLiveMapChunkHistoryProcedure.returnType>;
 

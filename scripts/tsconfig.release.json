@@ -26,6 +26,10 @@
     "auth-world-smoke.ts",
     "content-head-release.ts",
     "world-chunks-publish.ts",
+    "world-chunks-history.ts",
+    "chunk-fixture-publication.ts",
+    "chunk-authority-soak.ts",
+    "chunk-runtime-browser-acceptance.ts",
     "world-chunk-authority.ts",
     "legacy-cooking-release-gate.ts",
     "../packages/tools/src/world-state-parity.ts"

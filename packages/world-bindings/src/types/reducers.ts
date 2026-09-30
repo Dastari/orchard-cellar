@@ -72,6 +72,7 @@ import AdminVerifyLegacyChestsReducer from "../admin_verify_legacy_chests_reduce
 import AdminVerifyLegacyFarmRetirementReducer from "../admin_verify_legacy_farm_retirement_reducer";
 import ApproveMemberReducer from "../approve_member_reducer";
 import ApproveStudioScriptReducer from "../approve_studio_script_reducer";
+import BackfillLiveMapChunkHistoryReducer from "../backfill_live_map_chunk_history_reducer";
 import BuyMerchantCartReducer from "../buy_merchant_cart_reducer";
 import BuyMerchantItemReducer from "../buy_merchant_item_reducer";
 import CancelTradeReducer from "../cancel_trade_reducer";
@@ -251,6 +252,7 @@ export type AdminVerifyLegacyChestsParams = __Infer<typeof AdminVerifyLegacyChes
 export type AdminVerifyLegacyFarmRetirementParams = __Infer<typeof AdminVerifyLegacyFarmRetirementReducer>;
 export type ApproveMemberParams = __Infer<typeof ApproveMemberReducer>;
 export type ApproveStudioScriptParams = __Infer<typeof ApproveStudioScriptReducer>;
+export type BackfillLiveMapChunkHistoryParams = __Infer<typeof BackfillLiveMapChunkHistoryReducer>;
 export type BuyMerchantCartParams = __Infer<typeof BuyMerchantCartReducer>;
 export type BuyMerchantItemParams = __Infer<typeof BuyMerchantItemReducer>;
 export type CancelTradeParams = __Infer<typeof CancelTradeReducer>;

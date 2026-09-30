@@ -12,7 +12,7 @@ const HOST = process.env['SPACETIMEDB_HOST'] ?? 'https://orchard.dastari.net';
 const DATABASE = process.env['SPACETIMEDB_DATABASE'] ?? 'orchard-cellar-world';
 const TIMEOUT_MS = 40_000;
 const REQUIRED_ACCESSORS = Object.freeze([
-  'liveMapDocument', 'contentHead', 'contentDefinition', 'worldPlaceable', 'playerPublic', 'playerPosition',
+  'liveMapHead', 'contentHead', 'contentDefinition', 'worldPlaceable', 'playerPublic', 'playerPosition',
 ] as const);
 
 interface ConnectedClient {
@@ -83,7 +83,7 @@ function connect(credential: RejoinCredential, phase: string): Promise<Connected
 
 function targetedQueries(identity: Identity): readonly unknown[] {
   return [
-    tables.liveMapDocument.where((row) => row.mapId.eq('live-island')),
+    tables.liveMapHead.where((row) => row.mapId.eq('live-island')),
     tables.contentHead.where((row) => row.packId.eq('live')),
     tables.contentDefinition,
     tables.worldPlaceable.where((row) => row.definitionId.eq('object:chest')),
@@ -111,7 +111,7 @@ function rows(connection: DbConnection, accessor: string): readonly unknown[] {
 function capture(client: ConnectedClient, appliedAt: string): StageAObservation {
   return Object.freeze({ label: client.credential.label, identity: client.identity.toHexString(),
     connectedAt: client.connectedAt, subscriptionAppliedAt: appliedAt,
-    mapRows: rows(client.connection, 'liveMapDocument'), contentHeadRows: rows(client.connection, 'contentHead'),
+    mapRows: rows(client.connection, 'liveMapHead'), contentHeadRows: rows(client.connection, 'contentHead'),
     contentDefinitionRows: rows(client.connection, 'contentDefinition'),
     genericChestRows: rows(client.connection, 'worldPlaceable'),
     playerPublicRows: rows(client.connection, 'playerPublic'),

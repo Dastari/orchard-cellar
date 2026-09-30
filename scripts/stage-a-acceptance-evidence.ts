@@ -127,7 +127,7 @@ function revision(value: unknown, name: string): string {
 }
 
 function redacted(observation: StageAObservation, client: string): StageARedactedClientEvidence {
-  const map = exactRow(observation.mapRows, 'liveMapDocument');
+  const map = exactRow(observation.mapRows, 'liveMapHead');
   const head = exactRow(observation.contentHeadRows, 'contentHead');
   if (map['mapId'] !== 'live-island' || head['packId'] !== 'live') {
     throw new Error('stage_a_live_head_scope_mismatch');
@@ -210,7 +210,7 @@ export function buildStageAAcceptanceEvidence(input: StageAEvidenceInput): Stage
   const evidence: StageAAcceptanceEvidence = Object.freeze({ schemaVersion: STAGE_A_EVIDENCE_VERSION,
     status: 'read_only_preflight_passed', startedAt: input.startedAt, completedAt: input.completedAt,
     databaseHash: sha256(input.database), hostHash: sha256(input.host), distinctIdentityCount: initial.length,
-    requiredSurfaces: Object.freeze(['liveMapDocument', 'contentHead', 'contentDefinition', 'worldPlaceable:generic-chest',
+    requiredSurfaces: Object.freeze(['liveMapHead', 'contentHead', 'contentDefinition', 'worldPlaceable:generic-chest',
       'playerPublic:self', 'playerPosition:self']), initial, reconnected,
     assertions: Object.freeze({ distinctIdentities: true, reconnectIdentityStable: true, sameLiveMapHead: true,
       sameLiveContentHead: true, sameGenericChestVisibility: true, reconnectParity: true,

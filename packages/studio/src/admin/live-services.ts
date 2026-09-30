@@ -689,7 +689,18 @@ export class StudioLiveAdminWorldService implements AdminWorldApi {
     const environment = [...connection.db.worldEnvironment.iter()][0];
     const wind = [...connection.db.worldWind.iter()][0];
     const motd = [...connection.db.ownConnectionNotices.iter()].find((row) => row.kind === 'motd')?.body ?? '';
-    const head = connection.db.liveMapDocument.mapId.find('live-island');
+    const revisions: { id: string; revision: number }[] = [];
+    let afterId = 0n;
+    for (;;) {
+      const page = JSON.parse(await connection.procedures.listLiveMapChunkHistory({ afterId, limit: 100 })) as { rows: { id: string; revision: number }[]; more: boolean };
+      for (const row of page.rows) {
+        if (BigInt(row.id) <= afterId) throw new Error('chunk_history_pagination_not_advancing');
+        afterId = BigInt(row.id); revisions.push(row);
+      }
+      if (!page.more) break;
+      if (page.rows.length === 0) throw new Error('chunk_history_pagination_incomplete');
+    }
+    revisions.sort((left, right) => right.revision - left.revision);
     return Object.freeze({
       worldVersion: report.worldVersion,
       spaces: Object.freeze(spaces.map((space) => Object.freeze({
@@ -700,7 +711,7 @@ export class StudioLiveAdminWorldService implements AdminWorldApi {
         toSpace: String(row.toSpace), paired: reverseKeys.has(`${row.toSpace}:${row.toTileX}:${row.toTileY}:${row.fromSpace}:${row.fromTileX}:${row.fromTileY}`) }))),
       environment: Object.freeze({ calendarTick: String(environment?.calendarTick ?? 0n), weatherMode: environment?.weatherMode ?? 'auto',
         windDirection: wind?.direction ?? 'auto', motd }),
-      mapRevisions: Object.freeze(head === undefined || head === null ? [] : [{ revisionId: String(head.revision), revision: head.revision, label: 'Current' }]),
+      mapRevisions: Object.freeze(revisions.map((row, index) => ({ revisionId: row.id, revision: row.revision, label: index === 0 ? 'Current' : `Revision ${row.revision}` }))),
       homesteads: Object.freeze(homes.map((home) => Object.freeze({ spaceId: String(home.spaceId), ownerName: home.ownerName,
         tileX: home.overworldTileX, tileY: home.overworldTileY }))),
     });

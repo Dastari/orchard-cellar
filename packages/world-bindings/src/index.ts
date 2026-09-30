@@ -100,6 +100,7 @@ import AdminVerifyLegacyChestsReducer from "./admin_verify_legacy_chests_reducer
 import AdminVerifyLegacyFarmRetirementReducer from "./admin_verify_legacy_farm_retirement_reducer";
 import ApproveMemberReducer from "./approve_member_reducer";
 import ApproveStudioScriptReducer from "./approve_studio_script_reducer";
+import BackfillLiveMapChunkHistoryReducer from "./backfill_live_map_chunk_history_reducer";
 import BuyMerchantCartReducer from "./buy_merchant_cart_reducer";
 import BuyMerchantItemReducer from "./buy_merchant_item_reducer";
 import CancelTradeReducer from "./cancel_trade_reducer";
@@ -236,10 +237,14 @@ import * as AdminTelemetryProcedure from "./admin_telemetry_procedure";
 import * as AdminValidateWorldProcedure from "./admin_validate_world_procedure";
 import * as AuditChunkAuthorityProcedure from "./audit_chunk_authority_procedure";
 import * as InspectWorldChunkShadowProcedure from "./inspect_world_chunk_shadow_procedure";
+import * as ListLiveMapChunkHistoryProcedure from "./list_live_map_chunk_history_procedure";
 import * as PreviewStudioScopeProcedure from "./preview_studio_scope_procedure";
+import * as ReadLiveMapChunkHistoryProcedure from "./read_live_map_chunk_history_procedure";
+import * as ReadLiveMapPublicationBaseProcedure from "./read_live_map_publication_base_procedure";
 import * as ReadWorldChunkBlobProcedure from "./read_world_chunk_blob_procedure";
 import * as StudioScopeReceiptProcedure from "./studio_scope_receipt_procedure";
 import * as StudioScriptReviewProcedure from "./studio_script_review_procedure";
+import * as VerifyLiveMapChunkHistoryProcedure from "./verify_live_map_chunk_history_procedure";
 
 // Import all table schema definitions
 import ActiveFarmSkillNodesRow from "./active_farm_skill_nodes_table";
@@ -250,7 +255,7 @@ import ContentDefinitionRow from "./content_definition_table";
 import ContentHeadRow from "./content_head_table";
 import EnemyAttackRow from "./enemy_attack_table";
 import HomesteadRow from "./homestead_table";
-import LiveMapDocumentRow from "./live_map_document_table";
+import LiveMapHeadRow from "./live_map_head_table";
 import OnlinePlayerAppearancesRow from "./online_player_appearances_table";
 import OnlinePlayerPublicRow from "./online_player_public_table";
 import OutdoorEnemyProfileRow from "./outdoor_enemy_profile_table";
@@ -433,17 +438,6 @@ const tablesSchema = __schema({
       { name: 'homestead_space_id_key', constraint: 'unique', columns: ['spaceId'] },
     ],
   }, HomesteadRow),
-  liveMapDocument: __table({
-    name: 'live_map_document',
-    indexes: [
-      { accessor: 'mapId', name: 'live_map_document_map_id_idx_btree', algorithm: 'btree', columns: [
-        'mapId',
-      ] },
-    ],
-    constraints: [
-      { name: 'live_map_document_map_id_key', constraint: 'unique', columns: ['mapId'] },
-    ],
-  }, LiveMapDocumentRow),
   outdoorEnemyProfile: __table({
     name: 'outdoor_enemy_profile',
     indexes: [
@@ -987,6 +981,13 @@ const tablesSchema = __schema({
     constraints: [
     ],
   }, ActiveFishingCastsRow),
+  liveMapHead: __table({
+    name: 'live_map_head',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, LiveMapHeadRow),
   onlinePlayerAppearances: __table({
     name: 'online_player_appearances',
     indexes: [
@@ -1491,6 +1492,7 @@ const reducersSchema = __reducers(
   __reducerSchema("admin_verify_legacy_farm_retirement", AdminVerifyLegacyFarmRetirementReducer),
   __reducerSchema("approve_member", ApproveMemberReducer),
   __reducerSchema("approve_studio_script", ApproveStudioScriptReducer),
+  __reducerSchema("backfill_live_map_chunk_history", BackfillLiveMapChunkHistoryReducer),
   __reducerSchema("buy_merchant_cart", BuyMerchantCartReducer),
   __reducerSchema("buy_merchant_item", BuyMerchantItemReducer),
   __reducerSchema("cancel_trade", CancelTradeReducer),
@@ -1629,10 +1631,14 @@ const proceduresSchema = __procedures(
   __procedureSchema("admin_validate_world", AdminValidateWorldProcedure.params, AdminValidateWorldProcedure.returnType),
   __procedureSchema("audit_chunk_authority", AuditChunkAuthorityProcedure.params, AuditChunkAuthorityProcedure.returnType),
   __procedureSchema("inspect_world_chunk_shadow", InspectWorldChunkShadowProcedure.params, InspectWorldChunkShadowProcedure.returnType),
+  __procedureSchema("list_live_map_chunk_history", ListLiveMapChunkHistoryProcedure.params, ListLiveMapChunkHistoryProcedure.returnType),
   __procedureSchema("preview_studio_scope", PreviewStudioScopeProcedure.params, PreviewStudioScopeProcedure.returnType),
+  __procedureSchema("read_live_map_chunk_history", ReadLiveMapChunkHistoryProcedure.params, ReadLiveMapChunkHistoryProcedure.returnType),
+  __procedureSchema("read_live_map_publication_base", ReadLiveMapPublicationBaseProcedure.params, ReadLiveMapPublicationBaseProcedure.returnType),
   __procedureSchema("read_world_chunk_blob", ReadWorldChunkBlobProcedure.params, ReadWorldChunkBlobProcedure.returnType),
   __procedureSchema("studio_scope_receipt", StudioScopeReceiptProcedure.params, StudioScopeReceiptProcedure.returnType),
   __procedureSchema("studio_script_review", StudioScriptReviewProcedure.params, StudioScriptReviewProcedure.returnType),
+  __procedureSchema("verify_live_map_chunk_history", VerifyLiveMapChunkHistoryProcedure.params, VerifyLiveMapChunkHistoryProcedure.returnType),
 );
 
 type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "tables"> & {
@@ -1645,8 +1651,6 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "content_head": Omit<typeof tablesSchema.schemaType.tables["contentHead"], "accessorName"> & { readonly accessorName: "content_head" };
     /** @deprecated Use `enemyAttack` instead. This alias will be removed in the next major version. */
     readonly "enemy_attack": Omit<typeof tablesSchema.schemaType.tables["enemyAttack"], "accessorName"> & { readonly accessorName: "enemy_attack" };
-    /** @deprecated Use `liveMapDocument` instead. This alias will be removed in the next major version. */
-    readonly "live_map_document": Omit<typeof tablesSchema.schemaType.tables["liveMapDocument"], "accessorName"> & { readonly accessorName: "live_map_document" };
     /** @deprecated Use `outdoorEnemyProfile` instead. This alias will be removed in the next major version. */
     readonly "outdoor_enemy_profile": Omit<typeof tablesSchema.schemaType.tables["outdoorEnemyProfile"], "accessorName"> & { readonly accessorName: "outdoor_enemy_profile" };
     /** @deprecated Use `playerAppearance` instead. This alias will be removed in the next major version. */
@@ -1731,7 +1735,6 @@ const tableAccessorAliases = {
   "content_definition": "contentDefinition",
   "content_head": "contentHead",
   "enemy_attack": "enemyAttack",
-  "live_map_document": "liveMapDocument",
   "outdoor_enemy_profile": "outdoorEnemyProfile",
   "player_appearance": "playerAppearance",
   "player_jump_state": "playerJumpState",
@@ -1791,8 +1794,6 @@ export type DbView = __DbViewBase & {
   readonly "content_head": __DbViewBase["contentHead"];
   /** @deprecated Use `enemyAttack` instead. This alias will be removed in the next major version. */
   readonly "enemy_attack": __DbViewBase["enemyAttack"];
-  /** @deprecated Use `liveMapDocument` instead. This alias will be removed in the next major version. */
-  readonly "live_map_document": __DbViewBase["liveMapDocument"];
   /** @deprecated Use `outdoorEnemyProfile` instead. This alias will be removed in the next major version. */
   readonly "outdoor_enemy_profile": __DbViewBase["outdoorEnemyProfile"];
   /** @deprecated Use `playerAppearance` instead. This alias will be removed in the next major version. */
@@ -1867,8 +1868,6 @@ export type Tables = __TablesBase & {
   readonly "content_head": __TablesBase["contentHead"];
   /** @deprecated Use `enemyAttack` instead. This alias will be removed in the next major version. */
   readonly "enemy_attack": __TablesBase["enemyAttack"];
-  /** @deprecated Use `liveMapDocument` instead. This alias will be removed in the next major version. */
-  readonly "live_map_document": __TablesBase["liveMapDocument"];
   /** @deprecated Use `outdoorEnemyProfile` instead. This alias will be removed in the next major version. */
   readonly "outdoor_enemy_profile": __TablesBase["outdoorEnemyProfile"];
   /** @deprecated Use `playerAppearance` instead. This alias will be removed in the next major version. */
