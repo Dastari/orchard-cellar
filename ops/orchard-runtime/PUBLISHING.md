@@ -180,7 +180,10 @@ to start (exit `64`) if either raw variable is already in the environment, even 
   - no topside resources are reconciled or respawned;
   - S6 clients show "world updating" until it is set back.
 - An unservable publication behaves the same way: nothing published, refused (for example
-  `stale_generator` or `traversal_policy_mismatch`), or incomplete. It fails safe, never open.
+  `stale_generator`), or incomplete. It fails safe, never open.
+- A map or content publication since the chunks were published is lag, not a refusal (SW-D2). This
+  includes adding or removing the traversal policy: the pinned chunks keep serving on the server
+  and the client until they are republished.
 - There is no rollback to the legacy whole-map path once S3-final ships. Recover by republishing
   the chunks, or by reinstalling the previous world module from the rollback copies.
 - The pre-S6 client dist stops being a rollback target at S3-final: it needs the compiled server.
