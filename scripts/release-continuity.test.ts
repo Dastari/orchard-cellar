@@ -61,6 +61,34 @@ describe('production continuity tooling', { timeout: 60_000 }, () => {
     expect(operations).toContain('approval for an earlier');
   });
 
+  it('isolates the repository child while preserving history opt-in and report for the actual restore hook', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'orchard-history-test-env-'));
+    try {
+      const bin = join(directory, 'bin'); mkdirSync(bin);
+      const hookDirectory = join(directory, 'ops/orchard-runtime/bin'); mkdirSync(hookDirectory, {recursive:true});
+      const capture = '#!/usr/bin/env bash\nprintf "%s|%s\\n" "${WORLD_RESTORE_STATIC_MAP_HISTORY-unset}" "${WORLD_RESTORE_STATIC_MAP_HISTORY_REPORT-unset}" > "$ENV_CAPTURE"\n';
+      const npm = join(bin, 'npm');writeFileSync(npm, capture);chmodSync(npm, 0o755);
+      const hook = join(hookDirectory, 'restore-world-rehearsal.sh');writeFileSync(hook, capture);chmodSync(hook, 0o755);
+      const gate = release.split('\n').find(line => line.startsWith('env ') && line.endsWith(' npm test'))!;
+      const start = release.indexOf('WORLD_REJOIN_TOKENS_FILE="$token_file" \\\nSPACETIMEDB_DATABASE="$database"');
+      expect(start).toBeGreaterThan(0);
+      const invocation = release.slice(start, release.indexOf('\n\n# Production must', start));
+      const names = ['token_file','database','rehearsal_port','migration_kind','rehearsal_pre_drain_log','rehearsal_post_drain_log',
+        'module_source_manifest','content_candidate','content_candidate_sha256','content_owner_label','content_release_confirm',
+        'container_cell_migration','rehearsal_container_cell_log','backup_directory','pre_drain_snapshot','post_drain_snapshot'];
+      const declarations = names.map(name => `${name}=fixture`).join('\n');
+      const report = join(directory, 'parent-history.json');
+      const gateCapture = join(directory, 'gate.env');const hookCapture = join(directory, 'hook.env');
+      const child = spawnSync('bash', ['-euc', `${declarations}\n${gate}\nexport ENV_CAPTURE="$HOOK_CAPTURE"\n${invocation}`], {
+        cwd:directory,encoding:'utf8',env:{...laneTestEnv(),PATH:`${bin}:${process.env['PATH'] ?? ''}`,ENV_CAPTURE:gateCapture,HOOK_CAPTURE:hookCapture,
+          WORLD_RESTORE_STATIC_MAP_HISTORY:'run',WORLD_RESTORE_STATIC_MAP_HISTORY_REPORT:report},
+      });
+      expect(child.status, child.stderr).toBe(0);
+      expect(readFileSync(gateCapture,'utf8')).toBe('unset|unset\n');
+      expect(readFileSync(hookCapture,'utf8')).toBe(`run|${report}\n`);
+    } finally {rmSync(directory,{recursive:true,force:true});}
+  });
+
   it('keeps schema-only releases on restored-row reconnect checks without chest mutation', () => {
     expect(release).toContain('WORLD_RESTORE_MIGRATION_KIND="$migration_kind"');
     const start = rehearsal.indexOf('if [[ "$migration_kind" = schema-only ]]; then');

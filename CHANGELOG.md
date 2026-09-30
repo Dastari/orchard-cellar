@@ -2,6 +2,10 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Root 0.81.1 / Tools 0.25.1 — Isolated history inputs for repository tests
+
+- **BUG-070:** repository tests no longer inherit the release's static-history opt-in/report. The actual isolated schema-only rehearsal keeps those inputs and its complete history gates.
+
 ## Client 0.56.1 / World 0.33.0 / Sim 0.36.1 / World bindings 0.22.0 / Tools 0.25.0 / Studio 0.18.0 — Static world S7c: private map base and chunk-manifest history
 
 **Schema migration with verified history conversion.** Option C retains one private server map base; public clients and Studio read chunks. Content remains unchanged. Client chunk runtime stays on.

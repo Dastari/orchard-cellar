@@ -203,14 +203,20 @@ describe('versioned restore bundle validation', () => {
       const token = write(directory, 'tokens.json', '{"operator":"not-printed"}\n');
       chmodSync(token, 0o600);
 
+      // Exercise the release's actual test-child environment filter against this real verified archive.
+      const releaseSource = readFileSync(new URL('../../../scripts/world-release.sh', import.meta.url), 'utf8');
+      const testGate = releaseSource.split('\n').find(line => line.startsWith('env ') && line.endsWith(' npm test'));
+      expect(testGate).toBeDefined();
+      const testEnvironmentArgs = testGate!.split(' ').slice(1, -2);
       const run = () => spawnSync(
-        'bash',
-        ['ops/orchard-runtime/bin/restore-world-rehearsal.sh', backup,
+        'env',
+        [...testEnvironmentArgs, 'bash', 'ops/orchard-runtime/bin/restore-world-rehearsal.sh', backup,
           join(directory, 'new-pre-drain.json'), join(directory, 'new-post-drain.json')],
         {
           cwd: projectRoot,
           encoding: 'utf8',
-          env: { ...process.env, WORLD_REJOIN_TOKENS_FILE: token, WORLD_RESTORE_REHEARSAL_DRY_RUN: 'true' },
+          env: { ...process.env, WORLD_REJOIN_TOKENS_FILE: token, WORLD_RESTORE_REHEARSAL_DRY_RUN: 'true',
+            WORLD_RESTORE_STATIC_MAP_HISTORY: 'run', WORLD_RESTORE_STATIC_MAP_HISTORY_REPORT: join(directory, 'parent-history.json') },
         },
       );
       const valid = run();
