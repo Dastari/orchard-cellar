@@ -46,8 +46,11 @@ export interface LiveMapPublicationProgress {
 
 /** The world as the publication sees it, and the calls it makes. */
 export interface LiveMapPublicationPort {
-  /** The current topside chunk publication: its revision (0 when none) and the blobs its heads reference. */
-  publishedChunks(): Promise<{ readonly revision: number; readonly contentHashes: ReadonlySet<string> }>;
+  /** The current topside chunk publication: its revision (0 when none), the blobs its heads reference and
+   * its asset revision (null when none). */
+  publishedChunks(): Promise<{ readonly revision: number; readonly contentHashes: ReadonlySet<string>; readonly assetRevision: string | null }>;
+  /** The asset revision of an atlas index (`worldChunkHash` of its bytes). */
+  assetRevisionOf(atlasIndexSource: string): string;
   atlasIndex(): Promise<string>;
   materialize(input: LiveMapPublicationInput, onPhase: (phase: LiveMapPublicationPhase) => void): Promise<MaterializedLiveMapPublication>;
   stageBlob(bytes: Uint8Array): Promise<void>;
@@ -65,6 +68,11 @@ export async function publishLiveMapWithChunks(
 ): Promise<void> {
   onProgress({ phase: 'predicting' });
   const [published, atlasIndexSource] = await Promise.all([port.publishedChunks(), port.atlasIndex()]);
+  // A Studio publication keeps the live publication's asset revision (the server refuses anything else):
+  // when the served art moved on, the release lane republishes the chunks with it first.
+  if (published.assetRevision !== null && port.assetRevisionOf(atlasIndexSource) !== published.assetRevision) {
+    throw new Error('chunk_asset_revision_changed');
+  }
   const publication = await port.materialize({ ...request, atlasIndexSource }, phase => onProgress({ phase }));
   // Once per blob the current publication does not reference (the same chunk can repeat).
   const known = new Set(published.contentHashes);

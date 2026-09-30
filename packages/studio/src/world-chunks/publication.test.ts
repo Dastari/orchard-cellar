@@ -50,8 +50,9 @@ describe('Studio chunk publication (static world S7b-3)', () => {
     const staged: string[] = [];
     const commit = vi.fn(async () => undefined);
     const port: LiveMapPublicationPort = {
-      publishedChunks: async () => ({ revision: 7, contentHashes: new Set(['a', 'b']) }),
+      publishedChunks: async () => ({ revision: 7, contentHashes: new Set(['a', 'b']), assetRevision: 'art-1' }),
       atlasIndex: async () => '{"assetPacks":{}}',
+      assetRevisionOf: () => 'art-1',
       materialize: async (input, onPhase) => {
         expect(input.atlasIndexSource).toBe('{"assetPacks":{}}');
         onPhase('materialising'); onPhase('verifying');
@@ -73,11 +74,20 @@ describe('Studio chunk publication (static world S7b-3)', () => {
   it('commits nothing when a stage fails', async () => {
     const commit = vi.fn(async () => undefined);
     await expect(publishLiveMapWithChunks(request, {
-      publishedChunks: async () => ({ revision: 0, contentHashes: new Set() }), atlasIndex: async () => '{}',
+      publishedChunks: async () => ({ revision: 0, contentHashes: new Set(), assetRevision: null }), atlasIndex: async () => '{}', assetRevisionOf: () => 'x',
       materialize: async () => ({ row: { mapId: 'live-island', revision: 5, documentJson: '{}', contentHash: 'h' }, manifestJson: 'm', registryContentHash: 'c',
         blobs: [{ contentHash: 'x', bytes: new Uint8Array(1) }] }),
       stageBlob: async () => { throw new Error('chunk_blob_too_large'); }, commit,
     })).rejects.toThrow('chunk_blob_too_large');
     expect(commit).not.toHaveBeenCalled();
+  });
+
+  it('refuses before building when the served art is not the live publication\'s (the release lane republishes first)', async () => {
+    const materialize = vi.fn();
+    await expect(publishLiveMapWithChunks(request, {
+      publishedChunks: async () => ({ revision: 3, contentHashes: new Set(), assetRevision: 'art-1' }), atlasIndex: async () => '{}',
+      assetRevisionOf: () => 'art-2', materialize, stageBlob: async () => undefined, commit: async () => undefined,
+    })).rejects.toThrow('chunk_asset_revision_changed');
+    expect(materialize).not.toHaveBeenCalled();
   });
 });

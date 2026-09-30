@@ -1,4 +1,5 @@
 import type { DbConnection } from '@orchard/world-bindings';
+import { worldChunkHash } from '@orchard/sim/world-chunk';
 import type { LiveMapPublicationPort } from './publication.js';
 import { materializeLiveMapPublicationInWorker } from './publication-worker-client.js';
 
@@ -15,7 +16,11 @@ export function studioChunkPublicationPort(connection: DbConnection, fetchImpl: 
           const shadow = connection.db.worldChunkShadow.spaceId.find(TOPSIDE_SPACE);
           const contentHashes = new Set([...connection.db.worldChunkHead.iter()]
             .filter(head => head.spaceId === TOPSIDE_SPACE).map(head => head.contentHash));
-          resolve({ revision: shadow === null || shadow === undefined ? 0 : Number(shadow.revision), contentHashes });
+          let assetRevision: string | null = null;
+          if (shadow !== null && shadow !== undefined) {
+            try { assetRevision = String((JSON.parse(shadow.manifestJson) as { assetRevision?: unknown }).assetRevision ?? ''); } catch { assetRevision = ''; }
+          }
+          resolve({ revision: shadow === null || shadow === undefined ? 0 : Number(shadow.revision), contentHashes, assetRevision });
           if (handle.isActive()) handle.unsubscribe();
         })
         .onError(() => reject(new Error('chunk_publication_unavailable')))
@@ -29,6 +34,7 @@ export function studioChunkPublicationPort(connection: DbConnection, fetchImpl: 
       if (!response.ok) throw new Error('atlas_index_unavailable');
       return response.text();
     },
+    assetRevisionOf: source => worldChunkHash(new TextEncoder().encode(source)),
     materialize: materializeLiveMapPublicationInWorker,
     stageBlob: async bytes => { await connection.reducers.stageWorldChunkBlob({ bytes }); },
     commit: async input => { await connection.reducers.publishLiveMapWithChunks(input); },
