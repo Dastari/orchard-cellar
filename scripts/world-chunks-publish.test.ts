@@ -11,7 +11,7 @@ import { CHUNK_RESOURCE_GENERATOR } from '../packages/world/src/content/chunk-au
 import { loadMaterialized } from './chunk-authority-live-rows.js';
 import { canonicalChunkJson, decodeWorldChunk, encodeWorldChunk, worldChunkHash, WORLD_CHUNK_STRIDE, type WorldChunkManifest } from '../packages/sim/src/world-chunk.js';
 import {
-  EXIT, PipelineError, checkPublishedHeads, checkServedBlob, failureReport, fileChunkStore, httpOrigin, isPublished, liveRegistryContentHash, main,
+  EXIT, PipelineError, checkPublishedHeads, installPublishedHeads, checkServedBlob, failureReport, fileChunkStore, httpOrigin, isPublished, liveRegistryContentHash, main,
   parseCli, publishConfirmation, readTokenFile, redact, runPublishPipeline, sha256Hex, verifyServed, writeCandidateDir, type ContentRow, type PipelineTrace,
   type Candidate, type ChunkStorePort, type LiveMapRow, type LiveState, type OriginPort, type PipelineDeps, type ServedBlob, type ShadowPublication, type WorldPort,
 } from './world-chunks-publish.js';
@@ -114,6 +114,7 @@ class FakeWorld implements WorldPort {
   async settle(predicate: (state: LiveState) => boolean): Promise<LiveState> { const state = this.read(); predicate(state); return state; }
   suspended = false;
   async suspend(): Promise<void> { this.suspended = true; this.events.push('suspend'); }
+  readBlob: WorldPort['readBlob'] = async () => { throw new Error('readBlob not expected'); };
   async resume(): Promise<void> { this.suspended = false; this.events.push('resume'); }
   /** Another publisher writes this candidate at the next revision. */
   publishOther(candidate: Candidate): void {
@@ -714,5 +715,41 @@ describe('public origin adapter', () => {
     } finally {
       await new Promise<void>(done => server.close(() => done()));
     }
+  });
+});
+
+describe('install (static world S7b): backfill the chunk directory from the database', () => {
+  function published(h: ReturnType<typeof harness>): Candidate {
+    const candidate = candidateFor(h.world.state.mapRow!, h.origin.atlas);
+    for (const blob of candidate.blobs) h.world.staged.set(blob.contentHash, blob.bytes);
+    h.world.publishOther(candidate);
+    return candidate;
+  }
+  it('installs only the published blobs the directory lacks, verified, then verifies every head over the origin', async () => {
+    const h = harness();
+    const candidate = published(h);
+    await h.store.install(0, candidate.blobs[0]!.contentHash, candidate.blobs[0]!.bytes);
+    const reads: string[] = [];
+    h.world.readBlob = async (_spaceId, head) => { reads.push(`${head.cx},${head.cy}`); return h.world.staged.get(head.contentHash)!; };
+    const report = await installPublishedHeads({ world: h.world, origin: h.origin, store: h.store });
+    expect(report.install).toEqual({ installed: 3, present: 1 });
+    expect(reads).toEqual(['1,0', '0,1', '1,1']);
+    expect(report.verify.served).toBe(4);
+    expect(h.world.publishCalls).toBe(0);
+    expect(h.world.stageCalls).toBe(0);
+  });
+  it('refuses a blob that does not verify against the manifest and installs nothing for it', async () => {
+    const h = harness();
+    const candidate = published(h);
+    h.world.readBlob = async () => candidate.blobs[3]!.bytes;
+    await expectPipelineError(installPublishedHeads({ world: h.world, origin: h.origin, store: h.store }), 'blob_read_failed', EXIT.failed);
+    expect(h.store.files.size).toBe(0);
+  });
+  it('needs a publication, and parses the install command', async () => {
+    const h = harness();
+    await expectPipelineError(installPublishedHeads({ world: h.world, origin: h.origin, store: h.store }), 'unpublished', EXIT.failed);
+    const env = { WORLD_CHUNKS_TOKEN_FILE: '/private/tokens.json' };
+    expect(parseCli(['install', '--host', 'http://127.0.0.1:3000', '--database', DATABASE, '--origin', 'https://origin.test', '--chunk-dir', '/chunks'], env).command).toBe('install');
+    expect(() => parseCli(['install', '--host', 'http://127.0.0.1:3000', '--database', DATABASE, '--origin', 'https://origin.test'], env)).toThrow(/chunk_dir_required/u);
   });
 });

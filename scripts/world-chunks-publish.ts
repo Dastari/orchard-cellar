@@ -32,6 +32,11 @@ import { parseStoredRejoinCredentials } from './world-rejoin-credentials.js';
  * manifest.json bytes) and registryContentHash is the parsed registry hash the server's
  * CAS compares (not content_head's raw rows hash).
  *
+ * `install` (static world S7b) installs the published heads' blobs the chunk directory lacks, read from
+ * the database (a Studio publication commits its blobs there), verifies each against the published
+ * manifest and every head over the public origin. It changes nothing in the world and needs no
+ * confirmation.
+ *
  * `check` is the release check: read only, it reports heads that do not match the live
  * map revision, the registry content hash or the served asset revision, or whose blobs
  * are not served, as stale (exit 3; errors are 1). Stale heads are never removed or
@@ -95,6 +100,8 @@ export interface WorldPort {
   read(): LiveState;
   stageBlob(bytes: Uint8Array): Promise<void>;
   publishShadow(input: ShadowPublication): Promise<void>;
+  /** A published blob from the database (`readWorldChunkBlob`, S7b): the one the head at (cx, cy) references. */
+  readBlob(spaceId: number, head: { readonly cx: number; readonly cy: number; readonly contentHash: string }): Promise<Uint8Array>;
   /** Waits until `predicate` holds or `timeoutMs` passes; returns the last state either way. */
   settle(predicate: (state: LiveState) => boolean, timeoutMs: number): Promise<LiveState>;
   /**
@@ -465,6 +472,45 @@ export async function checkPublishedHeads(deps: { readonly world: WorldPort; rea
   };
 }
 
+export interface InstallReport {
+  readonly schema: 1;
+  readonly shadowRevision: number;
+  readonly heads: number;
+  readonly install: { readonly installed: number; readonly present: number };
+  readonly verify: ServedReport;
+}
+
+/**
+ * Static world S7b: install the published heads' blobs the chunk directory lacks, read from the
+ * database. A Studio publication (`publishLiveMapWithChunks`) commits its blobs there, not here; until
+ * this runs, clients read them through `readWorldChunkBlob`. Each blob is verified against the
+ * published manifest before it is installed (additive, content addressed), then every head is
+ * verified over the public origin. Changes nothing in the world.
+ */
+export async function installPublishedHeads(deps: { readonly world: WorldPort; readonly origin: OriginPort; readonly store: ChunkStorePort; readonly log?: (line: string) => void }): Promise<InstallReport> {
+  const state = deps.world.read();
+  if (state.shadow === null) throw new PipelineError('unpublished');
+  let manifest: WorldChunkManifest;
+  try { manifest = validateRuntimeManifest(JSON.parse(state.shadow.manifestJson)); }
+  catch (error) { throw new PipelineError('manifest_invalid', EXIT.failed, errorText(error)); }
+  const install = { installed: 0, present: 0 };
+  const seen = new Set<string>();
+  for (const head of manifest.chunks) {
+    if (seen.has(head.contentHash)) continue;
+    seen.add(head.contentHash);
+    if (await deps.store.status(manifest.spaceId, head.contentHash) === 'present') { install.present += 1; continue; }
+    let bytes: Uint8Array;
+    try {
+      bytes = await deps.world.readBlob(manifest.spaceId, head);
+      verifyRuntimeChunk(bytes, manifest, head.cx, head.cy);
+    } catch (error) { throw new PipelineError('blob_read_failed', EXIT.failed, `${head.cx},${head.cy}: ${errorText(error)}`); }
+    install[await deps.store.install(manifest.spaceId, head.contentHash, bytes)] += 1;
+  }
+  deps.log?.(`installed ${install.installed} blob(s), ${install.present} already present`);
+  const verify = await verifyServed(deps.origin, manifest.spaceId, manifest.chunks);
+  return { schema: 1, shadowRevision: state.shadow.revision, heads: manifest.chunks.length, install, verify };
+}
+
 function errorText(error: unknown): string {
   const text = error instanceof Error ? error.message : String(error);
   return text.split('\n')[0]!.slice(0, 300);
@@ -751,6 +797,8 @@ export async function connectWorld(target: { readonly host: string; readonly dat
     read,
     stageBlob: bytes => withTimeout('stage', live().reducers.stageWorldChunkBlob({ bytes }), 120_000),
     publishShadow: input => withTimeout('publish', live().reducers.publishWorldChunkShadow(input), 300_000),
+    readBlob: async (spaceId, head) => Uint8Array.from(await withTimeout('read_blob', live().procedures.readWorldChunkBlob({
+      spaceId: BigInt(spaceId), cx: head.cx, cy: head.cy, contentHash: head.contentHash }), 60_000)),
     async settle(predicate, timeoutMs) {
       const deadline = Date.now() + timeoutMs;
       for (;;) {
@@ -771,6 +819,9 @@ export async function materializeInProcess(input: Parameters<MaterializePort>[0]
     row: input.mapRow, contentRows: input.contentRows,
     atlasIndexSource: new TextDecoder('utf-8', { fatal: true }).decode(input.atlasIndex),
     assetRevision: worldChunkHash(input.atlasIndex),
+    // Static world S7b: Studio publications carry the authored document (S7a) so Studio can read the map
+    // back from the chunks; the release lane publishes the same bytes, so neither strips it from the other.
+    authoredDocument: true,
   });
   const { manifest, blobs } = materialized.result;
   return {
@@ -783,7 +834,7 @@ export async function materializeInProcess(input: Parameters<MaterializePort>[0]
 // Command line.
 
 export interface CliOptions {
-  readonly command: 'plan' | 'publish' | 'check';
+  readonly command: 'plan' | 'publish' | 'check' | 'install';
   readonly host: string;
   readonly database: string;
   readonly origin: string;
@@ -796,11 +847,11 @@ export interface CliOptions {
   readonly candidateOut: string | null;
 }
 
-const USAGE = 'usage: WORLD_CHUNKS_TOKEN_FILE=PATH [WORLD_CHUNKS_TOKEN_LABEL=LABEL] world-chunks-publish [plan|publish|check] --host URL --database NAME --origin URL [--chunk-dir DIR] [--report FILE] [--candidate-out DIR]';
+const USAGE = 'usage: WORLD_CHUNKS_TOKEN_FILE=PATH [WORLD_CHUNKS_TOKEN_LABEL=LABEL] world-chunks-publish [plan|publish|check|install] --host URL --database NAME --origin URL [--chunk-dir DIR] [--report FILE] [--candidate-out DIR]';
 
 export function parseCli(argv: readonly string[], env: Readonly<Record<string, string | undefined>>): CliOptions {
   const args = [...argv];
-  const command = args[0] === 'plan' || args[0] === 'publish' || args[0] === 'check' ? args.shift() as CliOptions['command'] : 'plan';
+  const command = args[0] === 'plan' || args[0] === 'publish' || args[0] === 'check' || args[0] === 'install' ? args.shift() as CliOptions['command'] : 'plan';
   const values = new Map<string, string>();
   for (let index = 0; index < args.length; index += 2) {
     const flag = args[index]!, value = args[index + 1];
@@ -826,7 +877,7 @@ export function parseCli(argv: readonly string[], env: Readonly<Record<string, s
   const report = values.get('--report') ?? null;
   if (report !== null && !isAbsolute(report)) throw new PipelineError('report_path_must_be_absolute', EXIT.usage);
   const candidateOut = values.get('--candidate-out') ?? null;
-  if (candidateOut !== null && command === 'check') throw new PipelineError('candidate_out_needs_plan_or_publish', EXIT.usage);
+  if (candidateOut !== null && (command === 'check' || command === 'install')) throw new PipelineError('candidate_out_needs_plan_or_publish', EXIT.usage);
   if (candidateOut !== null && !isAbsolute(candidateOut)) throw new PipelineError('candidate_out_must_be_absolute', EXIT.usage);
   return {
     command, host: new URL(host).origin, database, origin: new URL(origin).origin, chunkDir, report, tokenFile,
@@ -871,6 +922,14 @@ export async function main(argv: readonly string[] = process.argv.slice(2), env:
         console.log(JSON.stringify({ command: 'check', fresh: report.fresh, stale: report.stale, shadowRevision: report.shadowRevision, heads: report.heads,
           served: report.verify?.served ?? null, encodings: report.verify?.encodings ?? null, verifyError: report.verifyError === null ? null : redact(report.verifyError, token) }));
         return report.fresh ? EXIT.ok : EXIT.stale;
+      }
+      if (options.command === 'install') {
+        trace.step = 'install';
+        const report = await installPublishedHeads({ world, origin, store: fileChunkStore(options.chunkDir!), log });
+        await writeReport(report);
+        console.log(JSON.stringify({ command: 'install', shadowRevision: report.shadowRevision, heads: report.heads, install: report.install,
+          served: report.verify.served, encodings: report.verify.encodings }));
+        return EXIT.ok;
       }
       const candidateOut = options.candidateOut;
       const report = await runPublishPipeline({ world, origin, store: fileChunkStore(options.chunkDir!), materialize: materializeInProcess, registryContentHash: liveRegistryContentHash, log,

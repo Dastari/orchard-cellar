@@ -444,7 +444,9 @@ heads for the live map and content. It uses only the existing `stageWorldChunkBl
 2. Fetch `generated/atlas.packs.json` from the public origin. Its hash is the asset
    revision the client computes.
 3. Materialise the chunks in process with the same code and oracle parity checks as
-   `materialize-world-chunks.ts`. The output is byte-identical to that tool's.
+   `materialize-world-chunks.ts --authored-document`. The output is byte-identical to that
+   tool's. Since static world S7b, publications carry the authored document so that Studio
+   (which publishes the same bytes) can read the map back from the chunks.
 4. Install each blob and its `.br`/`.gz` siblings into the chunk directory. The
    siblings go first and the identity `.bin` last, each through a no-clobber link. An
    existing file is verified, never rewritten. A mismatch or a symlink stops the run.
@@ -517,6 +519,27 @@ WORLD_CHUNKS_TOKEN_FILE=/private/rejoin-tokens.json WORLD_CHUNKS_TOKEN_LABEL=own
   --chunk-dir /home/toby/.local/share/orchard/world-chunks --report /private/evidence/plan.json
 # then, after review, refresh again and run the same command as `publish` (with a new
 # --report path) and WORLD_CHUNKS_PUBLISH_CONFIRM set to the printed confirmation.
+```
+
+**Installing Studio publications (`install`, static world S7b).** A Studio map publish
+(`publishLiveMapWithChunks`) commits its chunk blobs to the database, not to the chunk
+directory. Until they are installed, players read them through the `readWorldChunkBlob`
+procedure, so nothing breaks, but every client pays a database read for them. `install`
+backfills the directory:
+
+- it reads the published heads;
+- it fetches each blob the directory lacks through `readWorldChunkBlob`;
+- it verifies each blob against the published manifest and installs it with its siblings;
+- it verifies every head over the public origin.
+
+It changes nothing in the world and needs no confirmation. Run it after Studio publishes,
+with the same token and chunk directory as `publish`:
+
+```bash
+WORLD_CHUNKS_TOKEN_FILE=/private/rejoin-tokens.json WORLD_CHUNKS_TOKEN_LABEL=owner \
+  npm run world:chunks:publish -- install --host http://127.0.0.1:3000 \
+  --database orchard-cellar-world --origin https://orchard.dastari.net \
+  --chunk-dir /home/toby/.local/share/orchard/world-chunks --report /private/evidence/install.json
 ```
 
 **Candidate and live-row parity.** `--candidate-out DIR` (with `plan` or `publish`, an
