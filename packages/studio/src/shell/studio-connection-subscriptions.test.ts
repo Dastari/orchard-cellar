@@ -50,6 +50,10 @@ describe('Studio live-map subscriptions', () => {
     expect(sql.some((query) => query.startsWith('SELECT * FROM "homestead"'))).toBe(true);
     expect(sql.some((query) => query.startsWith('SELECT * FROM "player_public"'))).toBe(true);
     expect(sql.some((query) => query.startsWith('SELECT * FROM "player_appearance"'))).toBe(true);
+    // Static world S7b-4: the topside chunk publication only (never the private blob table).
+    expect(sql.filter((query) => query.startsWith('SELECT * FROM "world_chunk_shadow"'))).toEqual([
+      'SELECT * FROM "world_chunk_shadow" WHERE "world_chunk_shadow"."space_id" = 0']);
+    expect(sql.some((query) => query.includes('world_chunk_blob'))).toBe(false);
   });
 
   it('supports interior, residence and cellar viewports', () => {

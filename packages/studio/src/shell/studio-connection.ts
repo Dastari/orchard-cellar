@@ -28,7 +28,8 @@ import {
   type StudioConnectionRefreshKind,
 } from './studio-connection-refresh.js';
 import { publishLiveMapWithChunks, type LiveMapPublicationProgress } from '../world-chunks/publication.js';
-import { studioChunkPublicationPort } from '../world-chunks/studio-port.js';
+import { studioChunkBlobReader, studioChunkPublicationPort } from '../world-chunks/studio-port.js';
+import { chunkPublicationCarriesMap, loadChunkMapHead, type ChunkMapHead } from '../world-chunks/map-head.js';
 import {
   StudioMapRegionHandover,
   type StudioMapChunkBounds,
@@ -89,6 +90,8 @@ export function studioInitialSubscriptionQueries() {
     tables.worldEnvironment,
     tables.worldWind,
     tables.liveMapDocument.where((row) => row.mapId.eq(LIVE_MAP_ID)),
+    // Static world S7b-4: the topside chunk publication, the map head Studio reads.
+    tables.worldChunkShadow.where((row) => row.spaceId.eq(BigInt(STUDIO_LIVE_ISLAND_SPACE_ID))),
     tables.homestead,
     tables.playerPosition,
     tables.playerPublic,
@@ -125,6 +128,8 @@ export interface StudioConnectionView {
   readonly supportGrant?: SupportGrant | null;
   readonly mapRevision: number | null;
   readonly mapDocument: StudioMapHead | null;
+  /** Static world S7b-4: where `mapDocument` came from (the chunk publication once it matches the map row). */
+  readonly mapHeadSource?: 'chunks' | 'row' | null;
   readonly publishingMap: boolean;
   /** Static world S7b-3: where a topside publication with its chunks is (null when none is running). */
   readonly mapPublishProgress?: LiveMapPublicationProgress | null;
@@ -563,6 +568,10 @@ export class StudioConnection implements StudioLiveAdapter {
   #contentEditorGrant: ContentEditorGrant | null = null;
   #supportGrant: SupportGrant | null = null;
   #publishingMap = false;
+  #rowMapHead: StudioMapHead | null = null;
+  #chunkMapHead: ChunkMapHead | null = null;
+  #chunkMapHeadKey: string | null = null;
+  #mapHeadSource: 'chunks' | 'row' | null = null;
   #mapPublishProgress: LiveMapPublicationProgress | null = null;
   #worldMutating = false;
   #error: string | null = null;
@@ -608,6 +617,7 @@ export class StudioConnection implements StudioLiveAdapter {
       supportGrant: this.#supportGrant,
       mapRevision: this.#mapRevision,
       mapDocument: this.#mapDocument,
+      mapHeadSource: this.#mapHeadSource,
       publishingMap: this.#publishingMap,
       mapPublishProgress: this.#mapPublishProgress,
       worldMutating: this.#worldMutating,
@@ -815,7 +825,7 @@ export class StudioConnection implements StudioLiveAdapter {
       this.#refreshScheduler.mark(kind);
     };
     for (const table of [
-      connection.db.ownMembership, connection.db.liveMapDocument,
+      connection.db.ownMembership, connection.db.liveMapDocument, connection.db.worldChunkShadow,
       connection.db.contentHead, connection.db.contentDefinition,
       connection.db.ownContentRevisions, connection.db.ownContentEditorGrant,
       connection.db.ownSupportGrant,
@@ -884,23 +894,54 @@ export class StudioConnection implements StudioLiveAdapter {
       : resolveStudioEffectiveRole(membership, this.#contentEditorGrant, this.#supportGrant) ?? 'content_editor';
     const mapDocument = connection.db.liveMapDocument.mapId.find(LIVE_MAP_ID);
     this.#mapRevision = mapDocument?.revision ?? null;
-    if (mapDocument === undefined || mapDocument === null) this.#mapDocument = null;
-    else if (this.#mapDocument === null || this.#mapDocument.mapId !== mapDocument.mapId
-      || this.#mapDocument.revision !== mapDocument.revision
-      || this.#mapDocument.contentHash !== mapDocument.contentHash
-      || this.#mapDocument.documentJson !== mapDocument.documentJson) {
-      this.#mapDocument = Object.freeze({
+    if (mapDocument === undefined || mapDocument === null) this.#rowMapHead = null;
+    else if (this.#rowMapHead === null || this.#rowMapHead.mapId !== mapDocument.mapId
+      || this.#rowMapHead.revision !== mapDocument.revision
+      || this.#rowMapHead.contentHash !== mapDocument.contentHash
+      || this.#rowMapHead.documentJson !== mapDocument.documentJson) {
+      this.#rowMapHead = Object.freeze({
         mapId: mapDocument.mapId,
         revision: mapDocument.revision,
         contentHash: mapDocument.contentHash,
         documentJson: mapDocument.documentJson,
       });
     }
+    this.syncChunkMapHead(connection);
+    this.selectMapHead();
     this.#contentHead = connection.db.contentHead.packId.find('live');
     this.#contentDefinitions = Object.freeze([...connection.db.contentDefinition.iter()]
       .sort((left, right) => left.id.localeCompare(right.id)));
     this.#contentRevisions = Object.freeze([...connection.db.ownContentRevisions.iter()]
       .sort((left, right) => left.revision < right.revision ? 1 : left.revision > right.revision ? -1 : 0));
+  }
+
+  /** Static world S7b-4: load the map head from the topside chunk publication when it changes. */
+  private syncChunkMapHead(connection: DbConnection): void {
+    const shadow = connection.db.worldChunkShadow.spaceId.find(BigInt(STUDIO_LIVE_ISLAND_SPACE_ID));
+    const key = shadow === null || shadow === undefined || !chunkPublicationCarriesMap(shadow.manifestJson)
+      ? null : `${shadow.revision}:${shadow.contentHash}`;
+    if (key === this.#chunkMapHeadKey) return;
+    this.#chunkMapHeadKey = key;
+    this.#chunkMapHead = null;
+    if (key === null || shadow === null || shadow === undefined) return;
+    loadChunkMapHead(LIVE_MAP_ID, shadow.manifestJson, studioChunkBlobReader(connection)).then((head) => {
+      if (connection !== this.#connection || this.#chunkMapHeadKey !== key) return;
+      this.#chunkMapHead = Object.freeze(head);
+      this.selectMapHead();
+      this.onChanged();
+    }, () => {
+      // The map row stays the head; the next publication tries again.
+    });
+  }
+
+  /** The chunk publication's head once it describes the live map row; the row until then. */
+  private selectMapHead(): void {
+    const row = this.#rowMapHead, chunks = this.#chunkMapHead;
+    const next = chunks !== null && row !== null && chunks.revision === row.revision && chunks.contentHash === row.contentHash ? chunks : row;
+    this.#mapHeadSource = next === null ? null : next === chunks ? 'chunks' : 'row';
+    if (next === null) this.#mapDocument = null;
+    else if (this.#mapDocument === null || this.#mapDocument.revision !== next.revision
+      || this.#mapDocument.contentHash !== next.contentHash || this.#mapDocument.mapId !== next.mapId) this.#mapDocument = next;
   }
 
   private refreshRows(connection: DbConnection): boolean {
@@ -935,6 +976,10 @@ export class StudioConnection implements StudioLiveAdapter {
     this.#explicitScopes = [];
     this.#mapRevision = null;
     this.#mapDocument = null;
+    this.#rowMapHead = null;
+    this.#chunkMapHead = null;
+    this.#chunkMapHeadKey = null;
+    this.#mapHeadSource = null;
     this.#contentHead = null;
     this.#contentDefinitions = Object.freeze([]);
     this.#contentRevisions = Object.freeze([]);
