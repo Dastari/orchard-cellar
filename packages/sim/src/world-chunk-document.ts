@@ -48,7 +48,8 @@ export const WORLD_CHUNK_DOCUMENT_CELL_CLASS = 'cells.*';
 /** `metadata.authoredDocument` in the manifest. */
 export interface WorldChunkAuthoredDocument {
   readonly schema: typeof WORLD_CHUNK_DOCUMENT_SCHEMA;
-  /** Every top-level key not carried elsewhere (scalars, `transitions`, and any key a later document adds). */
+  /** Scalars/transitions and keys not carried elsewhere. BUG-071: a list or metadata key may
+   * additionally retain its exact authored value when runtime content hydration changes it. */
   readonly fields: { readonly [key: string]: ChunkJson };
   /** Key orders per JSON path class: `''` is the root, `[]` any array element, `cells.*` any cell. */
   readonly keyOrders: WorldChunkDocumentKeyOrders['keyOrders'];
@@ -312,10 +313,12 @@ export function rebuildWorldChunkDocument(manifest: WorldChunkManifest, readBlob
     if (kind !== undefined) {
       const list = records.get(kind)!.sort((a, b) => a.ordinal - b.ordinal);
       if (list.length !== authored.counts.lists[key] || list.some((record, ordinal) => record.ordinal !== ordinal)) throw new Error(`chunk_document_records_incomplete: ${key}`);
-      root[key] = list.map(record => record.value);
+      const override = authored.fields[key];
+      if (override !== undefined && (!Array.isArray(override) || override.length !== list.length)) throw new Error(`chunk_document_records_incomplete: ${key}`);
+      root[key] = override ?? list.map(record => record.value);
       continue;
     }
-    const source = METADATA_KEYS.includes(key) ? documentMetadata : authored.fields;
+    const source = Object.prototype.hasOwnProperty.call(authored.fields, key) ? authored.fields : METADATA_KEYS.includes(key) ? documentMetadata : authored.fields;
     if (!Object.prototype.hasOwnProperty.call(source, key)) throw new Error(`chunk_document_key_missing: ${key}`);
     root[key] = source[key]!;
   }

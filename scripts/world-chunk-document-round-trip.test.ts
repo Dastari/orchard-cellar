@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { activeSurvivalLandmarks, bootstrapContentRegistry, parseMapDocumentV3, serializeMapDocumentV3, TOPSIDE_SPACE_ID,
+import { activeSurvivalLandmarks, bootstrapContentRegistry, createMapDocumentDelta, liveMapHeadSource, normalizeMapDocumentV3, parseMapDocumentV3, serializeMapDocumentV3, TOPSIDE_SPACE_ID,
   type ContentRegistry, type MapDocumentV3 } from '@orchard/sim';
 import type { LiveMapDocumentRow } from '@orchard/engine/live-map-runtime';
 import { CHUNK_RUNTIME_MAX_BLOB_BYTES, verifyRuntimeChunk } from '@orchard/sim/chunk-runtime';
@@ -9,6 +9,8 @@ import { decodeWorldChunk as deployedDecodeWorldChunk } from '../packages/sim/sr
 import { normalizedMapDocumentSemanticHash, rebuildWorldChunkDocument } from '@orchard/sim/world-chunk-document';
 import { captureWorldChunkSnapshot, liveDocumentSemanticHash, materializeWorldChunks, verifyWorldChunkParity,
   type MaterializedWorldChunks, type WorldChunkSnapshot } from './materialize-world-chunks.js';
+import { predictLiveMapHead } from '../packages/studio/src/world-chunks/publication-materialize.js';
+import { prepareLiveMapPublication } from '../packages/world/src/live-map-publication.js';
 import { authoredRoundTripRow, bootstrapRoundTripRow } from './world-chunk-document.fixture.js';
 
 /** Static-world S7a: the live map document round-trips through the published chunks
@@ -46,13 +48,14 @@ describe.each([
 
   it('rebuilds the live document from the chunks plus the manifest with the live semantic hash', () => {
     const live = snapshot.document;
-    expect(liveDocumentSemanticHash(rebuilt)).toBe(liveDocumentSemanticHash(live));
-    expect(normalizedMapDocumentSemanticHash(rebuilt)).toBe(liveDocumentSemanticHash(live));
-    expect(serializeMapDocumentV3(rebuilt)).toBe(serializeMapDocumentV3(live));
+    const authored = snapshot.authoredDocument ?? live;
+    expect(liveDocumentSemanticHash(rebuilt)).toBe(liveDocumentSemanticHash(authored));
+    expect(normalizedMapDocumentSemanticHash(rebuilt)).toBe(liveDocumentSemanticHash(authored));
+    expect(serializeMapDocumentV3(rebuilt)).toBe(serializeMapDocumentV3(authored));
     // Studio parses what it loads: the rebuilt document is a parse fixed point of the live one.
     const reparsed = parseMapDocumentV3(serializeMapDocumentV3(rebuilt), activeSurvivalLandmarks(registry, TOPSIDE_SPACE_ID));
     expect(liveDocumentSemanticHash(reparsed)).toBe(liveDocumentSemanticHash(live));
-    expect(rebuilt).toEqual(live);
+    expect(rebuilt).toEqual(authored);
     // The materializer's own gate (verifyWorldChunkParity) runs the same round trip.
     verifyWorldChunkParity(snapshot, extended);
   }, 180_000);
@@ -102,4 +105,59 @@ describe.each([
       for (const [index, bytes] of materialized.blobs.entries()) expect(Buffer.compare(bytes, expected.blobs[index]!), `chunk ${index}`).toBe(0);
     }
   }, 180_000);
+});
+
+
+describe('historical authored identity across current content hydration (BUG-071)', () => {
+  it('preserves old landmark role and suppression representation while runtime records and authority stay hydrated', () => {
+    const registry = bootstrapContentRegistry();
+    const base = JSON.parse(bootstrapRoundTripRow(registry).documentJson) as MapDocumentV3;
+    const landmark = base.landmarks.find(value => value.role !== undefined)!;
+    expect(landmark).toBeDefined();
+    const historical = { ...landmark };
+    delete historical.role;
+    const suppression = `decoration-${landmark.sourceDecorationId}`;
+    const document = { ...base, revision: 1,
+      landmarks: base.landmarks.map(value => value.id === landmark.id ? historical : value),
+      generatedSuppressions: [...base.generatedSuppressions, suppression] };
+    const documentJson = serializeMapDocumentV3(document);
+    expect(serializeMapDocumentV3(normalizeMapDocumentV3(JSON.parse(documentJson) as MapDocumentV3))).toBe(documentJson);
+    const row = { mapId: 'live-island', revision: 1, contentHash: liveMapHeadSource(document, 1).contentHash, documentJson };
+    const snapshot = captureWorldChunkSnapshot(row, registry);
+    expect(snapshot.document.landmarks.find(value => value.id === landmark.id)).toMatchObject({ role: landmark.role, enabled: false });
+    expect(snapshot.document.generatedSuppressions).not.toContain(suppression);
+    const extended = materializeWorldChunks(snapshot, row, registry, { includeAuthoredDocument: true });
+    const rebuilt = rebuildWorldChunkDocument(extended.manifest, readerFor(extended));
+    expect(serializeMapDocumentV3(rebuilt)).toBe(documentJson);
+    verifyWorldChunkParity(snapshot, extended);
+    const plain = materializeWorldChunks(snapshot, row, registry);
+    for (const [index, bytes] of extended.blobs.entries()) {
+      expect(withoutExtension(decodeWorldChunk(bytes))).toEqual(withoutExtension(decodeWorldChunk(plain.blobs[index]!)));
+    }
+  }, 180_000);
+});
+
+
+it('keeps regular Studio publication aligned after a historically authored restore', () => {
+  const registry = bootstrapContentRegistry();
+  const raw = JSON.parse(bootstrapRoundTripRow(registry).documentJson) as MapDocumentV3;
+  const landmark = raw.landmarks.find(value => value.role !== undefined)!;
+  const historical = { ...landmark }; delete historical.role;
+  const archived = { ...raw, landmarks: raw.landmarks.map(value => value.id === landmark.id ? historical : value),
+    generatedSuppressions: [...raw.generatedSuppressions, `decoration-${landmark.sourceDecorationId}`] };
+  const restored = liveMapHeadSource(archived, 14);
+  const unchangedArchive = serializeMapDocumentV3(archived);
+  const landmarks = activeSurvivalLandmarks(registry, TOPSIDE_SPACE_ID);
+  const previous = parseMapDocumentV3(restored.documentJson, landmarks);
+  const edited = { ...previous, title: 'Edit after history restore' };
+  const deltaJson = JSON.stringify(createMapDocumentDelta(previous, edited));
+  const predicted = predictLiveMapHead({ head: { revision: 14, documentJson: restored.documentJson },
+    deltaJson, expectedRevision: 14, clientMutationId: 'after-history' }, registry);
+  const server = prepareLiveMapPublication(deltaJson, 14, 'after-history',
+    () => ({ revision: 14, clientMutationId: '', document: previous }), json => parseMapDocumentV3(json, landmarks));
+  const expected = liveMapHeadSource(server!, 15);
+  expect(predicted).toEqual({ mapId: 'live-island', revision: 15, documentJson: expected.documentJson, contentHash: expected.contentHash });
+  expect(expected.document.landmarks.find(value => value.id === landmark.id)).toMatchObject({ role: landmark.role, enabled: false });
+  expect(expected.document.generatedSuppressions).not.toContain(`decoration-${landmark.sourceDecorationId}`);
+  expect(serializeMapDocumentV3(archived)).toBe(unchangedArchive);
 });
