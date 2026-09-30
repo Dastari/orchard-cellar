@@ -87,10 +87,10 @@ describe('homestead exteriors from the topside chunks (static world S6)', () => 
 
   it('caches a blob only once it verifies, and drops a cached copy that does not (review of #297)', async () => {
     const site = { worldTileX: 520, worldTileY: 520 };
-    const [{ cx, cy }] = homesteadPatchChunks(site, HOMESTEAD_TERRAIN_SIZE_TILES);
-    const bytes = generatedChunk(cx!, cy!), hash = decodeWorldChunk(bytes).contentHash;
+    const { cx, cy } = homesteadPatchChunks(site, HOMESTEAD_TERRAIN_SIZE_TILES)[0]!;
+    const bytes = generatedChunk(cx, cy), hash = decodeWorldChunk(bytes).contentHash;
     const manifest: WorldChunkManifest = { schema: 1, chunkSize: 64, spaceId: 0, width: 832, height: 832, assetRevision: 'assets-1',
-      sourceRevision: 3, sourceHash: 'map-3', metadata: {}, chunks: [{ cx: cx!, cy: cy!, contentHash: hash, byteLength: bytes.length }] };
+      sourceRevision: 3, sourceHash: 'map-3', metadata: {}, chunks: [{ cx, cy, contentHash: hash, byteLength: bytes.length }] };
     const shadow = { revision: 2, manifestJson: JSON.stringify(manifest) };
     const cache = { get: vi.fn(async () => new Uint8Array(bytes.length)), put: vi.fn(async () => undefined), delete: vi.fn(async () => undefined) };
     // The origin serves poisoned bytes: nothing is cached.
