@@ -61,9 +61,12 @@ export function retireTopsideAuditDocuments(payloadJson: string,
   if (payloadJson === '') return { payloadJson, copies: 0 };
   const payload: unknown = JSON.parse(payloadJson);
   let copies = 0;
-  const reference = (value: string): HistoryDocumentReference | undefined => {
+  const reference = (value: string, hintedTopside = false): HistoryDocumentReference | undefined => {
     const document = JSON.parse(value) as { id?: string };
-    if (document.id !== 'live-island') return undefined;
+    if (document.id !== 'live-island') {
+      if (hintedTopside) throw new Error('chunk_history_audit_document_mismatch');
+      return undefined;
+    }
     const result = resolve(value); copies += 1; return result;
   };
   const visit = (value: unknown): unknown => {
@@ -73,7 +76,7 @@ export function retireTopsideAuditDocuments(payloadJson: string,
     const next: Record<string, unknown> = {};
     for (const [key, entry] of Object.entries(record)) {
       if (key === 'documentJson' && typeof entry === 'string') {
-        const ref = reference(entry);
+        const ref = reference(entry, record['mapId'] === 'live-island');
         if (ref !== undefined) {
           if (verifyIds && typeof record['revisionId'] === 'string' && record['revisionId'] !== ref.revisionId) throw new Error('chunk_history_audit_reference_mismatch');
           next['documentReference'] = ref; continue;
