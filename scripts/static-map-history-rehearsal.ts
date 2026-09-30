@@ -3,8 +3,8 @@
  */
 import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
-import { lstat, writeFile } from 'node:fs/promises';
-import { isAbsolute } from 'node:path';
+import { lstat, readFile, realpath, writeFile } from 'node:fs/promises';
+import { isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { DbConnection, tables } from '@orchard/world-bindings';
@@ -12,7 +12,7 @@ import { normalizeMapDocumentV3, type MapDocumentV3 } from '@orchard/sim';
 import { normalizedMapDocumentSha256 } from '@orchard/sim/world-chunk-document';
 import { loadChunkMapHead } from '../packages/studio/src/world-chunks/map-head.js';
 import { allHistoryRows, historyTokenProvider, runHistory } from './world-chunks-history.js';
-import { connectWorld, httpOrigin, materializeInProcess, sha256Hex, type HistoryWorldPort, type LiveState,
+import { connectWorld, materializeInProcess, sha256Hex, type HistoryWorldPort, type LiveState,
   type MaterializePort, type OriginPort } from './world-chunks-publish.js';
 
 export function assertHistoryRehearsalTarget(host: string, database: string): void {
@@ -21,6 +21,44 @@ export function assertHistoryRehearsalTarget(host: string, database: string): vo
   if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || url.username || url.password
     || url.pathname !== '/' || url.search || url.hash || !Number.isInteger(port) || port < 1024 || port > 65535 || port === 3000
     || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(database)) throw new Error('static_history_rehearsal_target_refused');
+}
+
+/** The migration lane builds and validates this artifact while the public frontend is stopped. */
+export async function candidateAtlasOrigin(repository: string): Promise<{
+  readonly origin: OriginPort;
+  readonly evidence: { readonly path: string; readonly sha256: string; readonly byteLength: number; readonly schemaVersion: number; readonly revision: string };
+  readonly assertUnchanged: () => Promise<void>;
+}> {
+  const relative = 'packages/client/dist/generated/atlas.packs.json';
+  const path = resolve(repository, relative);
+  const readCandidate = async (): Promise<Uint8Array> => {
+    const stat = await lstat(path);
+    if (!stat.isFile() || stat.isSymbolicLink() || await realpath(path) !== path || stat.size < 1 || stat.size > 16 * 1024 * 1024) {
+      throw new Error('static_history_rehearsal_candidate_atlas_file_invalid');
+    }
+    const bytes = await readFile(path);
+    if (bytes.byteLength < 1 || bytes.byteLength > 16 * 1024 * 1024) throw new Error('static_history_rehearsal_candidate_atlas_file_invalid');
+    return bytes;
+  };
+  const bytes = new Uint8Array(await readCandidate());
+  let index: unknown;
+  try { index = JSON.parse(new TextDecoder('utf-8', {fatal:true}).decode(bytes)); }
+  catch (error) { throw new Error('static_history_rehearsal_candidate_atlas_index_invalid', {cause:error}); }
+  const record = index as { schemaVersion?: unknown; revision?: unknown; packs?: unknown; assetPacks?: unknown } | null;
+  const object = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value);
+  if (!object(record) || record['schemaVersion'] !== 5 || typeof record['revision'] !== 'string' || record['revision'].length === 0
+    || !object(record['packs']) || !object(record['assetPacks'])
+    || Object.values(record['packs']).some(value => typeof value !== 'string' || value.length === 0)
+    || Object.values(record['assetPacks']).some(value => typeof value !== 'string' || !Object.prototype.hasOwnProperty.call(record['packs'], value))) {
+    throw new Error('static_history_rehearsal_candidate_atlas_index_invalid');
+  }
+  const digest = sha256Hex(bytes);
+  const assertUnchanged = async (): Promise<void> => {
+    if (sha256Hex(await readCandidate()) !== digest) throw new Error('static_history_rehearsal_candidate_atlas_changed');
+  };
+  return { evidence: {path:relative,sha256:digest,byteLength:bytes.byteLength,schemaVersion:5,revision:record['revision']}, assertUnchanged,
+    origin: { origin:'candidate-client-artifact', atlasIndex:async()=>{await assertUnchanged();return bytes.slice();},
+      blob:async()=>{throw new Error('static_history_rehearsal_candidate_blob_read_refused');} } };
 }
 
 export interface RehearsalAdmin {
@@ -184,7 +222,9 @@ export async function main(env = process.env): Promise<void> {
   const progress: object[] = [];
   const repository = fileURLToPath(new URL('..', import.meta.url));
   try {
-    const result = await runStaticMapHistoryRehearsal({ world, database, progress: entry => {progress.push(entry);console.error(`[static-history] ${JSON.stringify(entry)}`);}, origin: httpOrigin('https://orchard.dastari.net'), materialize: materializeInProcess,
+    const atlas = await candidateAtlasOrigin(repository);
+    progress.push({stage:'candidate-atlas',...atlas.evidence});
+    const result = await runStaticMapHistoryRehearsal({ world, database, progress: entry => {progress.push(entry);console.error(`[static-history] ${JSON.stringify(entry)}`);}, origin: atlas.origin, materialize: materializeInProcess,
       openAdmin: () => connectAdmin(host, database, token), verifyRejoin: async () => {
         const run = promisify(execFile);
         const snapshot = `${report}.rejoin-before.json`, after = `${report}.rejoin-after.json`;
@@ -193,7 +233,8 @@ export async function main(env = process.env): Promise<void> {
         await run('node', ['--import', 'tsx', 'scripts/world-rejoin-smoke.ts', 'capture', snapshot], options);
         await run('node', ['--import', 'tsx', 'scripts/world-rejoin-smoke.ts', 'verify', snapshot, after], options);
       } });
-    await writeFile(report, `${JSON.stringify(result, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
+    await atlas.assertUnchanged();
+    await writeFile(report, `${JSON.stringify({...result,candidateAtlas:atlas.evidence}, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
     console.log(JSON.stringify({ ok: true, evidence: report }));
   } catch (error) {
     const code = error instanceof Error && /^(?:static_history_rehearsal|chunk_history|live_map_revision)[a-z0-9_:.-]*$/u.test(error.message) ? error.message : 'static_history_rehearsal_failed';
