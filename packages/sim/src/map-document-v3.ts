@@ -554,6 +554,16 @@ export function mapDocumentV3Hash(document: MapDocumentV3): string {
   return hash.toString(16).padStart(8, '0');
 }
 
+/** The live map head a publication at `revision` commits: its canonical document, transport JSON and
+ * content hash. The world module's map commit and the Studio chunk materializer (which pins each chunk
+ * manifest to this head, static world S7b) both derive it here, so they cannot disagree. */
+export function liveMapHeadSource(document: MapDocumentV3, revision: number): {
+  readonly document: MapDocumentV3; readonly documentJson: string; readonly contentHash: string;
+} {
+  const canonical = normalizeMapDocumentV3({ ...document, revision });
+  return { document: canonical, documentJson: serializeMapDocumentV3ForTransport(canonical), contentHash: mapDocumentV3Hash(canonical) };
+}
+
 export type MapDocumentV3EditCommand =
   | {readonly kind:'move_resource';readonly placement:MapResourcePlacement}
   | { readonly kind: 'terrain'; readonly command: MapEditCommand; readonly biome?: MapBiomeId; readonly automaticSurround?: boolean }

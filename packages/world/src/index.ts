@@ -1,7 +1,9 @@
 import { RULE_MEDIA, advanceHazardDamage, runtimeTraversalPolicy, runtimeActorCollision, runtimeCreatureDefinition, runtimeTraversalAbilities, traversalSolidGeometry, type RuntimeTraversalActor } from '@orchard/sim';
 import { planObjectStateSettlement } from './content/object-state-runtime.js';
 import { objectEnvironmentIntervals, type ObjectEnvironmentEpoch, effectsResult, type AnyHandlerRegistration, type ExternalStateTransitionEvent } from '@orchard/sim';
-import { shadowPublicationRefusalCode, validateShadowBlob, validateShadowPublication, ShadowChunkCollisionCache } from './content/chunk-shadow-runtime.js';
+import {
+  ChunkBlobReadLimiter, planChunkStage, shadowPublicationRefusalCode, validateShadowBlob, validateShadowPublication, ShadowChunkCollisionCache,
+} from './content/chunk-shadow-runtime.js';
 import { ChunkAuthorityDispatcher, type ChunkAuthoritySource } from './content/chunk-authority-dispatch.js';
 import { chunkAuthorityAuditClock, chunkAuthoritySnapshotContext, runChunkAuthorityAudit, snapshotChunkAuthorityTables } from './content/chunk-authority-audit.js';
 import { LIVE_ISLAND_OUTSIDE_MAP_BIOME, type LiveIslandCollisionRuntime, type LiveIslandStaticView } from './content/chunk-authority-runtime.js';
@@ -368,7 +370,7 @@ import {
   mapDocumentV3Hash,
   normalizeMapDocumentV3,
   parseMapDocumentV3,
-  serializeMapDocumentV3ForTransport,
+  liveMapHeadSource,
   type MapDocumentV3,
   type GeneratedWildlife,
   type GeneratedWildlifeHive,
@@ -1851,6 +1853,11 @@ const world_chunk_blob = table(
   { name: 'world_chunk_blob' },
   { contentHash: t.string().primaryKey(), bytes: t.array(t.u8()) },
 );
+/** Static world S7b: blobs staged that no published head referenced yet, per sender (quota and expiry). */
+const world_chunk_blob_stage = table(
+  { name: 'world_chunk_blob_stage', indexes: [{ accessor: 'by_staged_by', algorithm: 'btree', columns: ['stagedBy'] }] },
+  { contentHash: t.string().primaryKey(), stagedBy: t.identity(), stagedAt: t.timestamp(), byteLength: t.u32() },
+);
 const live_map_document = table(
   { name: 'live_map_document', public: true },
   {
@@ -3155,7 +3162,7 @@ const spacetimedb = schema({
   space_admin_flag,
   admin_world_validation_report,
   live_map_document,
-  world_chunk_head, world_chunk_shadow, world_chunk_blob,
+  world_chunk_head, world_chunk_shadow, world_chunk_blob, world_chunk_blob_stage,
   live_map_revision,
   chat_channel,
   chat_channel_member,
@@ -13245,6 +13252,9 @@ function commitLiveMapSnapshot(
   expectedRevision: number,
   clientMutationId: string,
   preserveUnspecifiedPolicy = true,
+  /** Runs right after the new head row is written, before anything reads the island runtime (resource
+   * moves, streetlamps): the atomic map-and-chunks publication commits its chunk heads here (S7b). */
+  afterHead?: () => void,
 ): void {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,95}$/u.test(clientMutationId)) {
     throw new SenderError('invalid_live_map_mutation_id');
@@ -13290,9 +13300,7 @@ function commitLiveMapSnapshot(
     throw new SenderError(error instanceof Error ? error.message : 'map_resource_move_invalid');
   }
   const revision = currentRevision + 1;
-  const canonical = normalizeMapDocumentV3({ ...document, revision });
-  const documentJson = serializeMapDocumentV3ForTransport(canonical);
-  const contentHash = mapDocumentV3Hash(canonical);
+  const { document: canonical, documentJson, contentHash } = liveMapHeadSource(document, revision);
   const assetRevisions = [...new Set(canonical.prefabs
     .map((prefab) => prefab.assetRegistryRevision)
     .filter((revision) => revision.length > 0))];
@@ -13308,6 +13316,7 @@ function commitLiveMapSnapshot(
   };
   if (existing === null) ctx.db.live_map_document.insert(row);
   else ctx.db.live_map_document.mapId.update(row);
+  afterHead?.();
   if (resourceMoves.length > 0) {
     // The transaction's new map head supplies candidate terrain and authored
     // collision. Excluding the whole move set permits atomic swaps.
@@ -17965,26 +17974,86 @@ export const publishLiveMapDocument = spacetimedb.reducer(
     clientMutationId: t.string(),
   },
   (ctx, { mapId, expectedRevision, documentJson, clientMutationId }) => {
-    requireStudioScope(ctx, 'map');
-    const mapGrant = ctx.db.studio_scope_grant.id.find(`${ctx.sender.toHexString()}:map`);
-    if (mapGrant === null || mapGrant.revokedAt !== undefined) {
-      requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
-    }
-    let document: MapDocumentV3 | null;
-    try {
-      document = prepareLiveMapPublication(documentJson, expectedRevision, clientMutationId, () => {
-        const head = ctx.db.live_map_document.mapId.find(mapId);
-        return head === null ? null : {
-          revision: head.revision, clientMutationId: head.clientMutationId,
-          document: parseMapDocumentV3(head.documentJson,
-            mapId === LIVE_ISLAND_MAP_ID ? activeTopsideLandmarks(ctx) : undefined),
-        };
-      }, json => validatedLiveMapDocument(ctx, mapId, json));
-    } catch (error) {
-      throw new SenderError(error instanceof Error ? error.message : 'invalid_live_map_document');
-    }
+    requireLiveMapPublisher(ctx);
+    const document = preparedLiveMapPublication(ctx, mapId, expectedRevision, documentJson, clientMutationId);
     if (document === null) return;
     commitLiveMapSnapshot(ctx, document, expectedRevision, clientMutationId);
+  },
+);
+
+/** Map publishers: the Studio map scope with an explicit map grant, or the world owner (admins). */
+function requireLiveMapPublisher(ctx: WorldReducerContext): void {
+  requireStudioScope(ctx, 'map');
+  const mapGrant = ctx.db.studio_scope_grant.id.find(`${ctx.sender.toHexString()}:map`);
+  if (mapGrant === null || mapGrant.revokedAt !== undefined) {
+    requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  }
+}
+
+/** The document a map publication commits (a delta applied to the head, or a whole document), or
+ * null for an identical retry of an already committed delta. */
+function preparedLiveMapPublication(ctx: WorldReducerContext, mapId: string, expectedRevision: number,
+  documentJson: string, clientMutationId: string): MapDocumentV3 | null {
+  try {
+    return prepareLiveMapPublication(documentJson, expectedRevision, clientMutationId, () => {
+      const head = ctx.db.live_map_document.mapId.find(mapId);
+      return head === null ? null : {
+        revision: head.revision, clientMutationId: head.clientMutationId,
+        document: parseMapDocumentV3(head.documentJson,
+          mapId === LIVE_ISLAND_MAP_ID ? activeTopsideLandmarks(ctx) : undefined),
+      };
+    }, json => validatedLiveMapDocument(ctx, mapId, json));
+  } catch (error) {
+    throw new SenderError(error instanceof Error ? error.message : 'invalid_live_map_document');
+  }
+}
+
+/**
+ * Static world S7b: publish a topside map edit and its chunk publication in one transaction, so the
+ * island every player walks on is never behind the map Studio published.
+ *
+ * Studio materialises the chunks for the head this publication commits (`liveMapHeadSource` at
+ * `expectedRevision + 1`) and stages the blobs first (`stageWorldChunkBlob`). The map commits exactly
+ * as `publishLiveMapDocument` does; the chunk heads commit right after the new head row, with the same
+ * checks as `publishWorldChunkShadow` (a CAS on `expectedChunkRevision`, the manifest pinned to the new
+ * head, the live content hash, every blob staged and verified). The new publication must then serve
+ * (assemble completely, no lag) before anything reads the island. Any refusal rolls back the map too.
+ * An identical retry of a committed publication is a no-op.
+ */
+export const publishLiveMapWithChunks = spacetimedb.reducer(
+  {
+    mapId: t.string(),
+    expectedRevision: t.u32(),
+    documentJson: t.string(),
+    clientMutationId: t.string(),
+    manifestJson: t.string(),
+    contentHash: t.string(),
+    expectedChunkRevision: t.u32(),
+  },
+  (ctx, input) => {
+    requireLiveMapPublisher(ctx);
+    if (input.mapId !== LIVE_ISLAND_MAP_ID) throw new SenderError('chunk_shadow_space_not_supported');
+    const chunks = { manifestJson: input.manifestJson, mapId: input.mapId, contentHash: input.contentHash, expectedRevision: input.expectedChunkRevision };
+    let committed = false;
+    const commitChunks = (): void => {
+      requireSameChunkAssetRevision(ctx, input.manifestJson);
+      commitWorldChunkShadow(ctx, chunks);
+      requireServableChunkPublication(ctx);
+      committed = true;
+    };
+    try {
+      const document = preparedLiveMapPublication(ctx, input.mapId, input.expectedRevision, input.documentJson, input.clientMutationId);
+      if (document !== null) commitLiveMapSnapshot(ctx, document, input.expectedRevision, input.clientMutationId, true, commitChunks);
+      if (committed) return;
+      // The map half was an identical retry: done when the chunk half committed too, else publish it now.
+      const shadow = ctx.db.world_chunk_shadow.spaceId.find(BigInt(TOPSIDE_SPACE_ID));
+      if (shadow !== null && shadow.manifestJson === input.manifestJson && shadow.contentHash === input.contentHash) return;
+      commitChunks();
+    } catch (error) {
+      // The transaction rolls back, but module caches do not: never keep a runtime assembled from it.
+      chunkAuthorityDispatcher.release();
+      throw error;
+    }
   },
 );
 
@@ -26367,12 +26436,35 @@ function withShadowPublicationRefusals<T>(run: () => T): T {
 
 // Shadow-only ingestion. Static serving is a separate guarded publication step.
 export const stageWorldChunkBlob = spacetimedb.reducer({ bytes: t.array(t.u8()) }, (ctx, { bytes }) => {
-  requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  // S7b: map publishers stage the chunks of their own publications (publishLiveMapWithChunks).
+  const mapGrant = ctx.db.studio_scope_grant.id.find(`${ctx.sender.toHexString()}:map`);
+  if (mapGrant !== null && mapGrant.revokedAt === undefined) requireLiveMapPublisher(ctx);
+  else requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
   const chunk = withShadowPublicationRefusals(() => validateShadowBlob(Uint8Array.from(bytes)));
-  if (ctx.db.world_chunk_blob.contentHash.find(chunk.contentHash) === null) ctx.db.world_chunk_blob.insert({ contentHash: chunk.contentHash, bytes });
+  if (ctx.db.world_chunk_blob.contentHash.find(chunk.contentHash) !== null) return;
+  // Review of #296: a sender's unreferenced staged bytes are bounded, and blobs no publication took up
+  // within the expiry are removed (lazily, when that sender stages again).
+  const now = ctx.timestamp.microsSinceUnixEpoch;
+  const rows = [...ctx.db.world_chunk_blob_stage.by_staged_by.filter(ctx.sender)];
+  const referenced = new Set([...ctx.db.world_chunk_head.by_space.filter(BigInt(TOPSIDE_SPACE_ID))].map(head => head.contentHash));
+  const plan = planChunkStage(rows.map(row => ({ contentHash: row.contentHash, stagedAtMicros: row.stagedAt.microsSinceUnixEpoch,
+    byteLength: row.byteLength })), referenced, now, bytes.length);
+  for (const expired of plan.expired) {
+    ctx.db.world_chunk_blob_stage.contentHash.delete(expired.contentHash);
+    if (expired.deleteBlob) ctx.db.world_chunk_blob.contentHash.delete(expired.contentHash);
+  }
+  if (!plan.allowed) throw new SenderError('chunk_stage_quota_exceeded');
+  ctx.db.world_chunk_blob.insert({ contentHash: chunk.contentHash, bytes });
+  ctx.db.world_chunk_blob_stage.insert({ contentHash: chunk.contentHash, stagedBy: ctx.sender, stagedAt: ctx.timestamp, byteLength: bytes.length });
 });
 export const publishWorldChunkShadow = spacetimedb.reducer({ manifestJson: t.string(), mapId: t.string(), contentHash: t.string(), expectedRevision: t.u32() }, (ctx, input) => {
   requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  commitWorldChunkShadow(ctx, input);
+});
+
+/** Validates a chunk publication against the live map head and content, then replaces the topside heads. */
+function commitWorldChunkShadow(ctx: WorldReducerContext,
+  input: { readonly manifestJson: string; readonly mapId: string; readonly contentHash: string; readonly expectedRevision: number }): void {
   const map = ctx.db.live_map_document.mapId.find(input.mapId);
   if (map === null) throw new SenderError('chunk_shadow_map_missing');
   if (input.manifestJson.length > 1024 * 1024) throw new SenderError('chunk_manifest_too_large');
@@ -26387,10 +26479,39 @@ export const publishWorldChunkShadow = spacetimedb.reducer({ manifestJson: t.str
   if (input.expectedRevision === 0xffffffff) throw new SenderError('chunk_shadow_revision_exhausted');
   const revision = input.expectedRevision + 1;
   for (const row of ctx.db.world_chunk_head.by_space.filter(spaceId)) ctx.db.world_chunk_head.id.delete(row.id);
-  for (const head of manifest.chunks) ctx.db.world_chunk_head.insert({ id: `${spaceId}:${head.cx}:${head.cy}`, spaceId, cx: head.cx, cy: head.cy, contentHash: head.contentHash, revision, byteLength: head.byteLength });
+  for (const head of manifest.chunks) {
+    ctx.db.world_chunk_head.insert({ id: `${spaceId}:${head.cx}:${head.cy}`, spaceId, cx: head.cx, cy: head.cy, contentHash: head.contentHash, revision, byteLength: head.byteLength });
+    // Referenced now: no longer the stager's pending bytes, never expired.
+    ctx.db.world_chunk_blob_stage.contentHash.delete(head.contentHash);
+  }
   const row = { spaceId, revision, mapId: input.mapId, contentHash: input.contentHash, manifestJson: input.manifestJson };
   if (previous === null) ctx.db.world_chunk_shadow.insert(row); else ctx.db.world_chunk_shadow.spaceId.update(row);
-});
+}
+
+/**
+ * Review of #296: a Studio publication keeps the current publication's asset revision. Only the
+ * release lane (`publishWorldChunkShadow`) moves it, together with the art it describes; otherwise
+ * every client would pause with `asset_revision_mismatch`.
+ */
+function requireSameChunkAssetRevision(ctx: WorldReducerContext, manifestJson: string): void {
+  const current = ctx.db.world_chunk_shadow.spaceId.find(BigInt(TOPSIDE_SPACE_ID));
+  if (current === null) return;
+  const assetRevision = (json: string): unknown => {
+    try { return (JSON.parse(json) as { assetRevision?: unknown } | null)?.assetRevision; } catch { return undefined; }
+  };
+  if (assetRevision(manifestJson) !== assetRevision(current.manifestJson)) throw new SenderError('chunk_asset_revision_changed');
+}
+
+/** The chunk publication just committed must serve: assembled completely and pinned to the live head
+ * and content (no lag). Refuses with the dispatcher's reason, which rolls the publication back. */
+function requireServableChunkPublication(ctx: WorldReducerContext): void {
+  const runtime = chunkAuthorityDispatcher.select(chunkAuthoritySource(ctx));
+  const resolution = chunkAuthorityDispatcher.status().lastResolution;
+  if (runtime === null || resolution?.ok !== true) {
+    throw new SenderError(`chunk_publication_unservable:${resolution?.ok === false ? resolution.reason : 'unresolved'}`);
+  }
+  if (resolution.lag !== undefined) throw new SenderError(`chunk_publication_lagging:${resolution.lag.join(',')}`);
+}
 
 /** Static-world S2a: owner-or-admin chunkAuthority switch (off | shadow | on),
  * stored in the public space 0 space_admin_flag row. Idempotent: setting the
@@ -26418,6 +26539,27 @@ function chunkShadowCollisionAt(ctx: WorldReducerContext, spaceId: bigint, x: nu
     const row = ctx.db.world_chunk_blob.contentHash.find(hash); return row === null ? undefined : Uint8Array.from(row.bytes);
   });
 }
+
+/**
+ * Static world S7b: a published chunk blob, for members, when the origin's `/world/` directory does not
+ * have it yet (a Studio publication commits blobs to the database; the host installs them later). Only
+ * the blob the current head at (cx, cy) references is returned: that is public geometry every client
+ * downloads anyway. The caller verifies it against its manifest exactly as it verifies a served blob.
+ */
+const chunkBlobReadLimiter = new ChunkBlobReadLimiter();
+export const readWorldChunkBlob = spacetimedb.procedure(
+  { spaceId: t.u64(), cx: t.i32(), cy: t.i32(), contentHash: t.string() }, t.array(t.u8()),
+  (ctx, { spaceId, cx, cy, contentHash }) => ctx.withTx(tx => {
+    requireAuthorizedSender(tx.senderAuth.jwt, tx.db.membership.identity.find(tx.sender));
+    // Review of #296: about 170 KB per call; a whole island is 169 reads.
+    if (!chunkBlobReadLimiter.take(tx.sender.toHexString(), tx.timestamp.microsSinceUnixEpoch)) throw new SenderError('chunk_blob_read_rate_limited');
+    const head = tx.db.world_chunk_head.id.find(`${spaceId}:${cx}:${cy}`);
+    if (head === null || head.contentHash !== contentHash) throw new SenderError('chunk_blob_not_published');
+    const blob = tx.db.world_chunk_blob.contentHash.find(contentHash);
+    if (blob === null) throw new SenderError('chunk_blob_missing');
+    return blob.bytes;
+  }),
+);
 
 export const inspectWorldChunkShadow = spacetimedb.procedure(
   { spaceId: t.u64(), x: t.i32(), y: t.i32() }, t.string(),

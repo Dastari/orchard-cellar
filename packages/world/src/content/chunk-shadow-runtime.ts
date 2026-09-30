@@ -61,3 +61,46 @@ export class ShadowChunkCollisionCache {
     return sampleChunkCollision(chunk,x,y);
   }
 }
+
+/** Static world S7b: blobs a sender staged that no published head references yet. */
+export interface ChunkStageRow { readonly contentHash: string; readonly stagedAtMicros: bigint; readonly byteLength: number }
+/** Unreferenced bytes one sender may hold staged (a whole-island first publication is about 29 MiB). */
+export const CHUNK_STAGE_QUOTA_BYTES = 64 * 1024 * 1024;
+/** How long a staged blob may wait for the publication that references it before it is removed. */
+export const CHUNK_STAGE_TTL_MICROS = 60n * 60n * 1_000_000n;
+
+/**
+ * One sender's stage: which of their earlier stage rows have expired (and whether each blob is removed
+ * with it: only when no current head references it), and whether `incomingBytes` more fit the quota.
+ */
+export function planChunkStage(rows: readonly ChunkStageRow[], referenced: ReadonlySet<string>, nowMicros: bigint, incomingBytes: number): {
+  readonly expired: readonly { readonly contentHash: string; readonly deleteBlob: boolean }[];
+  readonly allowed: boolean;
+} {
+  const expired = rows.filter(row => nowMicros - row.stagedAtMicros >= CHUNK_STAGE_TTL_MICROS)
+    .map(row => ({ contentHash: row.contentHash, deleteBlob: !referenced.has(row.contentHash) }));
+  const expiredHashes = new Set(expired.map(row => row.contentHash));
+  const outstanding = rows.filter(row => !expiredHashes.has(row.contentHash) && !referenced.has(row.contentHash))
+    .reduce((total, row) => total + row.byteLength, 0);
+  return { expired, allowed: outstanding + incomingBytes <= CHUNK_STAGE_QUOTA_BYTES };
+}
+
+/** Per module instance, best effort: at most `limit` blob reads per sender per `windowMicros`. */
+export class ChunkBlobReadLimiter {
+  readonly #windows = new Map<string, { start: bigint; count: number }>();
+  constructor(readonly limit = 400, readonly windowMicros = 60n * 1_000_000n, readonly maxSenders = 4096) {}
+  take(sender: string, nowMicros: bigint): boolean {
+    let window = this.#windows.get(sender);
+    if (window === undefined || nowMicros - window.start >= this.windowMicros) {
+      if (window === undefined && this.#windows.size >= this.maxSenders) {
+        for (const [key, value] of this.#windows) if (nowMicros - value.start >= this.windowMicros) this.#windows.delete(key);
+        if (this.#windows.size >= this.maxSenders) this.#windows.delete(this.#windows.keys().next().value!);
+      }
+      window = { start: nowMicros, count: 0 };
+      this.#windows.set(sender, window);
+    }
+    if (window.count >= this.limit) return false;
+    window.count += 1;
+    return true;
+  }
+}

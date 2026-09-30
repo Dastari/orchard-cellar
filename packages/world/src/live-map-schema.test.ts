@@ -75,9 +75,10 @@ describe('revisioned live map authority', () => {
       reducerStart,
       source.indexOf('export const adminMoveHomestead', reducerStart),
     );
-    expect(reducer.indexOf('validatedLiveMapDocument(')).toBeLessThan(
-      reducer.indexOf('commitLiveMapSnapshot('),
-    );
+    // Validation happens while preparing the publication, before the commit (S7b: a shared helper).
+    expect(reducer.indexOf('preparedLiveMapPublication(')).toBeLessThan(reducer.indexOf('commitLiveMapSnapshot('));
+    const prepared = source.slice(source.indexOf('function preparedLiveMapPublication('), source.indexOf('export const publishLiveMapWithChunks'));
+    expect(prepared).toContain('validatedLiveMapDocument(ctx, mapId, json)');
     expect(reducer).not.toContain('space_portal.');
     expect(reducer).not.toContain('world_npc.');
     expect(reducer).not.toContain('world_resource.');

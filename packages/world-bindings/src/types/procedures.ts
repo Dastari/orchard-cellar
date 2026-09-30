@@ -29,6 +29,7 @@ import * as AdminValidateWorldProcedure from "../admin_validate_world_procedure"
 import * as AuditChunkAuthorityProcedure from "../audit_chunk_authority_procedure";
 import * as InspectWorldChunkShadowProcedure from "../inspect_world_chunk_shadow_procedure";
 import * as PreviewStudioScopeProcedure from "../preview_studio_scope_procedure";
+import * as ReadWorldChunkBlobProcedure from "../read_world_chunk_blob_procedure";
 import * as StudioScopeReceiptProcedure from "../studio_scope_receipt_procedure";
 import * as StudioScriptReviewProcedure from "../studio_script_review_procedure";
 
@@ -78,6 +79,8 @@ export type InspectWorldChunkShadowArgs = __Infer<typeof InspectWorldChunkShadow
 export type InspectWorldChunkShadowResult = __Infer<typeof InspectWorldChunkShadowProcedure.returnType>;
 export type PreviewStudioScopeArgs = __Infer<typeof PreviewStudioScopeProcedure.params>;
 export type PreviewStudioScopeResult = __Infer<typeof PreviewStudioScopeProcedure.returnType>;
+export type ReadWorldChunkBlobArgs = __Infer<typeof ReadWorldChunkBlobProcedure.params>;
+export type ReadWorldChunkBlobResult = __Infer<typeof ReadWorldChunkBlobProcedure.returnType>;
 export type StudioScopeReceiptArgs = __Infer<typeof StudioScopeReceiptProcedure.params>;
 export type StudioScopeReceiptResult = __Infer<typeof StudioScopeReceiptProcedure.returnType>;
 export type StudioScriptReviewArgs = __Infer<typeof StudioScriptReviewProcedure.params>;

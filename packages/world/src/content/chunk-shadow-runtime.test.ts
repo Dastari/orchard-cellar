@@ -39,6 +39,10 @@ it('names exactly the known refusals of the shadow validators, so only they beco
  const index=readFileSync(new URL('../index.ts',import.meta.url),'utf8');
  const reducer=(name:string)=>index.slice(index.indexOf(`export const ${name} = `),index.indexOf('\n});',index.indexOf(`export const ${name} = `)));
  expect(reducer('stageWorldChunkBlob')).toContain('withShadowPublicationRefusals(() => validateShadowBlob(');
- expect(reducer('publishWorldChunkShadow')).toContain('withShadowPublicationRefusals(() => validateShadowPublication(');
+ expect(reducer('publishWorldChunkShadow')).toContain('commitWorldChunkShadow(ctx, input);');
+ // S7b: publishLiveMapWithChunks commits through the same helper.
+ const commit=index.slice(index.indexOf('function commitWorldChunkShadow('),index.indexOf('\n}\n',index.indexOf('function commitWorldChunkShadow(')));
+ expect(commit).toContain('withShadowPublicationRefusals(() => validateShadowPublication(');
+ expect(reducer('publishLiveMapWithChunks')).toContain('commitWorldChunkShadow(ctx, chunks);');
  expect(index).toMatch(/if \(code !== null\) throw new SenderError\(code\);\n\s+throw error;/u);
 });

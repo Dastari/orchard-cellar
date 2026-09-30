@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  liveMapHeadSource,
+  normalizeMapDocumentV3,
   applyMapDocumentV3Edit,
   authoredMapContentPainterTie,
   createLiveIslandMapDocument,
@@ -464,4 +466,15 @@ it('preserves explicit plains over generated island biomes and makes repeated ma
  const restored=parseMapDocumentV3(serializeMapDocumentV3(edited));
  expect(resolvedMapBiomeAt(restored,point.tileX,point.tileY)).toBe('plains');
  expect(applyMapDocumentV3Edit(edited,command).document).toBe(edited);
+});
+
+describe('liveMapHeadSource (static world S7b)', () => {
+  it('is the head a publication commits: the canonical document at the new revision, its transport JSON and hash', () => {
+    const document = migrateMapDocumentV2(createEmptyMapDocument({ id: 'head-source', title: 'Head source', width: 8, height: 8 }));
+    const head = liveMapHeadSource(document, 7);
+    expect(head.document.revision).toBe(7);
+    expect(head.contentHash).toBe(mapDocumentV3Hash(normalizeMapDocumentV3({ ...document, revision: 7 })));
+    expect(head.documentJson).toBe(JSON.stringify(normalizeMapDocumentV3({ ...document, revision: 7 })));
+    expect(liveMapHeadSource(parseMapDocumentV3(head.documentJson), 7)).toEqual(head);
+  });
 });

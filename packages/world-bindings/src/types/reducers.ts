@@ -130,6 +130,7 @@ import PlaceHomesteadBuildableReducer from "../place_homestead_buildable_reducer
 import PrioritizeEquipmentSkillReducer from "../prioritize_equipment_skill_reducer";
 import PublishContentChangeSetReducer from "../publish_content_change_set_reducer";
 import PublishLiveMapDocumentReducer from "../publish_live_map_document_reducer";
+import PublishLiveMapWithChunksReducer from "../publish_live_map_with_chunks_reducer";
 import PublishWorldChunkShadowReducer from "../publish_world_chunk_shadow_reducer";
 import PurchaseHomesteadUpgradeReducer from "../purchase_homestead_upgrade_reducer";
 import PurchaseResidenceExpansionReducer from "../purchase_residence_expansion_reducer";
@@ -308,6 +309,7 @@ export type PlaceHomesteadBuildableParams = __Infer<typeof PlaceHomesteadBuildab
 export type PrioritizeEquipmentSkillParams = __Infer<typeof PrioritizeEquipmentSkillReducer>;
 export type PublishContentChangeSetParams = __Infer<typeof PublishContentChangeSetReducer>;
 export type PublishLiveMapDocumentParams = __Infer<typeof PublishLiveMapDocumentReducer>;
+export type PublishLiveMapWithChunksParams = __Infer<typeof PublishLiveMapWithChunksReducer>;
 export type PublishWorldChunkShadowParams = __Infer<typeof PublishWorldChunkShadowReducer>;
 export type PurchaseHomesteadUpgradeParams = __Infer<typeof PurchaseHomesteadUpgradeReducer>;
 export type PurchaseResidenceExpansionParams = __Infer<typeof PurchaseResidenceExpansionReducer>;

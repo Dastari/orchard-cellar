@@ -158,6 +158,7 @@ import PlaceHomesteadBuildableReducer from "./place_homestead_buildable_reducer"
 import PrioritizeEquipmentSkillReducer from "./prioritize_equipment_skill_reducer";
 import PublishContentChangeSetReducer from "./publish_content_change_set_reducer";
 import PublishLiveMapDocumentReducer from "./publish_live_map_document_reducer";
+import PublishLiveMapWithChunksReducer from "./publish_live_map_with_chunks_reducer";
 import PublishWorldChunkShadowReducer from "./publish_world_chunk_shadow_reducer";
 import PurchaseHomesteadUpgradeReducer from "./purchase_homestead_upgrade_reducer";
 import PurchaseResidenceExpansionReducer from "./purchase_residence_expansion_reducer";
@@ -236,6 +237,7 @@ import * as AdminValidateWorldProcedure from "./admin_validate_world_procedure";
 import * as AuditChunkAuthorityProcedure from "./audit_chunk_authority_procedure";
 import * as InspectWorldChunkShadowProcedure from "./inspect_world_chunk_shadow_procedure";
 import * as PreviewStudioScopeProcedure from "./preview_studio_scope_procedure";
+import * as ReadWorldChunkBlobProcedure from "./read_world_chunk_blob_procedure";
 import * as StudioScopeReceiptProcedure from "./studio_scope_receipt_procedure";
 import * as StudioScriptReviewProcedure from "./studio_script_review_procedure";
 
@@ -1547,6 +1549,7 @@ const reducersSchema = __reducers(
   __reducerSchema("prioritize_equipment_skill", PrioritizeEquipmentSkillReducer),
   __reducerSchema("publish_content_change_set", PublishContentChangeSetReducer),
   __reducerSchema("publish_live_map_document", PublishLiveMapDocumentReducer),
+  __reducerSchema("publish_live_map_with_chunks", PublishLiveMapWithChunksReducer),
   __reducerSchema("publish_world_chunk_shadow", PublishWorldChunkShadowReducer),
   __reducerSchema("purchase_homestead_upgrade", PurchaseHomesteadUpgradeReducer),
   __reducerSchema("purchase_residence_expansion", PurchaseResidenceExpansionReducer),
@@ -1627,6 +1630,7 @@ const proceduresSchema = __procedures(
   __procedureSchema("audit_chunk_authority", AuditChunkAuthorityProcedure.params, AuditChunkAuthorityProcedure.returnType),
   __procedureSchema("inspect_world_chunk_shadow", InspectWorldChunkShadowProcedure.params, InspectWorldChunkShadowProcedure.returnType),
   __procedureSchema("preview_studio_scope", PreviewStudioScopeProcedure.params, PreviewStudioScopeProcedure.returnType),
+  __procedureSchema("read_world_chunk_blob", ReadWorldChunkBlobProcedure.params, ReadWorldChunkBlobProcedure.returnType),
   __procedureSchema("studio_scope_receipt", StudioScopeReceiptProcedure.params, StudioScopeReceiptProcedure.returnType),
   __procedureSchema("studio_script_review", StudioScriptReviewProcedure.params, StudioScriptReviewProcedure.returnType),
 );
