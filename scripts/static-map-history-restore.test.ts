@@ -6,7 +6,7 @@ import { historyFailure, type HistoryPhaseEvent } from './static-map-history-dia
 import { PipelineError } from './world-chunks-publish.js';
 import { HISTORY_RESTORE_ATTEMPTS, restoreHistoryWithPreview, type HistoryRestoreEnvelope, type HistoryRestorePort } from './static-map-history-restore.js';
 
-function fixture(advance: 'once' | 'always' | 'never' = 'once') {
+function fixture(advance: 'once' | 'always' | 'never' | 'clock' = 'once') {
   let state: AdminWorldControlState = { authorityTick: '1000', calendarTick: '1200', cropCalendarOffset: '200',
     weatherMode: 'auto', windDirection: 'auto', motd: 'Welcome.', globalNoticeSequence: '0',
     homesteadSiteAllowed: false, homestead: null,
@@ -22,12 +22,13 @@ function fixture(advance: 'once' | 'always' | 'never' = 'once') {
   const port = {
     preview: vi.fn(async (input: HistoryRestoreEnvelope) => {
       const plan = planAdminWorldControlMutation(state, { mutation: mutation(input, true),
-        expectedBaseVersion: adminWorldControlVersion(state), previewFingerprint: null, nowMicros: 1n });
+        expectedBaseVersion: adminWorldControlVersion(state, 'restore_map'), previewFingerprint: null, nowMicros: 1n });
       return { baseVersion: plan.baseVersion, fingerprint: plan.previewFingerprint };
     }),
     commit: vi.fn(async (input: HistoryRestoreEnvelope, preview: { baseVersion: string; fingerprint: string }) => {
       commits += 1;
-      if (advance === 'always' || advance === 'once' && commits === 1) state = { ...state,
+      if (advance === 'clock' || advance === 'always' || advance === 'once' && commits === 1) state = { ...state,
+        ...(advance === 'clock' ? {} : { motd: `${state.motd}!` }),
         authorityTick: (BigInt(state.authorityTick) + 1n).toString(), calendarTick: (BigInt(state.calendarTick) + 1n).toString() };
       try {
         const plan = planAdminWorldControlMutation(state, { mutation: mutation(input, false), expectedBaseVersion: preview.baseVersion,
@@ -45,7 +46,7 @@ function fixture(advance: 'once' | 'always' | 'never' = 'once') {
 }
 
 describe('isolated history restore preview retry (BUG-074)', () => {
-  it('reproduces a real planner tick conflict and obtains the exact successful audited inverse after a fresh preview', async () => {
+  it('reproduces a real planner retained-field conflict and obtains the exact successful audited inverse after a fresh preview', async () => {
     const port = fixture(); const events: HistoryPhaseEvent[] = [];
     expect(await restoreHistoryWithPreview(1n, port, entry => events.push(entry), { id: '1', revision: 1 }))
       .toEqual({ auditId: '101', inverseRevisionId: '13' });
@@ -59,7 +60,13 @@ describe('isolated history restore preview retry (BUG-074)', () => {
     expect(events).toContainEqual(expect.objectContaining({ phase: 'history-restore-audit', status: 'complete', attempt: 2 }));
   });
 
-  it('bounds repeated real tick conflicts and reports the final definite rejection without obtaining an inverse', async () => {
+  it('commits through actual clock advancement without retry after the scoped product guard fix', async () => {
+    const port = fixture('clock');
+    expect(await restoreHistoryWithPreview(1n, port)).toEqual({ auditId: '101', inverseRevisionId: '13' });
+    expect(port.preview).toHaveBeenCalledOnce(); expect(port.commit).toHaveBeenCalledOnce(); expect(port.audit).toHaveBeenCalledOnce();
+  });
+
+  it('bounds repeated real retained-field conflicts and reports the final definite rejection without obtaining an inverse', async () => {
     const port = fixture('always');
     const error = await restoreHistoryWithPreview(1n, port, undefined, { id: '1', revision: 1 }).catch(value => value as unknown);
     expect(historyFailure(error)).toEqual({ code: 'admin_world_revision_conflict', errorKind: 'sender-error',

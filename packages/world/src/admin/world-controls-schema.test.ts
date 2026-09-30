@@ -23,7 +23,7 @@ describe('U5 exact world-control registration', () => {
     const execution = between('function executeAdminWorldControlMutation(', 'const adminWorldControlEnvelope');
     expect(execution).toContain('requireAdminWorldControlAuthority(role, mutation)');
     expect(execution).toContain("mutation.dryRun && expectedBaseVersion === ''");
-    expect(execution).toContain('adminWorldControlVersion(loaded) : expectedBaseVersion');
+    expect(execution).toContain('adminWorldControlVersion(loaded, mutation.operation) : expectedBaseVersion');
     expect(execution).toContain('planAdminWorldControlMutation(loaded, {');
   });
 

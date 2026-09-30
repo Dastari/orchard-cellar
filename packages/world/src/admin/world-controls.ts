@@ -139,10 +139,10 @@ export function cloneAdminWorldControlState(state: AdminWorldControlState): Admi
   });
 }
 
-export function adminWorldControlDocument(state: AdminWorldControlState): AdminJsonObject {
+export function adminWorldControlDocument(state: AdminWorldControlState, operation?: AdminWorldControlOperation): AdminJsonObject {
   return {
-    authorityTick: state.authorityTick,
-    calendarTick: state.calendarTick,
+    // Restore writes only the map; normal ticking must not invalidate its exact preview.
+    ...(operation === 'restore_map' ? {} : { authorityTick: state.authorityTick, calendarTick: state.calendarTick }),
     cropCalendarOffset: state.cropCalendarOffset,
     weatherMode: state.weatherMode,
     windDirection: state.windDirection,
@@ -156,8 +156,8 @@ export function adminWorldControlDocument(state: AdminWorldControlState): AdminJ
   };
 }
 
-export function adminWorldControlVersion(state: AdminWorldControlState): string {
-  return `world-control:${fingerprint(adminWorldControlDocument(state))}`;
+export function adminWorldControlVersion(state: AdminWorldControlState, operation?: AdminWorldControlOperation): string {
+  return `world-control:${fingerprint(adminWorldControlDocument(state, operation))}`;
 }
 
 function normalizedNotice(input: string): string {
@@ -266,14 +266,14 @@ export function planAdminWorldControlMutation(
     fail('admin_invalid_mutation_id');
   }
   const before = cloneAdminWorldControlState(input);
-  const baseVersion = adminWorldControlVersion(before);
+  const baseVersion = adminWorldControlVersion(before, request.mutation.operation);
   if (request.expectedBaseVersion !== baseVersion) fail('admin_world_revision_conflict');
   const applied = applyMutation(before, request.mutation);
   const after = cloneAdminWorldControlState(applied.after);
-  const diff = diffAdminValues(adminWorldControlDocument(before), adminWorldControlDocument(after));
+  const diff = diffAdminValues(adminWorldControlDocument(before, request.mutation.operation), adminWorldControlDocument(after, request.mutation.operation));
   if (!adminPreviewHasChanges(diff)) fail('admin_no_changes');
   const previewFingerprint = `preview:${fingerprint({ mutation: { ...request.mutation, dryRun: false,
-    reason: String(reason.value) }, baseVersion, action: applied.action, after: adminWorldControlDocument(after) })}`;
+    reason: String(reason.value) }, baseVersion, action: applied.action, after: adminWorldControlDocument(after, request.mutation.operation) })}`;
   if (!request.mutation.dryRun && request.previewFingerprint !== previewFingerprint) fail('admin_preview_required');
   const target = request.mutation.operation === 'move_homestead'
     ? { kind: 'space' as const, spaceId: request.mutation.spaceId }
@@ -281,7 +281,7 @@ export function planAdminWorldControlMutation(
   const notice = `An administrator applied ${request.mutation.operation.replaceAll('_', ' ')}.`;
   return Object.freeze({
     before, after, action: Object.freeze(applied.action), baseVersion,
-    committedVersion: adminWorldControlVersion(after), previewFingerprint,
+    committedVersion: adminWorldControlVersion(after, request.mutation.operation), previewFingerprint,
     preview: Object.freeze({ operation: request.mutation.operation, target, baseVersion, preview: diff,
       warnings: Object.freeze([]), expiresAtMicros: (request.nowMicros + 60_000_000n).toString() }),
     audit: Object.freeze({ schemaVersion: 1, clientMutationId: request.mutation.clientMutationId,

@@ -17209,7 +17209,7 @@ function executeAdminWorldControlMutation(
   }
   const loaded = loadAdminWorldControlState(ctx, mutation);
   const discoveredBaseVersion = mutation.dryRun && expectedBaseVersion === ''
-    ? adminWorldControlVersion(loaded) : expectedBaseVersion;
+    ? adminWorldControlVersion(loaded, mutation.operation) : expectedBaseVersion;
   let plan: AdminWorldControlPlan;
   try {
     plan = planAdminWorldControlMutation(loaded, {

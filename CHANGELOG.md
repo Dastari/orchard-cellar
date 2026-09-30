@@ -2,6 +2,10 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Root 0.81.6 / World 0.33.2 / Tools 0.25.6 — Map restore preserves advancing time
+
+- **BUG-075:** guarded map restore excludes only the two clock fields it never writes from its operation comparison, so normal ticks no longer stale its preview. All other world fields, map/archive identity, authorization, fingerprint, expiry, atomic publication and audit guards remain enforced; other admin world operations retain their full clock guards.
+
 ## Root 0.81.5 / Tools 0.25.5 — Guarded rehearsal restore preview retries
 
 - **BUG-074:** the isolated history rehearsal retries only a definite reducer revision conflict with a fresh preview and mutation id, at most five attempts. Auth, invalid fingerprints, unknown failures and ambiguous timeouts stop immediately; bounded diagnostics identify admin codes, preview/commit/audit phases and attempts. Server guards are unchanged.

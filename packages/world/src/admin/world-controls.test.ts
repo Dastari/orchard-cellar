@@ -51,7 +51,7 @@ describe('exact world-control planner', () => {
   it.each(drafts.map((draft) => [draft.operation, draft] as const))(
     '%s preserves dry-run/commit fingerprint parity and typed inverse audit',
     (_operation, draft) => {
-      const base = adminWorldControlVersion(state);
+      const base = adminWorldControlVersion(state, draft.operation);
       const preview = planAdminWorldControlMutation(state, { mutation: draft,
         expectedBaseVersion: base, previewFingerprint: null, nowMicros: 1_000n });
       const commit = planAdminWorldControlMutation(state, { mutation: { ...draft, dryRun: false },
@@ -75,7 +75,7 @@ describe('exact world-control planner', () => {
     expect(() => planAdminWorldControlMutation(state, { mutation: draft,
       expectedBaseVersion: 'world-control:stale', previewFingerprint: null, nowMicros: 1n }))
       .toThrowError(new AdminWorldControlError('admin_world_revision_conflict'));
-    const base = adminWorldControlVersion(state);
+    const base = adminWorldControlVersion(state, draft.operation);
     expect(() => planAdminWorldControlMutation(state, { mutation: { ...draft, dryRun: false },
       expectedBaseVersion: base, previewFingerprint: 'preview:altered', nowMicros: 1n }))
       .toThrowError(new AdminWorldControlError('admin_preview_required'));
@@ -99,6 +99,67 @@ describe('exact world-control planner', () => {
       expectedBaseVersion: base, previewFingerprint: null, nowMicros: 1n }))
       .toThrowError(new AdminWorldControlError('admin_no_changes'));
   });
+
+  it('restores and replays its audited inverse across clock ticks without writing the newer clocks', () => {
+    const draft = drafts[5]!;
+    const preview = planAdminWorldControlMutation(state, { mutation: draft,
+      expectedBaseVersion: adminWorldControlVersion(state, draft.operation), previewFingerprint: null, nowMicros: 1n });
+    const ticked = { ...state, authorityTick: '1001', calendarTick: '1201' };
+    const restored = planAdminWorldControlMutation(ticked, { mutation: { ...draft, dryRun: false },
+      expectedBaseVersion: preview.baseVersion, previewFingerprint: preview.previewFingerprint, nowMicros: 2n });
+    expect(restored.previewFingerprint).toBe(preview.previewFingerprint);
+    expect(restored.committedVersion).toBe(preview.committedVersion);
+    expect(restored.after).toMatchObject({ authorityTick: '1001', calendarTick: '1201', cropCalendarOffset: '200' });
+    expect(restored.action.kind).toBe('restore_map');
+    expect(restored.audit.inverse?.args).toMatchObject({ revisionId: '19', mapId: 'live-island' });
+    const undoState = { ...restored.after, mapHead: { ...restored.after.mapHead!, revisionId: '20' }, restoreRevision: state.mapHead };
+    const inverse = mutation({ operation: 'restore_map', revisionId: restored.audit.inverse!.args['revisionId'] as string });
+    const inversePreview = planAdminWorldControlMutation(undoState, { mutation: inverse,
+      expectedBaseVersion: adminWorldControlVersion(undoState, inverse.operation), previewFingerprint: null, nowMicros: 3n });
+    const undone = planAdminWorldControlMutation({ ...undoState, authorityTick: '1002', calendarTick: '1202' }, {
+      mutation: { ...inverse, dryRun: false }, expectedBaseVersion: inversePreview.baseVersion,
+      previewFingerprint: inversePreview.previewFingerprint, nowMicros: 4n });
+    expect(undone.after).toMatchObject({ authorityTick: '1002', calendarTick: '1202', cropCalendarOffset: '200',
+      mapHead: { contentHash: state.mapHead!.contentHash, documentJson: state.mapHead!.documentJson } });
+  });
+
+  it.each([
+    ['crop offset', { cropCalendarOffset: '201' }], ['weather', { weatherMode: 'rain' }], ['wind', { windDirection: 'e' }],
+    ['MOTD', { motd: 'Changed.' }], ['notice sequence', { globalNoticeSequence: '9' }],
+    ['homestead', { homestead: { ...state.homestead!, tileX: 25 } }],
+    ['map history id', { mapHead: { ...state.mapHead!, revisionId: '20' } }],
+    ['map id', { mapHead: { ...state.mapHead!, mapId: 'other-space' } }],
+    ['map revision', { mapHead: { ...state.mapHead!, revision: 20 } }],
+    ['map content hash', { mapHead: { ...state.mapHead!, contentHash: 'changed' } }],
+    ['map document bytes at the same identity', { mapHead: { ...state.mapHead!, documentJson: '{"changed":true}' } }],
+  ] as const)('still refuses restore when %s changes', (_field, patch) => {
+    const draft = drafts[5]!;
+    const preview = planAdminWorldControlMutation(state, { mutation: draft,
+      expectedBaseVersion: adminWorldControlVersion(state, draft.operation), previewFingerprint: null, nowMicros: 1n });
+    expect(() => planAdminWorldControlMutation({ ...state, ...patch, authorityTick: '1001', calendarTick: '1201' }, {
+      mutation: { ...draft, dryRun: false }, expectedBaseVersion: preview.baseVersion,
+      previewFingerprint: preview.previewFingerprint, nowMicros: 2n })).toThrowError(new AdminWorldControlError('admin_world_revision_conflict'));
+  });
+
+  it.each([
+    { documentJson: '{"changedArchive":true}' }, { contentHash: 'changed-archive' }, { revision: 18 },
+  ])('still binds the exact target archive/action into the restore fingerprint (%j)', patch => {
+    const draft = drafts[5]!;
+    const preview = planAdminWorldControlMutation(state, { mutation: draft,
+      expectedBaseVersion: adminWorldControlVersion(state, draft.operation), previewFingerprint: null, nowMicros: 1n });
+    expect(() => planAdminWorldControlMutation({ ...state, restoreRevision: { ...state.restoreRevision!, ...patch } }, {
+      mutation: { ...draft, dryRun: false }, expectedBaseVersion: preview.baseVersion,
+      previewFingerprint: preview.previewFingerprint, nowMicros: 2n })).toThrowError(new AdminWorldControlError('admin_preview_required'));
+  });
+
+  it.each(drafts.filter(draft => draft.operation !== 'restore_map').map(draft => [draft.operation, draft] as const))(
+    'keeps advancing clocks guarded for %s', (_operation, draft) => {
+      const preview = planAdminWorldControlMutation(state, { mutation: draft,
+        expectedBaseVersion: adminWorldControlVersion(state, draft.operation), previewFingerprint: null, nowMicros: 1n });
+      expect(() => planAdminWorldControlMutation({ ...state, authorityTick: '1001', calendarTick: '1201' }, {
+        mutation: { ...draft, dryRun: false }, expectedBaseVersion: preview.baseVersion,
+        previewFingerprint: preview.previewFingerprint, nowMicros: 2n })).toThrowError(new AdminWorldControlError('admin_world_revision_conflict'));
+    });
 
   it('limits world controls to owner/admin roles', () => {
     const draft = drafts[0]!;
