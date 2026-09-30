@@ -1,4 +1,4 @@
-import { liveMapHeadSource, serializeMapDocumentV3, type MapDocumentV3 } from '@orchard/sim';
+import { liveMapHeadSource, type MapDocumentV3 } from '@orchard/sim';
 import { validateRuntimeManifest } from '@orchard/sim/chunk-runtime';
 import { canonicalChunkJson, type ChunkJson, type WorldChunkManifest } from '@orchard/sim/world-chunk';
 import { normalizedMapDocumentSha256, rebuildWorldChunkDocument, type WorldChunkAuthoredDocument } from '@orchard/sim/world-chunk-document';
@@ -31,7 +31,7 @@ export function verifiedChunkHistoryDocument(revision: ChunkHistoryRevision, man
   if (document.id !== revision.mapId || document.revision !== revision.revision || head.contentHash !== revision.contentHash) {
     throw new Error('chunk_history_document_mismatch');
   }
-  if (legacyDocument !== undefined && serializeMapDocumentV3(document) !== serializeMapDocumentV3(JSON.parse(legacyDocument) as MapDocumentV3)) {
+  if (legacyDocument !== undefined && normalizedMapDocumentSha256(document) !== normalizedMapDocumentSha256(JSON.parse(legacyDocument) as object)) {
     throw new Error('chunk_history_legacy_document_mismatch');
   }
   return document;
@@ -48,4 +48,52 @@ export function repinChunkHistoryManifest(manifestJson: string, document: MapDoc
     metadata: { ...manifest.metadata, authoredDocument: {
       ...authored, fields: { ...authored.fields, revision: nextRevision }, documentSha256: normalizedMapDocumentSha256(normalized),
     } as unknown as ChunkJson } });
+}
+
+export interface HistoryDocumentReference {
+  readonly revisionId: string; readonly mapId: string; readonly revision: number;
+  readonly contentHash: string; readonly documentHash: string;
+}
+
+/** Preserve audit metadata and undo identifiers; every removed topside body must resolve exactly first. */
+export function retireTopsideAuditDocuments(payloadJson: string,
+  resolve: (documentJson: string) => HistoryDocumentReference, verifyIds = true): { readonly payloadJson: string; readonly copies: number } {
+  if (payloadJson === '') return { payloadJson, copies: 0 };
+  const payload: unknown = JSON.parse(payloadJson);
+  let copies = 0;
+  const reference = (value: string): HistoryDocumentReference | undefined => {
+    const document = JSON.parse(value) as { id?: string };
+    if (document.id !== 'live-island') return undefined;
+    const result = resolve(value); copies += 1; return result;
+  };
+  const visit = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(visit);
+    if (value === null || typeof value !== 'object') return value;
+    const record = value as Record<string, unknown>;
+    const next: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(record)) {
+      if (key === 'documentJson' && typeof entry === 'string') {
+        const ref = reference(entry);
+        if (ref !== undefined) {
+          if (verifyIds && typeof record['revisionId'] === 'string' && record['revisionId'] !== ref.revisionId) throw new Error('chunk_history_audit_reference_mismatch');
+          next['documentReference'] = ref; continue;
+        }
+      }
+      next[key] = visit(entry);
+    }
+    if (record['path'] === '/mapHead/documentJson') {
+      let changed = false;
+      for (const side of ['before', 'after']) {
+        const snapshot = record[side] as { present?: boolean; value?: unknown } | undefined;
+        if (snapshot?.present && typeof snapshot.value === 'string') {
+          const ref = reference(snapshot.value);
+          if (ref !== undefined) { next[side] = { present: true, value: ref }; changed = true; }
+        }
+      }
+      if (changed) next['path'] = '/mapHead/documentReference';
+    }
+    return next;
+  };
+  const result = visit(payload);
+  return { payloadJson: copies === 0 ? payloadJson : JSON.stringify(result), copies };
 }

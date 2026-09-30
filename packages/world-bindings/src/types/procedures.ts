@@ -29,6 +29,7 @@ import * as AdminValidateWorldProcedure from "../admin_validate_world_procedure"
 import * as AuditChunkAuthorityProcedure from "../audit_chunk_authority_procedure";
 import * as InspectWorldChunkShadowProcedure from "../inspect_world_chunk_shadow_procedure";
 import * as ListLiveMapChunkHistoryProcedure from "../list_live_map_chunk_history_procedure";
+import * as LiveMapChunkHistoryCopyStatusProcedure from "../live_map_chunk_history_copy_status_procedure";
 import * as PreviewStudioScopeProcedure from "../preview_studio_scope_procedure";
 import * as ReadLiveMapChunkHistoryProcedure from "../read_live_map_chunk_history_procedure";
 import * as ReadLiveMapPublicationBaseProcedure from "../read_live_map_publication_base_procedure";
@@ -83,6 +84,8 @@ export type InspectWorldChunkShadowArgs = __Infer<typeof InspectWorldChunkShadow
 export type InspectWorldChunkShadowResult = __Infer<typeof InspectWorldChunkShadowProcedure.returnType>;
 export type ListLiveMapChunkHistoryArgs = __Infer<typeof ListLiveMapChunkHistoryProcedure.params>;
 export type ListLiveMapChunkHistoryResult = __Infer<typeof ListLiveMapChunkHistoryProcedure.returnType>;
+export type LiveMapChunkHistoryCopyStatusArgs = __Infer<typeof LiveMapChunkHistoryCopyStatusProcedure.params>;
+export type LiveMapChunkHistoryCopyStatusResult = __Infer<typeof LiveMapChunkHistoryCopyStatusProcedure.returnType>;
 export type PreviewStudioScopeArgs = __Infer<typeof PreviewStudioScopeProcedure.params>;
 export type PreviewStudioScopeResult = __Infer<typeof PreviewStudioScopeProcedure.returnType>;
 export type ReadLiveMapChunkHistoryArgs = __Infer<typeof ReadLiveMapChunkHistoryProcedure.params>;

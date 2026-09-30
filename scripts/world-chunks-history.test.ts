@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { chunkHistoryFixture } from '../packages/world/src/live-map-chunk-history.fixture.js';
-import { allHistoryRows, runHistory } from './world-chunks-history.js';
+import { allHistoryRows, historyTokenProvider, runHistory } from './world-chunks-history.js';
 import type { HistoryWorldPort, OriginPort } from './world-chunks-publish.js';
 
 function fixture() {
@@ -9,6 +9,8 @@ function fixture() {
   let copy = true;
   const row = () => ({ id: '1', mapId: 'live-island', revision: 7, contentHash: publication.head.contentHash, hasDocumentCopy: copy, archived });
   const world: HistoryWorldPort = {
+    historyCopyStatus: async () => ({historyCopies:copy?1:0,missingArchives:archived?0:1,auditCopies:0,previewCopies:0}),
+    retireAuditDocuments: vi.fn(async()=>{}),
     listHistory: vi.fn(async () => ({ rows: [row()], more: false })),
     readHistory: vi.fn(async () => ({ ...publication.head, manifestHash: '' })),
     read: () => ({ mapRow: publication.head, contentHead: null, contentRows: null, shadow: null, heads: [] }),
@@ -26,6 +28,43 @@ function fixture() {
 }
 
 describe('S7c history operations', () => {
+  it('retries the tokenless locked validation checkpoint without blindly refreshing', async () => {
+    const read=vi.fn().mockRejectedValueOnce(new Error('token_file_token_missing_refresh_first')).mockResolvedValue('opaque-fresh');
+    const refresh=vi.fn();const wait=vi.fn(async()=>{});
+    expect(await historyTokenProvider('/private/file','operator',{read,refresh,wait})()).toBe('opaque-fresh');
+    expect(wait).toHaveBeenCalledOnce();expect(refresh).not.toHaveBeenCalled();
+    await expect(historyTokenProvider('/private/file','operator',{read:async()=>{throw new Error('wrong_permissions');},wait})()).rejects.toThrow('wrong_permissions');
+  });
+
+  it('uses the latest locked keepalive checkpoint for each reconnect in a multi-row backfill', async () => {
+    const deps = fixture();const second = chunkHistoryFixture(8);
+    const rows = [deps.publication, second].map((publication,index) => ({ id: String(index+1), mapId:'live-island',
+      revision:publication.head.revision, contentHash:publication.head.contentHash, hasDocumentCopy:true, archived:false }));
+    let currentToken = `e30.${Buffer.from(JSON.stringify({exp:1000})).toString('base64url')}.first`;
+    const read = vi.fn(async () => currentToken);const refresh = vi.fn();
+    const provider = historyTokenProvider('/private/tokens.json','operator',{read,refresh,now:()=>0});
+    const connected: string[] = [await provider()];
+    const world = {...deps.world,listHistory:async () => ({rows,more:false}),
+      readHistory:async (id:bigint) => ({...(id===1n?deps.publication:second).head,manifestHash:''}),
+      resume:async () => {connected.push(await provider());},
+      verifyHistory:async (id:bigint) => ({id:String(id),revision:id===1n?7:8,hasDocumentCopy:false,manifestHash:'verified'})};
+    const materialize = async ({mapRow}:Parameters<typeof runHistory>[1]['materialize'] extends (input:infer I)=>unknown?I:never) => {
+      currentToken = `e30.${Buffer.from(JSON.stringify({exp:1000})).toString('base64url')}.row${mapRow.revision}`;
+      const publication = mapRow.revision===7?deps.publication:second;
+      return {manifest:publication.manifest,manifestJson:publication.manifestJson,registryContentHash:'registry',
+        blobs:[...publication.blobs].map(([contentHash,bytes])=>({cx:0,cy:0,contentHash,bytes}))};
+    };
+    const plan = await runHistory('plan',{...deps,world});
+    await runHistory('backfill',{...deps,world,materialize,confirmation:plan.confirmation!});
+    expect(connected.map(token=>token.split('.').at(-1))).toEqual(['first','row7','row8']);
+    expect(refresh).not.toHaveBeenCalled();expect(read).toHaveBeenCalledTimes(3);
+  });
+  it('rotates near-expiry credentials through the shared refresh path', async () => {
+    const expired=`e30.${Buffer.from(JSON.stringify({exp:1})).toString('base64url')}.test`;
+    const refresh=vi.fn(async()=>[{label:'operator',token:'rotated'}]);
+    expect(await historyTokenProvider('/private/file','operator',{read:async()=>expired,refresh,now:()=>1000})()).toBe('rotated');
+    expect(refresh).toHaveBeenCalledWith('/private/file');
+  });
   it('follows every page and fails closed if a cursor stops advancing', async () => {
     const deps = fixture();
     const first = (await deps.world.listHistory(0n, 100)).rows[0]!;

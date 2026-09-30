@@ -13,12 +13,44 @@
 import { lstat, writeFile } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { decodeJwtClaims } from '@orchard/auth/oidc-token';
+import { refreshRejoinCredentials } from './world-rejoin-smoke.js';
 import { verifiedChunkHistoryDocument } from '../packages/world/src/live-map-chunk-history.js';
 import {
   connectWorld, httpOrigin, materializeInProcess, readTokenFile, sha256Hex,
   PRODUCTION_DATABASE, PRODUCTION_HOST, PRODUCTION_ORIGIN,
   type HistoryRow, type HistoryWorldPort, type MaterializePort, type OriginPort,
 } from './world-chunks-publish.js';
+
+/** Re-read atomic keepalive checkpoints on every reconnect; only rotate near expiry, under the shared lock. */
+export function historyTokenProvider(path: string, label?: string, deps: {
+  readonly read?: typeof readTokenFile; readonly refresh?: typeof refreshRejoinCredentials; readonly now?: () => number; readonly wait?: () => Promise<void>;
+} = {}): () => Promise<string> {
+  return async () => {
+    let token = '';
+    for (let attempt = 0; attempt < 240; attempt += 1) {
+      try { token = await (deps.read ?? readTokenFile)(path, label); break; }
+      catch (error) {
+        if (!(error instanceof Error) || error.message !== 'token_file_token_missing_refresh_first' || attempt === 239) throw error;
+        await (deps.wait ?? (() => new Promise<void>(resolve => setTimeout(resolve, 250))))();
+      }
+    }
+    const expiry = decodeJwtClaims(token)?.exp;
+    if (typeof expiry !== 'number' || expiry * 1000 > (deps.now ?? Date.now)() + 120_000) return token;
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      try {
+        const credentials = await (deps.refresh ?? refreshRejoinCredentials)(path);
+        const selected = label === undefined && credentials.length === 1 ? credentials[0] : credentials.find(row => row.label === label);
+        if (selected === undefined) throw new Error('chunk_history_credential_label_required');
+        return selected.token;
+      } catch (error) {
+        if (!(error instanceof Error) || error.message !== 'rejoin_credentials_locked' || attempt === 39) throw error;
+        await new Promise<void>(resolve => setTimeout(resolve, 250));
+      }
+    }
+    throw new Error('chunk_history_credential_refresh_failed');
+  };
+}
 
 export async function allHistoryRows(world: Pick<HistoryWorldPort, 'listHistory'>): Promise<readonly HistoryRow[]> {
   const rows: HistoryRow[] = [];
@@ -41,6 +73,7 @@ export interface HistoryReport {
   readonly rows: number;
   readonly processed: readonly string[];
   readonly confirmation?: string;
+  readonly auditCopiesRetired?: number;
 }
 
 export async function runHistory(command: 'plan' | 'backfill' | 'check' | 'rematerialize', deps: {
@@ -52,6 +85,7 @@ export async function runHistory(command: 'plan' | 'backfill' | 'check' | 'remat
   const selected = deps.revisionId === undefined ? all : all.filter(row => BigInt(row.id) === deps.revisionId);
   if (deps.revisionId !== undefined && selected.length !== 1) throw new Error('live_map_revision_not_found');
   if (command === 'rematerialize' && deps.revisionId === undefined) throw new Error('chunk_history_rematerialize_requires_revision');
+  const copyStatus = await deps.world.historyCopyStatus();
   if (command === 'check') {
     if (selected.length === 0) throw new Error('chunk_history_empty');
     for (const row of selected) {
@@ -59,13 +93,14 @@ export async function runHistory(command: 'plan' | 'backfill' | 'check' | 'remat
       const checked = await deps.world.verifyHistory(BigInt(row.id));
       if (checked.id !== row.id || checked.revision !== row.revision || checked.hasDocumentCopy) throw new Error(`chunk_history_incomplete:${row.id}`);
     }
+    if (copyStatus.historyCopies || copyStatus.missingArchives || copyStatus.auditCopies || copyStatus.previewCopies) throw new Error('chunk_history_document_copies_remaining');
     return { command, rows: selected.length, processed: selected.map(row => row.id) };
   }
   const pending = command === 'rematerialize' ? selected : selected.filter(row => !row.archived || row.hasDocumentCopy);
   const atlasIndex = await deps.origin.atlasIndex();
   const state = deps.world.read();
   const confirmation = `history:${sha256Hex(JSON.stringify({ database: deps.database,
-    rows: selected, contentHash: state.contentHead?.contentHash ?? null, assetHash: sha256Hex(atlasIndex) }))}:${deps.database}`;
+    rows: selected, copyStatus, contentHash: state.contentHead?.contentHash ?? null, assetHash: sha256Hex(atlasIndex) }))}:${deps.database}`;
   if (command === 'plan') return { command, rows: selected.length, processed: pending.map(row => row.id), confirmation };
   if (deps.confirmation !== confirmation) throw new Error(`chunk_history_confirmation_required:${confirmation}`);
   const processed: string[] = [];
@@ -90,7 +125,12 @@ export async function runHistory(command: 'plan' | 'backfill' | 'check' | 'remat
     if (checked.hasDocumentCopy) throw new Error(`chunk_history_document_copy_retained:${row.id}`);
     processed.push(row.id);
   }
-  return { command, rows: selected.length, processed };
+  if (command === 'backfill') {
+    await deps.world.retireAuditDocuments();
+    const remaining = await deps.world.historyCopyStatus();
+    if (remaining.historyCopies || remaining.missingArchives || remaining.auditCopies || remaining.previewCopies) throw new Error('chunk_history_document_copies_remaining');
+  }
+  return { command, rows: selected.length, processed, auditCopiesRetired: command === 'backfill' ? copyStatus.auditCopies : 0 };
 }
 
 export async function main(argv = process.argv.slice(2), env = process.env): Promise<number> {
@@ -120,8 +160,7 @@ export async function main(argv = process.argv.slice(2), env = process.env): Pro
   }
   const revision = values.get('--revision');
   if (revision !== undefined && !/^[1-9][0-9]*$/u.test(revision)) throw new Error('chunk_history_revision_invalid');
-  const token = await readTokenFile(env['WORLD_CHUNKS_TOKEN_FILE'], env['WORLD_CHUNKS_TOKEN_LABEL']);
-  const world = await connectWorld({ host: hostOrigin, database }, token);
+  const world = await connectWorld({ host: hostOrigin, database }, historyTokenProvider(env['WORLD_CHUNKS_TOKEN_FILE'], env['WORLD_CHUNKS_TOKEN_LABEL']));
   try {
     const result = await runHistory(command, { world, origin: httpOrigin(publicOrigin), materialize: materializeInProcess,
       database, ...(env['WORLD_CHUNKS_HISTORY_CONFIRM'] === undefined ? {} : { confirmation: env['WORLD_CHUNKS_HISTORY_CONFIRM'] }),

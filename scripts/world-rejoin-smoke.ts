@@ -64,21 +64,24 @@ async function refreshCredential(credential: Required<Pick<StoredRejoinCredentia
   };
 }
 
+/** Shared, locked rotation path for long-running release/history tools. */
+export async function refreshRejoinCredentials(path: string): Promise<readonly RejoinCredential[]> {
+  const resolved = await refreshRejoinCredentialFile({
+    path,
+    refresh: refreshCredential,
+    validate: async (token, clientId) => {
+      const issuer = (process.env['OIDC_ISSUER'] ?? 'https://auth.orchard.dastari.net/realms/orchard').replace(/\/$/u, '');
+      await verifyIdTokenSignature(token, `${issuer}/protocol/openid-connect/certs`);
+      validateIdTokenClaims(decodeJwtClaims(token), undefined, Date.now(), issuer, clientId);
+    },
+    requireRefresh: process.env['WORLD_REJOIN_REQUIRE_REFRESH'] === '1',
+  });
+  return resolved.credentials;
+}
+
 async function credentials(): Promise<readonly RejoinCredential[]> {
   const path = process.env['WORLD_REJOIN_TOKENS_FILE'];
-  if (path !== undefined) {
-    const resolved = await refreshRejoinCredentialFile({
-      path,
-      refresh: refreshCredential,
-      validate: async (token, clientId) => {
-        const issuer = (process.env['OIDC_ISSUER'] ?? 'https://auth.orchard.dastari.net/realms/orchard').replace(/\/$/u, '');
-        await verifyIdTokenSignature(token, `${issuer}/protocol/openid-connect/certs`);
-        validateIdTokenClaims(decodeJwtClaims(token), undefined, Date.now(), issuer, clientId);
-      },
-      requireRefresh: process.env['WORLD_REJOIN_REQUIRE_REFRESH'] === '1',
-    });
-    return resolved.credentials;
-  }
+  if (path !== undefined) return refreshRejoinCredentials(path);
   const token = process.env['WORLD_REJOIN_TOKEN'];
   if (token === undefined || token.length === 0) throw new Error('WORLD_REJOIN_TOKENS_FILE_required');
   return [{ label: process.env['WORLD_REJOIN_LABEL'] ?? 'operator', token }];

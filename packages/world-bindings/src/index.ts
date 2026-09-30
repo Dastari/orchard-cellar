@@ -175,6 +175,7 @@ import RequestTradeReducer from "./request_trade_reducer";
 import ResetSkillTreeReducer from "./reset_skill_tree_reducer";
 import RestoreContentRevisionReducer from "./restore_content_revision_reducer";
 import RestoreLiveMapRevisionReducer from "./restore_live_map_revision_reducer";
+import RetireLiveMapAuditDocumentsReducer from "./retire_live_map_audit_documents_reducer";
 import ReturnInventoryCursorReducer from "./return_inventory_cursor_reducer";
 import RevokeContentEditorReducer from "./revoke_content_editor_reducer";
 import RevokeMemberReducer from "./revoke_member_reducer";
@@ -238,6 +239,7 @@ import * as AdminValidateWorldProcedure from "./admin_validate_world_procedure";
 import * as AuditChunkAuthorityProcedure from "./audit_chunk_authority_procedure";
 import * as InspectWorldChunkShadowProcedure from "./inspect_world_chunk_shadow_procedure";
 import * as ListLiveMapChunkHistoryProcedure from "./list_live_map_chunk_history_procedure";
+import * as LiveMapChunkHistoryCopyStatusProcedure from "./live_map_chunk_history_copy_status_procedure";
 import * as PreviewStudioScopeProcedure from "./preview_studio_scope_procedure";
 import * as ReadLiveMapChunkHistoryProcedure from "./read_live_map_chunk_history_procedure";
 import * as ReadLiveMapPublicationBaseProcedure from "./read_live_map_publication_base_procedure";
@@ -1567,6 +1569,7 @@ const reducersSchema = __reducers(
   __reducerSchema("reset_skill_tree", ResetSkillTreeReducer),
   __reducerSchema("restore_content_revision", RestoreContentRevisionReducer),
   __reducerSchema("restore_live_map_revision", RestoreLiveMapRevisionReducer),
+  __reducerSchema("retire_live_map_audit_documents", RetireLiveMapAuditDocumentsReducer),
   __reducerSchema("return_inventory_cursor", ReturnInventoryCursorReducer),
   __reducerSchema("revoke_content_editor", RevokeContentEditorReducer),
   __reducerSchema("revoke_member", RevokeMemberReducer),
@@ -1632,6 +1635,7 @@ const proceduresSchema = __procedures(
   __procedureSchema("audit_chunk_authority", AuditChunkAuthorityProcedure.params, AuditChunkAuthorityProcedure.returnType),
   __procedureSchema("inspect_world_chunk_shadow", InspectWorldChunkShadowProcedure.params, InspectWorldChunkShadowProcedure.returnType),
   __procedureSchema("list_live_map_chunk_history", ListLiveMapChunkHistoryProcedure.params, ListLiveMapChunkHistoryProcedure.returnType),
+  __procedureSchema("live_map_chunk_history_copy_status", LiveMapChunkHistoryCopyStatusProcedure.params, LiveMapChunkHistoryCopyStatusProcedure.returnType),
   __procedureSchema("preview_studio_scope", PreviewStudioScopeProcedure.params, PreviewStudioScopeProcedure.returnType),
   __procedureSchema("read_live_map_chunk_history", ReadLiveMapChunkHistoryProcedure.params, ReadLiveMapChunkHistoryProcedure.returnType),
   __procedureSchema("read_live_map_publication_base", ReadLiveMapPublicationBaseProcedure.params, ReadLiveMapPublicationBaseProcedure.returnType),

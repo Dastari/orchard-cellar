@@ -113,7 +113,10 @@ export interface WorldPort {
 }
 export interface HistoryRow { readonly id: string; readonly mapId: string; readonly revision: number; readonly contentHash: string;
   readonly hasDocumentCopy: boolean; readonly archived: boolean }
+export interface HistoryCopyStatus { readonly historyCopies: number; readonly missingArchives: number; readonly auditCopies: number; readonly previewCopies: number }
 export interface HistoryWorldPort extends WorldPort {
+  historyCopyStatus(): Promise<HistoryCopyStatus>;
+  retireAuditDocuments(): Promise<void>;
   listHistory(afterId: bigint, limit: number): Promise<{ readonly rows: readonly HistoryRow[]; readonly more: boolean }>;
   readHistory(revisionId: bigint): Promise<LiveMapRow & { readonly manifestHash: string }>;
   backfillHistory(input: { readonly revisionId: bigint; readonly manifestJson: string; readonly registryContentHash: string;
@@ -759,7 +762,7 @@ function withTimeout<T>(label: string, promise: Promise<T>, ms: number): Promise
   });
 }
 
-export async function connectWorld(target: { readonly host: string; readonly database: string }, token: string): Promise<HistoryWorldPort & { close(): void }> {
+export async function connectWorld(target: { readonly host: string; readonly database: string }, token: string | (() => Promise<string>)): Promise<HistoryWorldPort & { close(): void }> {
   const { DbConnection, tables } = await import('@orchard/world-bindings');
   // The SDK logs connection chatter on stdout; keep stdout for the one JSON summary line.
   (await import('spacetimedb')).setGlobalLogLevel('warn');
@@ -769,8 +772,9 @@ export async function connectWorld(target: { readonly host: string; readonly dat
     mapRow = JSON.parse(await withTimeout('read_map_base', connection.procedures.readLiveMapPublicationBase({}), 60_000)) as LiveMapRow | null;
   };
   const open = async (): Promise<Connection> => {
+    const currentToken = typeof token === 'function' ? await token() : token;
     const built = await withTimeout('connect', new Promise<Connection>((resolvePromise, reject) => {
-      DbConnection.builder().withUri(target.host).withDatabaseName(target.database).withToken(token)
+      DbConnection.builder().withUri(target.host).withDatabaseName(target.database).withToken(currentToken)
         .onConnect(ready => resolvePromise(ready))
         .onConnectError((_context, error) => reject(new PipelineError('connect_failed', EXIT.failed, errorText(error))))
         .build();
@@ -808,6 +812,8 @@ export async function connectWorld(target: { readonly host: string; readonly dat
   };
   return {
     read,
+    historyCopyStatus: async () => JSON.parse(await withTimeout('history_copy_status', live().procedures.liveMapChunkHistoryCopyStatus({}), 60_000)),
+    retireAuditDocuments: () => withTimeout('retire_audit_documents', live().reducers.retireLiveMapAuditDocuments({}), 300_000),
     listHistory: async (afterId, limit) => JSON.parse(await withTimeout('list_history', live().procedures.listLiveMapChunkHistory({ afterId, limit }), 60_000)),
     readHistory: async revisionId => JSON.parse(await withTimeout('read_history', live().procedures.readLiveMapChunkHistory({ revisionId }), 60_000)),
     backfillHistory: input => withTimeout('backfill_history', live().reducers.backfillLiveMapChunkHistory(input), 300_000),
