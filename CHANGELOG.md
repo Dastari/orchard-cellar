@@ -2,6 +2,10 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Root 0.80.1 / Tools 0.24.11 — Quiesced static history rehearsal atlas
+
+- **BUG-069:** the isolated S7c history rehearsal reads the validated local candidate atlas while the public frontend is stopped. It records the exact atlas digest and refuses malformed, redirected or changed bytes before production can publish.
+
 ## Client 0.56.0 / World 0.32.0 / Sim 0.36.0 / World bindings 0.21.0 / Tools 0.24.10 / Studio 0.17.0 — Static world S7b: Studio publishes the island and its chunks together
 
 **Schema-only migration release.** Adds the atomic map/chunk reducer, a member blob-read procedure and the private staging table. Content is unchanged. Client chunk runtime remains on.
