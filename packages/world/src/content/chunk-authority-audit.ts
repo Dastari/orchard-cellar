@@ -3,7 +3,7 @@ import { validateRuntimeManifest } from '@orchard/sim/chunk-runtime';
 import { WORLD_CHUNK_SIZE, type WorldChunkManifest } from '@orchard/sim/world-chunk';
 import {
   ChunkAuthorityDispatcher,
-  type ChunkAuthorityLogger, type ChunkAuthoritySource, type ChunkAuthorityUnavailableReason,
+  type ChunkAuthorityLogger, type ChunkAuthoritySource, type ChunkPublicationLag, type ChunkAuthorityUnavailableReason,
   type CompiledCollisionRuntime,
 } from './chunk-authority-dispatch.js';
 import {
@@ -112,7 +112,7 @@ export interface ChunkAuthorityAuditReport {
   /** What `on` would do with this publication right now. */
   readonly servable: { readonly ok: boolean; readonly reason?: ChunkAuthorityUnavailableReason | 'compiled_null'; readonly detail?: string;
     /** SW-D2: servable, but the live map or content moved on since publication (republish to catch up). */
-    readonly lag?: readonly ('content' | 'map')[]; readonly lagDetail?: string };
+    readonly lag?: readonly ChunkPublicationLag[]; readonly lagDetail?: string };
   readonly manifestError: string | null;
   readonly disagreements: {
     /** Whether the compare ran (it needs both runtimes). */

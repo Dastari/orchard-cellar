@@ -237,9 +237,6 @@ describe('WorldSource collision (static world S4d)', () => {
       ['authority_metadata_missing', (manifest: WorldChunkManifest) => ({ ...manifest, metadata: { ...manifest.metadata, authority: null } })],
       ['ground_fields_missing: terrainTransitions', (manifest: WorldChunkManifest) => ({ ...manifest, metadata: { ...manifest.metadata,
         authority: { ...authority(manifest), collisions: { ground: { terrainMinimumElevation: 0 }, water: {} } } } })],
-      ['traversal_policy_mismatch', (manifest: WorldChunkManifest) => ({ ...manifest, metadata: { ...manifest.metadata,
-        authority: { ...authority(manifest), collisions: { ground: { terrainMinimumElevation: 0, terrainTransitions: 0, hasTraversalChannels: !TRAVERSAL },
-          water: { hasTraversalChannels: !TRAVERSAL } } } } })],
       ['incomplete: head_missing@5,5', (manifest: WorldChunkManifest) => ({ ...manifest, chunks: manifest.chunks.filter(head => !(head.cx === 5 && head.cy === 5)) })],
       ['guard_size: 320x384', (manifest: WorldChunkManifest) => ({ ...manifest, width: 320 })],
       ['guard_base', (manifest: WorldChunkManifest) => ({ ...manifest, metadata: { ...manifest.metadata, document: { provenance: { kind: 'blank' } } } })],
@@ -251,6 +248,12 @@ describe('WorldSource collision (static world S4d)', () => {
       expect(refused.collisionBlocked, reason).toBe(reason); // S6: "world updating", retried
       expect(refused.authority(registry), reason).toBeUndefined();
     }
+    // A traversal policy change since publication is lag (SW-D2): the pinned chunks keep serving.
+    const lagging = onSource({ manifest: (manifest: WorldChunkManifest) => ({ ...manifest, metadata: { ...manifest.metadata,
+      authority: { ...authority(manifest), collisions: { ground: { terrainMinimumElevation: 0, terrainTransitions: 0, hasTraversalChannels: !TRAVERSAL },
+        water: { hasTraversalChannels: !TRAVERSAL } } } } }) }).source;
+    expect(lagging.collisionBlocked).toBeNull();
+    expect(lagging.collisionStatus.fallbackReason).toBeNull();
     // Another space never serves chunk collision.
     const other = servingStore(7, undefined, true);
     expect(new WorldSource({ store: () => other.store, pin: other.pin }).collision(registry)).toBeUndefined();

@@ -58,7 +58,7 @@ export type ChunkAuthorityUnavailableReason =
   | 'ground_fields_missing';
 
 /** Why a served publication is behind the live map or content (SW-D2: it keeps serving until republished). */
-export type ChunkPublicationLag = 'content' | 'map';
+export type ChunkPublicationLag = 'content' | 'map' | 'traversal_policy';
 
 export type ChunkRuntimeResolution =
   | { readonly ok: true; readonly runtime: ChunkLiveIslandRuntime;
@@ -211,13 +211,15 @@ export class ChunkAuthorityDispatcher {
     const missingGround = (['terrainMinimumElevation', 'terrainTransitions', 'elevations', 'terrainPlaneBlocked'] as const)
       .filter(field => runtime.ground[field] === undefined);
     if (missingGround.length > 0) return { ok: false, reason: 'ground_fields_missing', detail: missingGround.join(','), key: runtime.key };
-    // Presence is fixed at publication; compiled derives it for both media from the live registry policy.
+    // Presence is fixed at publication. A content publication that adds or removes the traversal policy
+    // since then is lag like any other (SW-D2): the pinned channels keep serving, exactly what every
+    // client collides with, until the chunks are republished. Never unservable (review of #294).
     const active = source.traversalPolicyActive();
     const mismatched = MEDIA.filter(medium => (runtime[medium].traversalChannels !== undefined) !== active);
-    if (mismatched.length > 0) {
-      return { ok: false, reason: 'traversal_policy_mismatch', detail: `${mismatched.join(',')}: chunks ${!active}, registry ${active}`, key: runtime.key };
-    }
-    return lag.length === 0 ? resolution : { ...resolution, lag, lagDetail: lagDetail! };
+    if (mismatched.length > 0) lag.push('traversal_policy');
+    if (lag.length === 0) return resolution;
+    const traversalDetail = mismatched.length === 0 ? undefined : `traversal ${mismatched.join(',')}: chunks ${!active}, registry ${active}`;
+    return { ...resolution, lag, lagDetail: [lagDetail, traversalDetail].filter(part => part !== undefined).join('; ') };
   }
 
   /** Parse, validate and guard the published manifest once per shadow key. Every throw,

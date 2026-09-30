@@ -7321,18 +7321,24 @@ function placedLiveIslandResources(ctx: WorldReducerContext, liveMapRuntime: Liv
   return { placements, desired };
 }
 
-/** Per module instance: whether topside resources are known to be seeded. */
-let topsideResourcesSeeded = false;
+/** Per module instance: the serving runtime (key) whose generated resources were seen as rows. */
+let topsideResourcesSeededFor: string | null = null;
 /**
  * Static world S3-final: a fresh database seeds no topside resources at init (nothing is published).
- * Once the island serves, a topside with no resource rows at all is reconciled from the publication,
- * exactly once. Checked every tick until then, one index probe per module instance afterwards.
+ * Once the island serves, a topside with none of the publication's generated resources as rows is
+ * reconciled from the publication. Planted trees and hearth rows are not generated, so they never
+ * block seeding. The flag is set only after rows were observed (never by the seeding tick itself), so
+ * a rolled-back tick seeds again; afterwards it costs one index probe per publication per instance.
  */
 function seedTopsideResourcesOnce(ctx: WorldReducerContext): void {
-  if (topsideResourcesSeeded) return;
-  if (liveIslandCollisionRuntime(ctx) === null) return;
-  topsideResourcesSeeded = true;
-  for (const row of ctx.db.world_resource.by_chunk.filter(TOPSIDE_SPACE_ID)) { void row; return; }
+  const runtime = liveIslandCollisionRuntime(ctx);
+  if (runtime === null || topsideResourcesSeededFor === runtime.key) return;
+  const generated = runtime.generatedResources();
+  if (generated.length === 0) return;
+  if (generated.some(resource => ctx.db.world_resource.id.find(BigInt(resource.id)) !== null)) {
+    topsideResourcesSeededFor = runtime.key;
+    return;
+  }
   reconcileGeneratedSurvivalResources(ctx);
 }
 

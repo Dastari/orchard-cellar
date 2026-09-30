@@ -148,7 +148,6 @@ describe('chunk authority dispatcher: on', () => {
     ['shadow_missing', { shadow: 'none' as const }],
     ['shadow_map_mismatch', { shadow: { mapId: 'other-map' } }],
     ['map_row_missing', { liveMap: null }],
-    ['traversal_policy_mismatch', { traversal: false }],
     ['manifest_invalid', { manifestJson: '{not json' }],
   ])('is unservable (null: the server fails safe) and logs once when %s', (reason, overrides) => {
     const h = harness(overrides);
@@ -291,17 +290,21 @@ describe('chunk authority dispatcher: on', () => {
     }
   });
 
-  it('checks traversal-channel presence on water as well as ground against the live registry policy', () => {
-    const { manifest } = island({ hasTraversalChannels: true, waterTraversal: false });
-    const h = harness({ manifest, traversal: true });
+  it('serves the pinned channels as lag when the live traversal policy changed since publication (SW-D2, review of #294)', () => {
+    const { manifest, store } = island({ hasTraversalChannels: true, waterTraversal: false });
+    const h = harness({ manifest, blobs: store, traversal: true });
     const d = dispatcher(h.logger);
-    expect(d.select(h.source)).toBeNull();
-    expect(d.status().fallbacks).toEqual({ traversal_policy_mismatch: 1 });
-    expect(h.events.find(({ event }) => event['event'] === 'chunk_authority_unservable')?.event).toMatchObject({ detail: expect.stringMatching(/^water:/u) });
-    // Both media without channels match a registry without a traversal policy.
+    expect((d.select(h.source) as ChunkLiveIslandRuntime).source).toBe('chunks');
+    expect(d.status().fallbacks).toEqual({});
+    expect(d.status().lastResolution).toMatchObject({ ok: true, lag: ['traversal_policy'] });
+    expect(h.events.find(({ event }) => event['event'] === 'chunk_authority_serving_pinned')?.event)
+      .toMatchObject({ lag: ['traversal_policy'], detail: expect.stringMatching(/traversal water: chunks false, registry true/u) });
+    // Both media without channels match a registry without a traversal policy: no lag.
     const none = island({ hasTraversalChannels: false });
     const off = harness({ manifest: none.manifest, blobs: none.store, traversal: false });
-    expect((dispatcher(off.logger).select(off.source) as ChunkLiveIslandRuntime).source).toBe('chunks');
+    const offDispatcher = dispatcher(off.logger);
+    expect((offDispatcher.select(off.source) as ChunkLiveIslandRuntime).source).toBe('chunks');
+    expect(offDispatcher.status().lastResolution?.lag).toBeUndefined();
   });
 
   it('guards the island: topside, survival world size and survival island base', () => {
@@ -574,6 +577,30 @@ describe('index.ts collision dispatcher wiring (static world S3-final: chunks on
       expect(w.dispatcher.status().fallbacks).toEqual({ incomplete: 1 });
     });
 
+    it('seeds topside from the publication unless its generated resources are rows; planted and hearth rows never block it', () => {
+      const text = readFileSync(new URL('../index.ts', import.meta.url), 'utf8');
+      const start = text.indexOf('\nfunction seedTopsideResourcesOnce(');
+      const fn = text.slice(start, text.indexOf('\n}\n', start) + 3);
+      const code = ts.transpileModule(`let topsideResourcesSeededFor = null;\n${fn}\nreturn seedTopsideResourcesOnce;`,
+        { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
+      const rows = new Set<bigint>();
+      let runtime: { key: string; generatedResources(): { id: number }[] } | null = null;
+      const reconcile = vi.fn(() => { rows.add(10n); rows.add(11n); });
+      const lookups = vi.fn((id: bigint) => rows.has(id) ? { id } : null);
+      const seed = new Function('liveIslandCollisionRuntime', 'reconcileGeneratedSurvivalResources', code)(() => runtime, reconcile) as (ctx: unknown) => void;
+      const ctx = { db: { world_resource: { id: { find: lookups } } } };
+      seed(ctx); expect(reconcile).not.toHaveBeenCalled(); // unservable: nothing to seed from
+      runtime = { key: 'k1', generatedResources: () => [{ id: 10 }, { id: 11 }] };
+      rows.add(900n); // a planted tree or hearth row
+      seed(ctx); expect(reconcile).toHaveBeenCalledTimes(1);
+      rows.delete(10n); rows.delete(11n); // the seeding tick rolled back
+      seed(ctx); expect(reconcile).toHaveBeenCalledTimes(2);
+      seed(ctx); expect(reconcile).toHaveBeenCalledTimes(2); // rows seen: flagged for this runtime
+      lookups.mockClear(); seed(ctx); expect(lookups).not.toHaveBeenCalled();
+      runtime = { key: 'k2', generatedResources: () => [{ id: 10 }, { id: 11 }] };
+      seed(ctx); expect(lookups).toHaveBeenCalledTimes(1); expect(reconcile).toHaveBeenCalledTimes(2);
+    });
+
     it('the server no longer compiles the map or runs the generator; reconcile never runs unservable', () => {
       const text = readFileSync(new URL('../index.ts', import.meta.url), 'utf8');
       const functionText = (name: string) => {
@@ -586,7 +613,7 @@ describe('index.ts collision dispatcher wiring (static world S3-final: chunks on
       const reconcile = functionText('reconcileGeneratedSurvivalResources');
       expect(reconcile.indexOf('if (liveMapRuntime === null) return;')).toBeGreaterThan(reconcile.indexOf('liveIslandCollisionRuntime(ctx)'));
       expect(reconcile.indexOf('if (liveMapRuntime === null) return;')).toBeLessThan(reconcile.indexOf('ctx.db.world_resource.id.delete'));
-      expect(functionText('seedTopsideResourcesOnce')).toContain('if (liveIslandCollisionRuntime(ctx) === null) return;');
+      expect(functionText('seedTopsideResourcesOnce')).toContain('if (runtime === null || topsideResourcesSeededFor === runtime.key) return;');
       const tick = text.slice(text.indexOf('export const stepWorld ='));
       expect(tick).toContain('seedTopsideResourcesOnce(ctx);');
       expect(functionText('settleTownStreetlamps')).toContain('mapStreetlampPlans(runtime.staticView)');

@@ -1,10 +1,10 @@
 import type { ContentRegistry, RuntimeTilesetResolver } from '@orchard/sim';
-import { mapDocumentUsesSurvivalIslandBase, runtimeTilesetResolver, runtimeTraversalPolicy, SURVIVAL_WORLD_SIZE, TOPSIDE_SPACE_ID,
+import { mapDocumentUsesSurvivalIslandBase, runtimeTilesetResolver, SURVIVAL_WORLD_SIZE, TOPSIDE_SPACE_ID,
   type MapDocumentV3 } from '@orchard/sim';
 import { WORLD_CHUNK_SIZE, type ChunkJson, type WorldChunkManifest } from '@orchard/sim/world-chunk';
 import {
   buildChunkWindowCollision, chunkAuthorityGeneratedSuppressions, chunkAuthorityGroundFieldsMissing, chunkAuthorityMetadata,
-  chunkAuthorityTraversalChannels, type ChunkAuthorityManifestMetadata, type ChunkWindowCollision,
+  type ChunkAuthorityManifestMetadata, type ChunkWindowCollision,
 } from '@orchard/sim/chunk-collision';
 import type { BoundedChunkTerrainStore } from '@orchard/engine/bounded-chunk-terrain-store';
 import {
@@ -81,7 +81,7 @@ export interface WorldSourceCollisionStatus {
   readonly failures: number;
   readonly lastError: string | null;
   /** The server-mirroring reason the legacy collision is in use, e.g. `superseded`,
-   * `shadow_missing`, `incomplete: head_missing@3,4`, `traversal_policy_mismatch`. */
+   * `shadow_missing`, `incomplete: head_missing@3,4`. */
   readonly fallbackReason: string | null;
   /** The serving publication is incomplete or malformed (the server's `incomplete`). */
   readonly authorityIncomplete: boolean;
@@ -618,8 +618,8 @@ function manifestAuthorityReason(manifest: WorldChunkManifest, registry: Content
   if (meta === undefined) return 'authority_metadata_missing';
   const missing = chunkAuthorityGroundFieldsMissing(meta);
   if (missing.length > 0) return `ground_fields_missing: ${missing.join(',')}`;
-  const channels = chunkAuthorityTraversalChannels(meta), active = runtimeTraversalPolicy(registry) !== null;
-  if (channels.ground !== active || channels.water !== active) return 'traversal_policy_mismatch';
+  // A traversal policy added or removed by a content publication since the chunks were published is lag
+  // (SW-D2), as on the server: the pinned channels keep serving until the chunks are republished.
   const heads = new Set(manifest.chunks.map(head => `${head.cx}:${head.cy}`));
   for (let cy = 0; cy < Math.ceil(manifest.height / WORLD_CHUNK_SIZE); cy++) for (let cx = 0; cx < Math.ceil(manifest.width / WORLD_CHUNK_SIZE); cx++) {
     if (!heads.has(`${cx}:${cy}`)) return `incomplete: head_missing@${cx},${cy}`;
