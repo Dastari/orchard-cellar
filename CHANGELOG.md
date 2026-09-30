@@ -2,6 +2,10 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Root 0.82.0 / World 0.34.0 / Sim 0.37.0 / Assets 0.25.0 — Basic starter recipe guides
+
+- New characters begin with book entries for planks, sticks, four wooden tools and a workbench. Knowledge is authored beside the starter loadout, validated against active recipes and granted once during creation. Returning characters and starter items are unchanged; ordinary pattern crafting and special learning requirements retain their current rules.
+
 ## Root 0.81.9 / Client 0.56.4 / UI 0.54.6 — Remove Rewards and Character menu entries
 
 - The Escape menu no longer offers Rewards or Character. Reward collection remains available with O; the Character book remains available with P and its other existing controls.

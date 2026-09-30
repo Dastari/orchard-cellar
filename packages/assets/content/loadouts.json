@@ -93,6 +93,15 @@
         "vigourDrainCentiPerSecond": 1000,
         "baselineAttribute": 10
       }
+    ],
+    "recipes": [
+      "recipe:planks",
+      "recipe:sticks",
+      "recipe:axe",
+      "recipe:pickaxe",
+      "recipe:hoe",
+      "recipe:shovel",
+      "recipe:workbench"
     ]
   }
 ]

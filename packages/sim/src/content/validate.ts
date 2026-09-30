@@ -370,6 +370,11 @@ function validateLoadoutDefinition(
       definition.id, `entries[${index}].quantity`,
     ));
   });
+  for (const [index, id] of (definition.recipes ?? []).entries()) {
+    const recipe = byId.get(id);
+    if (recipe?.kind !== 'recipe') errors.push(issue('error', 'unresolved_reference', `recipe reference does not resolve: ${id}`, definition.id, `recipes[${index}]`));
+    else if (definition.retired !== true && recipe.retired === true) errors.push(issue('error', 'retired_reference', `live loadout references retired recipe ${id}`, definition.id, `recipes[${index}]`));
+  }
   return errors;
 }
 

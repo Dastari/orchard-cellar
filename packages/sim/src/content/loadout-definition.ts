@@ -56,6 +56,8 @@ export interface LoadoutContentDefinition {
   /** The selected entry's cell (a hotbar cell or the Main Hand); used with `cell` entries. */
   readonly selectedCell?: LoadoutCellDefinition;
   readonly entries: readonly LoadoutEntryDefinition[];
+  /** Patterns initially shown in a new character's recipe book; omitted preserves older packs. */
+  readonly recipes?: readonly `recipe:${string}`[];
   readonly appearance: PlayerAppearanceCatalogDefinition;
   readonly abilities: readonly SprintAbilityContentDefinition[];
   readonly retired?: boolean;
@@ -236,6 +238,12 @@ export function parseLoadoutDefinition(json: string | unknown): LoadoutContentDe
   if (new Set(abilities.map(({ id: abilityId }) => abilityId)).size !== abilities.length) {
     fail('$.abilities', 'ability ids must be unique');
   }
+  if (source.recipes !== undefined && (!Array.isArray(source.recipes) || source.recipes.length > 256)) fail('$.recipes', 'expected at most 256 recipe ids');
+  const recipes = (source.recipes as unknown[] | undefined)?.map((value, index) => {
+    if (typeof value !== 'string' || !/^recipe:[a-z0-9]+(?:_[a-z0-9]+)*$/u.test(value)) fail(`$.recipes[${index}]`, 'invalid recipe definition id');
+    return value as `recipe:${string}`;
+  });
+  if (recipes && new Set(recipes).size !== recipes.length) fail('$.recipes', 'recipe ids must be unique');
   return Object.freeze({
     id,
     kind: 'loadout',
@@ -243,6 +251,7 @@ export function parseLoadoutDefinition(json: string | unknown): LoadoutContentDe
     role: 'new_player',
     ...selection,
     entries: Object.freeze(entries),
+    ...(recipes === undefined ? {} : { recipes: Object.freeze(recipes) }),
     appearance: parseAppearanceCatalog(source.appearance, '$.appearance'),
     abilities: Object.freeze(abilities),
     ...(source.retired === undefined ? {} : { retired: source.retired }),
