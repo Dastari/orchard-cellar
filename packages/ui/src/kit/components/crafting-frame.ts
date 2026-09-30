@@ -7,6 +7,7 @@ import { uiSlot, uiInventoryGrid } from './inventory.js';
 import { uiRecipeBook, type UiRecipeBookElement, type UiRecipeBookEntry, type UiRecipeStatus } from './recipe-book.js';
 import { uiGlyph, uiGlyphButton } from './window.js';
 import { uiTooltip } from './tooltip.js';
+import { uiFixed } from '../layout/box.js';
 import { measureUiElement } from '../layout/measure.js';
 
 export interface UiCraftingRecipe {
@@ -58,12 +59,13 @@ export function uiCraftingFrame(options: UiCraftingFrameOptions): UiCraftingFram
       const result = uiSlot({ label: 'Craft result', activateOn: 'up', artwork: options.artwork, iconAnimation: options.iconAnimation, contentRegistry: options.contentRegistry, stack: () => snapshot.output,
         onPress: event => { if (snapshot.output && !snapshot.requirement) options.onCraft(event.shiftKey === true); },
       }); results.push(result);
+      const patternRow = uiFlex({ direction: 'row', align: 'center', gap: 6 }, [grid, uiGlyph('glyph.play'), uiTooltip(() => snapshot.requirement ?? RESULT_HINT, result)]);
       // A locked result says why in words under the grid (touch has no hover); the tooltip keeps the full hint.
-      const reason = uiText('', { wrap: true, layout: { alignSelf: 'stretch', visible: false } }).setProps({ ink: '#9e2835' }); reasons.push(reason);
+      const reason = uiText('', { wrap: true, layout: { alignSelf: 'stretch', visible: false, maxWidth: uiFixed(measureUiElement(patternRow, { width: Infinity, height: Infinity }).preferred.width) } }).setProps({ ink: '#9e2835' }); reasons.push(reason);
       // The window's ribbon already names the bench, so its header only labels the recipe book button.
       return uiFlex({ id: `pane:${pane.id}`, direction: 'column', gap: 4, shrink: 0 }, [
         uiFlex({ direction: 'row', align: 'center', justify: 'end', gap: 4, alignSelf: 'stretch' }, [uiText('Recipe book', { role: 'caption' }), toggle]),
-        uiFlex({ direction: 'row', align: 'center', gap: 6 }, [grid, uiGlyph('glyph.play'), uiTooltip(() => snapshot.requirement ?? RESULT_HINT, result)]),
+        patternRow,
         reason,
       ]);
     }
