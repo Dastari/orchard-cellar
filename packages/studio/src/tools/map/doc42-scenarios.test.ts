@@ -46,7 +46,8 @@ describe('Studio/Map Editor verification log in Orchard Studio', () => {
   });
 
   it('uses one shell connection for CAS map publish and audited homestead movement', () => {
-    expect(shellConnection).toContain('publishLiveMapDocument');
+    expect(shellConnection).toContain('publishLiveMapWithChunks');
+    expect(shellConnection).not.toContain('publishLiveMapDocument');
     expect(shellConnection).toContain('expectedRevision');
     expect(shellConnection).toContain('adminMoveHomestead');
     expect(shellConnection).toContain("row.definitionId === 'object:chest'");
