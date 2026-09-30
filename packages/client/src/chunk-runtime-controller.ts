@@ -3,7 +3,7 @@ import type { DbConnection, SubscriptionHandle } from '@orchard/world-bindings';
 import type { WorldChunkHead } from '@orchard/world-bindings/types';
 import { validateRuntimeManifest, type ChunkCollisionSample, type ChunkRuntimeMode } from '@orchard/sim/chunk-runtime';
 import type { BoundedChunkTerrainStore } from '@orchard/engine/bounded-chunk-terrain-store';
-import { ChunkShadowLoader, fetchChunkBlob } from './chunk-shadow-loader.js';
+import { ChunkShadowLoader, fetchChunkBlob, withDatabaseBlobFallback } from './chunk-shadow-loader.js';
 import { browserChunkBlobCache, type ChunkBlobCache, type IndexedDbChunkCache } from './chunk-shadow-cache.js';
 
 export type ChunkView = readonly [number, number, number, number];
@@ -272,7 +272,14 @@ export class ChunkRuntimeController {
     if (this.#pending === buffer) this.#pending = undefined;
   }
   #buffer(revision: string, spaceId: bigint, manifest: WorldChunkManifest): ChunkBuffer {
-    return { revision, spaceId, manifest, loader: new ChunkShadowLoader(manifest, this.#fetchBlob, this.#cache) };
+    // S7b: a blob the origin does not serve yet comes from the world database (readWorldChunkBlob), over
+    // the connection current at call time: a buffer outlives a reconnect at the same revision.
+    const fetchBlob = withDatabaseBlobFallback(this.#fetchBlob, manifest, head => {
+      const connection = this.#latest?.connection;
+      if (connection === undefined || this.#disposed) return Promise.reject(new Error('chunk_blob_connection_unavailable'));
+      return connection.procedures.readWorldChunkBlob({ spaceId: BigInt(head.spaceId), cx: head.cx, cy: head.cy, contentHash: head.contentHash });
+    });
+    return { revision, spaceId, manifest, loader: new ChunkShadowLoader(manifest, fetchBlob, this.#cache) };
   }
   #assetRevision(): Promise<string> {
     this.#assetHash ??= this.#fetchBlob('/generated/atlas.packs.json', 1024 * 1024).then(worldChunkHash)

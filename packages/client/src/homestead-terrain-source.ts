@@ -3,6 +3,7 @@ import { chunkBlobPath, validateRuntimeManifest, verifyRuntimeChunk } from '@orc
 import { WORLD_CHUNK_HALO, WORLD_CHUNK_SIZE, WORLD_CHUNK_STRIDE, type WorldChunk, type WorldChunkManifest } from '@orchard/sim/world-chunk';
 import type { SpaceTerrainGenerators } from '@orchard/engine/space-terrain';
 import type { ChunkBlobCache } from './chunk-shadow-cache.js';
+import { withDatabaseBlobFallback, type ChunkBlobFallback } from './chunk-shadow-loader.js';
 
 /**
  * Static world S6: homestead exteriors without the island generator. A homestead enlarges the island
@@ -83,23 +84,31 @@ export function loadedHomesteadIslandPatch(site: Site): HomesteadIslandPatch | u
  * a homestead on the next load, and its terrain and woodland always agree.
  */
 export function ensureHomesteadIslandPatch(site: Site, sizeTiles: number, shadow: { readonly revision: number; readonly manifestJson: string } | null,
-  fetchBlob: (path: string, maxBytes: number) => Promise<Uint8Array>, cache: ChunkBlobCache | undefined): HomesteadIslandPatch | undefined {
+  fetchBlob: (path: string, maxBytes: number) => Promise<Uint8Array>, cache: ChunkBlobCache | undefined,
+  fallback?: ChunkBlobFallback): HomesteadIslandPatch | undefined {
   const existing = patches.get(siteKey(site));
   if (existing !== undefined || shadow === null) return existing;
   const key = siteKey(site);
   if (!loading.has(key) && Date.now() - (failedAt.get(key) ?? -Infinity) >= RETRY_AFTER_MS) {
     const pending = (async () => {
       const manifest: WorldChunkManifest = validateRuntimeManifest(JSON.parse(shadow.manifestJson));
+      const read = fallback === undefined ? fetchBlob : withDatabaseBlobFallback(fetchBlob, manifest, fallback);
       const chunks = new Map<string, WorldChunk>();
       for (const { cx, cy } of homesteadPatchChunks(site, sizeTiles)) {
         const head = manifest.chunks.find(entry => entry.cx === cx && entry.cy === cy);
         if (head === undefined) continue;
-        let bytes = await cache?.get(head.contentHash).catch(() => undefined);
-        if (bytes === undefined) {
-          bytes = await fetchBlob(chunkBlobPath(manifest.spaceId, head.contentHash), head.byteLength);
+        // Verified before it is cached (review of #297); a cached copy that fails is dropped and refetched.
+        let chunk: WorldChunk | undefined;
+        const cached = await cache?.get(head.contentHash).catch(() => undefined);
+        if (cached !== undefined) {
+          try { chunk = verifyRuntimeChunk(cached, manifest, cx, cy); } catch { await cache?.delete(head.contentHash).catch(() => undefined); }
+        }
+        if (chunk === undefined) {
+          const bytes = await read(chunkBlobPath(manifest.spaceId, head.contentHash), head.byteLength);
+          chunk = verifyRuntimeChunk(bytes, manifest, cx, cy);
           await cache?.put(head.contentHash, bytes, manifest.spaceId).catch(() => undefined);
         }
-        chunks.set(`${cx}:${cy}`, verifyRuntimeChunk(bytes, manifest, cx, cy));
+        chunks.set(`${cx}:${cy}`, chunk);
       }
       patches.set(siteKey(site), homesteadIslandPatch(shadow.revision, site, chunks));
       failedAt.delete(key);
