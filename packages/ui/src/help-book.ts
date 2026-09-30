@@ -2,7 +2,7 @@ import type { UiRect } from './geometry.js';
 import type { UiTextLinkTarget } from './design-system/rich-text.js';
 import type { UiKitArt } from './kit/components/art.js';
 import { uiGameBookPage } from './kit/components/character-book.js';
-import { uiHelpBook, type UiHelpBookElement } from './kit/components/help-book.js';
+import { uiHelpBook, type UiHelpBookElement, type UiHelpBookOptions } from './kit/components/help-book.js';
 import { uiFixed } from './kit/layout/box.js';
 import { UiRoot } from './kit/runtime/root.js';
 import { centreGameBook, gameBookSize } from './quest-log.js';
@@ -15,9 +15,9 @@ export class HelpBook {
   private page: { readonly width: number; readonly height: number } | undefined;
   private readonly view: UiHelpBookElement;
 
-  constructor(art: UiKitArt, onClose: () => void, onLink?: (target: UiTextLinkTarget) => void) {
+  constructor(art: UiKitArt, onClose: () => void, onLink?: (target: UiTextLinkTarget) => void, slotArt?: UiHelpBookOptions['slotArt']) {
     this.root = new UiRoot({ art, scale: 1, label: 'Orchard guide' });
-    this.view = uiHelpBook({ art, onClose, onLink });
+    this.view = uiHelpBook({ art, onClose, onLink, slotArt });
     this.root.mount(this.view);
   }
 
