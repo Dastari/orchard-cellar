@@ -2,6 +2,19 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.56.1 / World 0.33.0 / Sim 0.36.1 / World bindings 0.22.0 / Tools 0.25.0 / Studio 0.18.0 — Static world S7c: private map base and chunk-manifest history
+
+**Schema migration with verified history conversion.** Option C retains one private server map base; public clients and Studio read chunks. Content remains unchanged. Client chunk runtime stays on.
+- **Public retirement (#302):** `live_map_document` becomes private. A metadata-only `liveMapHead` view supplies exact document SHA-256 and audit pins for strict reconnect continuity; authorized tooling reads the private base through an admin procedure.
+- **Manifest history:** private archives retain stable revision IDs and shared blob references. Backfill reconstructs exact historical bytes before clearing old document copies. Restore and undo atomically repin the map and serving chunks; stale content/art refuses until rematerialization.
+- **Copy retirement:** restore audit bodies become verified history references; obsolete restore preview receipts clear only after exact archive verification. Counts/checks reject missing archives, remaining copies and empty history.
+- **Studio:** remove the whole-document subscription/fallback, reconstruct from verified chunks, retry a failed head with bounded backoff, cap HTTP/SDK reads and abort stale sibling work. World Control uses stable history IDs.
+- **Operations:** guarded isolated history/backfill/restore/inverse/privacy/reconnect rehearsal runs after the unchanged production parity capture when `WORLD_RESTORE_STATIC_MAP_HISTORY=run`. Failures stop before production; long backfills rotate credentials through the shared lock.
+- **Compatibility:** the shared reconstruction helper uses a SpacetimeDB-compatible property check. Generator drafting and other spaces (S8) remain outside this release.
+- Workspace 0.81.0. Design, migration acceptance and exact commands: [S7c option C](https://wiki.orchard.dastari.net/Roadmap/Static%20World%20S7c%20Option%20C), [Private server map base](https://wiki.orchard.dastari.net/Decisions/SW-D4%20Private%20Server%20Map%20Base).
+
+**Release acceptance:** full retained CI, guarded schema-only MIGRATION with fresh backup/rehearsal, complete production history check, signed-in Studio/game proof and `world:static:readiness -- --require step6`. Restore the compatible verified migration backup for rollback.
+
 ## Root 0.80.1 / Tools 0.24.11 — Quiesced static history rehearsal atlas
 
 - **BUG-069:** the isolated S7c history rehearsal reads the validated local candidate atlas while the public frontend is stopped. It records the exact atlas digest and refuses malformed, redirected or changed bytes before production can publish.
