@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { canonicalChunkJson } from '@orchard/sim/world-chunk';
-import { serializeMapDocumentV3 } from '@orchard/sim';
+import { createLiveIslandMapDocument, liveMapHeadSource, parseMapDocumentV3, serializeMapDocumentV3 } from '@orchard/sim';
 import { chunkHistoryFixture } from './live-map-chunk-history.fixture.js';
-import { chunkHistoryBlobReferences, repinChunkHistoryManifest, retireTopsideAuditDocuments, verifiedChunkHistoryDocument } from './live-map-chunk-history.js';
+import { chunkHistoryBlobReferences, chunkHistoryRestoreRetryMatches, repinChunkHistoryManifest, retireTopsideAuditDocuments, validatedChunkHistoryRestoreDocument, verifiedChunkHistoryDocument } from './live-map-chunk-history.js';
 import { planChunkStage, CHUNK_STAGE_TTL_MICROS } from './content/chunk-shadow-runtime.js';
 
 describe('S7c chunk manifest history', () => {
@@ -39,6 +39,41 @@ describe('S7c chunk manifest history', () => {
     expect(rebuilt).toEqual({ ...document, revision: 14 });
   });
 
+  it('validates current landmark hydration, then restores and undoes exact historical authoring identity', () => {
+    const currentLandmarks = [{ id: 'garden', label: 'Garden', runtimeIdBase: '8000000000',
+      bounds: { minimumTileX: 2, maximumTileX: 4, minimumTileY: 2, maximumTileY: 4 },
+      decorations: [{ kind: 'point' as const, decorationKind: 'moonlit_crop_canvas', tileX: 3, tileY: 3, role: 'soil.watered' as const }] }];
+    const landmark = createLiveIslandMapDocument({ landmarks: currentLandmarks }).landmarks[0]!;
+    const oldLandmark = { ...landmark }; delete oldLandmark.role;
+    const base = chunkHistoryFixture().document;
+    const old = { ...base, landmarks: [oldLandmark], generatedSuppressions: [`decoration-${landmark.sourceDecorationId}`] };
+    const current = { ...base, landmarks: [landmark], generatedSuppressions: [] };
+    const archive = chunkHistoryFixture(1, old);
+    const inverseArchive = chunkHistoryFixture(13, current);
+    const validate = vi.fn((json: string) => parseMapDocumentV3(json, currentLandmarks));
+    const restored = validatedChunkHistoryRestoreDocument(archive.head.documentJson, validate);
+    expect(validate.mock.results[0]!.value.landmarks[0]).toMatchObject({ role: 'soil.watered', enabled: false });
+    expect(validate.mock.results[0]!.value.generatedSuppressions).toEqual([]);
+    expect(serializeMapDocumentV3(restored)).toBe(serializeMapDocumentV3(archive.document));
+    const restoredManifest = repinChunkHistoryManifest(archive.manifestJson, restored, 14);
+    const restoredHead = liveMapHeadSource(restored, 14);
+    expect(chunkHistoryRestoreRetryMatches(restoredHead.documentJson, restored)).toBe(true);
+    expect(chunkHistoryRestoreRetryMatches(restoredHead.documentJson, { ...restored, title: 'Different restore' })).toBe(false);
+    expect(chunkHistoryRestoreRetryMatches(JSON.stringify(validate.mock.results[0]!.value), restored)).toBe(false);
+    expect(verifiedChunkHistoryDocument({ mapId: 'live-island', revision: 14, contentHash: restoredHead.contentHash },
+      restoredManifest, archive.readBlob)).toEqual(restoredHead.document);
+    const inverse = validatedChunkHistoryRestoreDocument(inverseArchive.head.documentJson, validate);
+    const inverseManifest = repinChunkHistoryManifest(inverseArchive.manifestJson, inverse, 15);
+    const inverseHead = liveMapHeadSource(inverse, 15);
+    expect(verifiedChunkHistoryDocument({ mapId: 'live-island', revision: 15, contentHash: inverseHead.contentHash },
+      inverseManifest, inverseArchive.readBlob)).toEqual({ ...inverseArchive.document, revision: 15 });
+    for (const [json, original] of [[restoredManifest, archive.manifest], [inverseManifest, inverseArchive.manifest]] as const) {
+      expect(JSON.parse(json)).toMatchObject({ assetRevision: original.assetRevision, chunks: original.chunks });
+    }
+    expect(() => validatedChunkHistoryRestoreDocument(archive.head.documentJson, () => { throw new Error('current_content_guard'); }))
+      .toThrow('current_content_guard');
+  });
+
   it('pins historical shared blobs through staging expiry even after all live heads move', () => {
     const { manifestJson, manifest } = chunkHistoryFixture();
     const hash = manifest.chunks[0]!.contentHash;
@@ -62,6 +97,13 @@ describe('S7c chunk manifest history', () => {
     expect(restore).toContain('requireSameChunkAssetRevision');
     expect(restore).toContain('commitWorldChunkShadow');
     expect(restore).toContain('requireServableChunkPublication');
+    expect(restore).toContain('}, true)');
+    const commit = source.slice(source.indexOf('function commitLiveMapSnapshot'), source.indexOf('function liveMapRevisionDocument'));
+    expect(commit).toContain('authoredRestoreRetry = false');
+    expect(commit).toContain('chunkHistoryRestoreRetryMatches(existing.documentJson, document)');
+    const guarded = source.slice(source.indexOf("if (action.kind === 'restore_map') {"), source.indexOf('function executeAdminWorldControlMutation'));
+    const direct = source.slice(source.indexOf('export const restoreLiveMapRevision'), source.indexOf('export const travelHearthFerry'));
+    for (const entry of [guarded, direct]) expect(entry).toContain('validatedChunkHistoryRestoreDocument');
   });
 });
 

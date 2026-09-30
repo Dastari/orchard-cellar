@@ -2,6 +2,10 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Root 0.81.2 / World 0.33.1 / Sim 0.36.2 / Tools 0.25.2 / Studio 0.18.1 — Exact authored history across runtime hydration
+
+- **BUG-071:** authored chunk archives retain historical landmark roles and suppression representation separately from current-content runtime values. Restore and audited inverse validate current content before retaining exact archived authoring identity; completeness and hash gates remain strict.
+
 ## Root 0.81.1 / Tools 0.25.1 — Isolated history inputs for repository tests
 
 - **BUG-070:** repository tests no longer inherit the release's static-history opt-in/report. The actual isolated schema-only rehearsal keeps those inputs and its complete history gates.

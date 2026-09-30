@@ -10,7 +10,7 @@ import {
   activeSpaceGroundWalkableTiles, activeSurvivalLandmarks, bootstrapContentRegistry, buildContentRegistry, compileMapDocument,
   generateSurvivalDecorations, generateSurvivalLandmarkDecorations,
   generateSurvivalProceduralDecorations, generateSurvivalResources, mapLandmarkDecoration,
-  mapDocumentV3Hash, parseMapDocumentV3, runtimeTilesetResolver, serializeMapDocumentV3, terrainDocumentForMapV3,
+  mapDocumentV3Hash, normalizeMapDocumentV3, parseMapDocumentV3, runtimeTilesetResolver, serializeMapDocumentV3, terrainDocumentForMapV3,
   TERRAIN_CLIFF_FAMILIES, TERRAIN_SURFACE_FAMILIES, TERRAIN_SURFACE_FAMILY_IDS, SURVIVAL_BIOMES,
   CombatRegionPolicy, MAP_PREFAB_COLLISION_RESOLUTION, SURVIVAL_WORLD_SEED, mapLandmarkCollisionObstacle, mapObjectCollisionCells,
   survivalDecorationObstacle, survivalBiomeAt, mapDocumentUsesSurvivalIslandBase, terrainCellMedium as worldChunkCellMedium,
@@ -28,7 +28,7 @@ import { canonicalChunkJson, decodeWorldChunk, encodeWorldChunk, sliceWorldChunk
 // BUG-044: authority schema 2 (obstacle table), the default blob encoding.
 import { WORLD_CHUNK_AUTHORITY_SCHEMA_V2, type WorldChunkAuthoritySchema } from '@orchard/sim/world-chunk';
 import { authorityObstacleKey, composeAuthorityObstacles } from '@orchard/sim/chunk-runtime';
-import { manifestCarriesAuthoredDocument, rebuildWorldChunkDocument, worldChunkAuthoredDocument, worldChunkDocumentCellsByChunk } from '@orchard/sim/world-chunk-document';
+import { WORLD_CHUNK_DOCUMENT_LIST_RECORDS, WORLD_CHUNK_DOCUMENT_METADATA_KEYS, manifestCarriesAuthoredDocument, rebuildWorldChunkDocument, worldChunkAuthoredDocument, worldChunkDocumentCellsByChunk } from '@orchard/sim/world-chunk-document';
 import { cellFlags } from '@orchard/sim/cell-flags';
 import { chunkTerrainAssetIds, chunkDecorationAssetIds, chunkResourceAssetIds } from './assets.js';
 import { serverLiveIslandReference, type ServerLiveIslandReference } from './server-reference.js';
@@ -50,6 +50,8 @@ export interface WorldChunkAuthorityReference {
 export interface WorldChunkSnapshot {
   readonly terrain: TerrainArray;
   readonly document: MapDocumentV3;
+  /** Normalized authored identity before current-content runtime hydration (BUG-071). */
+  readonly authoredDocument?: MapDocumentV3;
   readonly channels: Readonly<Record<string, ChunkArray>>;
   readonly records: readonly WorldChunkRecord[];
   readonly metadata: Readonly<Record<string, ChunkJson>>;
@@ -210,7 +212,8 @@ export function captureWorldChunkSnapshot(row: LiveMapDocumentRow, registry: Con
   /** A reference already computed for this exact row and registry (avoids re-running the oracle). */
   serverReference?: ServerLiveIslandReference): WorldChunkSnapshot {
   const document = parseMapDocumentV3(row.documentJson, activeSurvivalLandmarks(registry, TOPSIDE_SPACE_ID));
-  const raw = JSON.parse(row.documentJson) as { cells?: Record<string, { parts?: unknown }> };
+  const raw = JSON.parse(row.documentJson) as MapDocumentV3;
+  const authoredDocument = normalizeMapDocumentV3(raw);
   for (const [key, value] of Object.entries(raw.cells ?? {})) {
     if (value.parts !== undefined && !('parts' in (document.cells[key] ?? {}))) {
       throw new Error('Cell parts require the authoring parser from PR #66; refusing lossy materialization');
@@ -273,7 +276,7 @@ export function captureWorldChunkSnapshot(row: LiveMapDocumentRow, registry: Con
   terrainMeta['hasCellParts'] = terrain.cellParts !== undefined;
   terrainMeta['hasTransitions'] = terrain.terrainTransitions !== undefined;
   terrainMeta['hasOverrides'] = terrain.terrainOverrides !== undefined;
-  return { terrain, document, channels, records, collisions, authority: authority.reference, metadata: {
+  return { terrain, document, authoredDocument, channels, records, collisions, authority: authority.reference, metadata: {
     mediumSchema: WORLD_CHUNK_MEDIUM_SCHEMA, mediumPalette: json(WORLD_CHUNK_MEDIA),
     terrain: json(terrainMeta), collisions: collisionsMetadata, authority: authority.metadata,
     channels: json(Object.fromEntries(Object.entries(channels).map(([name, value]) => [name, { type: value instanceof Int16Array ? 'i16' : 'u8', planes: value.length / (terrain.width * terrain.height) }]))),
@@ -302,7 +305,7 @@ export interface MaterializationOptions {
 export function liveDocumentSemanticHash(document: MapDocumentV3): string {
   return mapDocumentV3Hash({ ...document, revision: 0 });
 }
-function authoredDocumentExtension(document: MapDocumentV3, terrain: TerrainArray) {
+function authoredDocumentExtension(document: MapDocumentV3, terrain: TerrainArray, runtimeDocument: MapDocumentV3) {
   const normalized = JSON.parse(serializeMapDocumentV3(document)) as Record<string, ChunkJson> & { readonly cells: Record<string, Record<string, ChunkJson>> };
   const seed = document.provenance.generatorSeed ?? SURVIVAL_WORLD_SEED;
   // The generated biome, only where a consulting cell's baked biome lost it (none on a document whose cells all author both).
@@ -311,7 +314,16 @@ function authoredDocumentExtension(document: MapDocumentV3, terrain: TerrainArra
     const generated = SURVIVAL_BIOMES.indexOf(survivalBiomeAt(seed, tileX, tileY));
     return generated === terrain.biomes[tileY * terrain.width + tileX] ? undefined : generated;
   };
-  return { metadata: worldChunkAuthoredDocument(normalized, liveDocumentSemanticHash(document)),
+  const metadata = worldChunkAuthoredDocument(normalized, liveDocumentSemanticHash(document));
+  // Runtime records/metadata retain current hydration. Only changed authored values need an
+  // additive override for exact history identity; unchanged publications keep their old bytes.
+  const fields = { ...metadata.fields };
+  for (const key of [...WORLD_CHUNK_DOCUMENT_METADATA_KEYS, ...Object.keys(WORLD_CHUNK_DOCUMENT_LIST_RECORDS)]) {
+    const authoredValue = normalized[key];
+    const runtimeValue = (runtimeDocument as unknown as Record<string, unknown>)[key];
+    if (authoredValue !== undefined && canonicalChunkJson(authoredValue) !== canonicalChunkJson(runtimeValue)) fields[key] = authoredValue;
+  }
+  return { metadata: { ...metadata, fields },
     cells: worldChunkDocumentCellsByChunk(normalized.cells, document.width, document.height, baseBiomeAt) };
 }
 export function materializeWorldChunks(snapshot: WorldChunkSnapshot, row: LiveMapDocumentRow, registry: ContentRegistry,
@@ -321,7 +333,7 @@ export function materializeWorldChunks(snapshot: WorldChunkSnapshot, row: LiveMa
   const included = (name: string): boolean => options.includeServerOracle === true || !name.startsWith('server');
   const channels = Object.fromEntries(Object.entries(snapshot.channels).filter(([name]) => included(name)));
   const sourceRecords = snapshot.records.filter(record => included(record.kind));
-  const authored = options.includeAuthoredDocument === true ? authoredDocumentExtension(snapshot.document, snapshot.terrain) : null;
+  const authored = options.includeAuthoredDocument === true ? authoredDocumentExtension(snapshot.authoredDocument ?? snapshot.document, snapshot.terrain, snapshot.document) : null;
   const metadata = { ...snapshot.metadata,
     ...(authored === null ? {} : { authoredDocument: json(authored.metadata) }),
     includesServerOracle: options.includeServerOracle === true,
@@ -404,8 +416,9 @@ export function verifyWorldChunkParity(snapshot: WorldChunkSnapshot, materialize
 export function verifyDocumentRoundTrip(snapshot: WorldChunkSnapshot, materialized: MaterializedWorldChunks): MapDocumentV3 {
   const blobs = new Map(materialized.manifest.chunks.map((head, index) => [head.contentHash, materialized.blobs[index]!]));
   const rebuilt = rebuildWorldChunkDocument(materialized.manifest, hash => blobs.get(hash));
-  const expected = liveDocumentSemanticHash(snapshot.document);
-  if (liveDocumentSemanticHash(rebuilt) !== expected || serializeMapDocumentV3(rebuilt) !== serializeMapDocumentV3(snapshot.document)) {
+  const authored = snapshot.authoredDocument ?? snapshot.document;
+  const expected = liveDocumentSemanticHash(authored);
+  if (liveDocumentSemanticHash(rebuilt) !== expected || serializeMapDocumentV3(rebuilt) !== serializeMapDocumentV3(authored)) {
     throw new Error('Authored document round-trip parity failed');
   }
   return rebuilt;

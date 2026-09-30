@@ -1,4 +1,4 @@
-import { liveMapHeadSource, type MapDocumentV3 } from '@orchard/sim';
+import { liveMapHeadSource, normalizeMapDocumentV3, type MapDocumentV3 } from '@orchard/sim';
 import { validateRuntimeManifest } from '@orchard/sim/chunk-runtime';
 import { canonicalChunkJson, type ChunkJson, type WorldChunkManifest } from '@orchard/sim/world-chunk';
 import { normalizedMapDocumentSha256, rebuildWorldChunkDocument, type WorldChunkAuthoredDocument } from '@orchard/sim/world-chunk-document';
@@ -35,6 +35,20 @@ export function verifiedChunkHistoryDocument(revision: ChunkHistoryRevision, man
     throw new Error('chunk_history_legacy_document_mismatch');
   }
   return document;
+}
+
+/** Restore validates against current content without replacing the archived authored identity.
+ * The caller has already read this document from a verified retained history archive. */
+export function validatedChunkHistoryRestoreDocument(documentJson: string,
+  validateRuntime: (documentJson: string) => MapDocumentV3): MapDocumentV3 {
+  validateRuntime(documentJson); // Existing shape, content, size and authority guards must run first.
+  return normalizeMapDocumentV3(JSON.parse(documentJson) as MapDocumentV3);
+}
+
+/** Identical restored mutation retries compare authored identities without current-content hydration. */
+export function chunkHistoryRestoreRetryMatches(existingDocumentJson: string, document: MapDocumentV3): boolean {
+  const existing = normalizeMapDocumentV3(JSON.parse(existingDocumentJson) as MapDocumentV3);
+  return liveMapHeadSource(existing, 0).contentHash === liveMapHeadSource(document, 0).contentHash;
 }
 
 /** Restore advances only the map pin. Content-addressed blobs contain no map revision and are shared. */

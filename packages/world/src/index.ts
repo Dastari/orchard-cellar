@@ -21,7 +21,7 @@ import {planLiveMapResourceMoves} from './live-map-resource-placement.js';
 import { runtimeObjectFootprintTiles, runtimeObjectOccupiesTile } from '@orchard/sim';
 import {mapStreetlampPlans,streetlampState,STREETLAMP_DEFINITION} from '@orchard/sim';
 import { LIVE_MAP_MAX_DOCUMENT_CHARACTERS, prepareLiveMapPublication } from './live-map-publication.js';
-import { chunkHistoryBlobReferences, repinChunkHistoryManifest, retireTopsideAuditDocuments, verifiedChunkHistoryDocument } from './live-map-chunk-history.js';
+import { chunkHistoryBlobReferences, chunkHistoryRestoreRetryMatches, repinChunkHistoryManifest, retireTopsideAuditDocuments, validatedChunkHistoryRestoreDocument, verifiedChunkHistoryDocument } from './live-map-chunk-history.js';
 import { DELVE_COMPLETION_FLAG, DELVE_COMPLETION_STATISTIC, delveCompletionTotal, delveCompletionRecipe } from '@orchard/sim';
 import { orchardHarvestResult, orchardFruitStatus } from '@orchard/sim';
 import { executeToolSwing, type SwingTarget, type ToolSwingContact } from './behaviour/tool-swing.js';
@@ -13278,6 +13278,8 @@ function commitLiveMapSnapshot(
   /** Runs right after the new head row is written, before anything reads the island runtime (resource
    * moves, streetlamps): the atomic map-and-chunks publication commits its chunk heads here (S7b). */
   afterHead?: () => void,
+  /** Historical topside restore keeps authored identity; ordinary publication compares runtime identity. */
+  authoredRestoreRetry = false,
 ): void {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,95}$/u.test(clientMutationId)) {
     throw new SenderError('invalid_live_map_mutation_id');
@@ -13294,10 +13296,12 @@ function commitLiveMapSnapshot(
   }
   const semanticHash = mapDocumentV3Hash(normalizeMapDocumentV3({ ...document, revision: 0 }));
   if (existing !== null && existing.clientMutationId === clientMutationId) {
-    const existingSemanticHash = mapDocumentV3Hash(normalizeMapDocumentV3({
-      ...parseMapDocumentV3(existing.documentJson, authoredLandmarks), revision: 0,
-    }));
-    if (existingSemanticHash === semanticHash) return;
+    const identical = authoredRestoreRetry
+      ? chunkHistoryRestoreRetryMatches(existing.documentJson, document)
+      : mapDocumentV3Hash(normalizeMapDocumentV3({
+        ...parseMapDocumentV3(existing.documentJson, authoredLandmarks), revision: 0,
+      })) === semanticHash;
+    if (identical) return;
     throw new SenderError('live_map_mutation_id_reused');
   }
   const currentRevision = existing?.revision ?? 0;
@@ -16887,7 +16891,7 @@ function commitRestoredLiveMapSnapshot(ctx: WorldReducerContext, document: MapDo
       commitWorldChunkShadow(ctx, { manifestJson, mapId: document.id,
         contentHash: history.registryContentHash, expectedRevision: shadow?.revision ?? 0 });
       requireServableChunkPublication(ctx);
-    });
+    }, true);
   } catch (error) { chunkAuthorityDispatcher.release(); throw error; }
 }
 
@@ -17167,9 +17171,10 @@ function writeAdminWorldControlAction(
     }
 
     const current = ctx.db.live_map_document.mapId.find(action.revision.mapId);
-    const document = validatedLiveMapDocument(
-      ctx, action.revision.mapId, action.revision.documentJson,
-    );
+    const validateRuntime = (documentJson: string): MapDocumentV3 => validatedLiveMapDocument(ctx, action.revision.mapId, documentJson);
+    const document = action.revision.mapId === LIVE_ISLAND_MAP_ID
+      ? validatedChunkHistoryRestoreDocument(action.revision.documentJson, validateRuntime)
+      : validateRuntime(action.revision.documentJson);
     commitRestoredLiveMapSnapshot(ctx, document, current?.revision ?? 0, clientMutationId, BigInt(action.revision.revisionId));
     return;
   }
@@ -18332,7 +18337,11 @@ export const restoreLiveMapRevision = spacetimedb.reducer(
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     const revision = ctx.db.live_map_revision.id.find(revisionId);
     if (revision === null) throw new SenderError('live_map_revision_not_found');
-    const document = validatedLiveMapDocument(ctx, revision.mapId, liveMapRevisionDocument(ctx, revision));
+    const archivedJson = liveMapRevisionDocument(ctx, revision);
+    const validateRuntime = (documentJson: string): MapDocumentV3 => validatedLiveMapDocument(ctx, revision.mapId, documentJson);
+    const document = revision.mapId === LIVE_ISLAND_MAP_ID
+      ? validatedChunkHistoryRestoreDocument(archivedJson, validateRuntime)
+      : validateRuntime(archivedJson);
     commitRestoredLiveMapSnapshot(ctx, document, expectedRevision, clientMutationId, revisionId);
     insertLegacyAdminAudit(ctx, {
       id: 0n,

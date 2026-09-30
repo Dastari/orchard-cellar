@@ -204,6 +204,35 @@ describe('world chunk document round trip (static-world S7a)', () => {
     expect(() => rebuildWorldChunkDocument({ ...manifest, width: 64 }, read)).toThrow('chunk_document_dimensions_mismatch');
   });
 
+  it('retains exact authored list and metadata overrides without weakening record completeness or digests', () => {
+    const document = liveDocument();
+    const publication = publish(document);
+    const authored = publication.manifest.metadata['authoredDocument'] as Record<string, ChunkJson>;
+    const fields = { ...(authored['fields'] as object), landmarks: JSON.parse(JSON.stringify(document.landmarks)) as ChunkJson,
+      generatedSuppressions: [...document.generatedSuppressions] };
+    const chunks = publication.chunks.map(chunk => ({ ...chunk, records: chunk.records.map(record => record.kind === 'landmarks'
+      ? { ...record, value: { ...(record.value as object), role: 'soil.watered', enabled: true } } : record) }));
+    const bytes = chunks.map(chunk => encodeWorldChunk(chunk));
+    const heads = bytes.map((blob, index) => ({ ...publication.manifest.chunks[index]!, contentHash: decodeWorldChunk(blob).contentHash, byteLength: blob.length }));
+    const blobs = new Map(heads.map((head, index) => [head.contentHash, bytes[index]!]));
+    const manifest = { ...publication.manifest, chunks: heads, metadata: { ...publication.manifest.metadata,
+      document: { ...(publication.manifest.metadata['document'] as object), generatedSuppressions: [] },
+      authoredDocument: { ...authored, fields } } } as WorldChunkManifest;
+    const read = (hash: string) => blobs.get(hash);
+    expect(serializeMapDocumentV3(rebuildWorldChunkDocument(manifest, read))).toBe(serializeMapDocumentV3(document));
+    const withFields = (changed: object): WorldChunkManifest => ({ ...manifest, metadata: { ...manifest.metadata,
+      authoredDocument: { ...authored, fields: { ...fields, ...changed } } as unknown as ChunkJson } });
+    expect(() => rebuildWorldChunkDocument(withFields({ landmarks: [] }), read)).toThrow('records_incomplete');
+    expect(() => rebuildWorldChunkDocument(withFields({ landmarks: {} }), read)).toThrow('records_incomplete');
+    expect(() => rebuildWorldChunkDocument(withFields({ generatedSuppressions: [] }), read)).toThrow('sha256_mismatch');
+    expect(() => rebuildWorldChunkDocument({ ...manifest, metadata: { ...manifest.metadata,
+      authoredDocument: { ...authored, fields, semanticHash: '00000000' } as unknown as ChunkJson } }, read)).toThrow('semantic_hash_mismatch');
+    const incomplete = encodeWorldChunk({ ...chunks[0]!, records: chunks[0]!.records.filter(record => record.kind !== 'landmarks') });
+    const missingHead = { ...heads[0]!, contentHash: decodeWorldChunk(incomplete).contentHash, byteLength: incomplete.length };
+    expect(() => rebuildWorldChunkDocument({ ...manifest, chunks: [missingHead, ...heads.slice(1)] },
+      hash => hash === missingHead.contentHash ? incomplete : read(hash))).toThrow('records_incomplete');
+  });
+
   it('decodes a later document schema for runtime use (payload ignored) and the rebuild refuses it', () => {
     const live = liveDocument();
     const { manifest, blobs, chunks } = publish(live);

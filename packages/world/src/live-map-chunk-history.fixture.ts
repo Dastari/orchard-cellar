@@ -3,14 +3,14 @@ import { canonicalChunkJson, decodeWorldChunk, encodeWorldChunk, WORLD_CHUNK_STR
 import { WORLD_CHUNK_DOCUMENT_METADATA_KEYS, worldChunkAuthoredDocument, worldChunkDocumentCellsByChunk } from '@orchard/sim/world-chunk-document';
 
 /** Tiny authored publication. Real codec and exact document metadata; no generator/compiler work. */
-export function chunkHistoryFixture(revision = 7) {
-  const head = liveMapHeadSource({ ...migrateMapDocumentV2(createEmptyMapDocument({ id: 'live-island', title: 'Archive', width: 64, height: 64 })),
+export function chunkHistoryFixture(revision = 7, inputDocument?: MapDocumentV3) {
+  const head = liveMapHeadSource(inputDocument ?? { ...migrateMapDocumentV2(createEmptyMapDocument({ id: 'live-island', title: 'Archive', width: 64, height: 64 })),
     landmarks: [], cells: { '1,2': { elevation: 1, collision: 'force_block' } } }, revision);
   const document: MapDocumentV3 = head.document;
   const normalized = JSON.parse(serializeMapDocumentV3(document)) as Record<string, ChunkJson> & { cells: Record<string, Record<string, ChunkJson>> };
   const semanticHash = liveMapHeadSource(document, 0).contentHash;
   const bytes = encodeWorldChunk({ schema: 1, mediumSchema: 1, spaceId: 0, cx: 0, cy: 0, assetRevision: 'assets',
-    arrays: { biomes: new Uint8Array(WORLD_CHUNK_STRIDE ** 2), medium: new Uint8Array(WORLD_CHUNK_STRIDE ** 2), solidBlocked: new Uint8Array(WORLD_CHUNK_STRIDE ** 2) }, records: [], assetIds: [], atlasPackIds: [],
+    arrays: { biomes: new Uint8Array(WORLD_CHUNK_STRIDE ** 2), medium: new Uint8Array(WORLD_CHUNK_STRIDE ** 2), solidBlocked: new Uint8Array(WORLD_CHUNK_STRIDE ** 2) }, records: document.landmarks.map((value, ordinal) => ({ kind: 'landmarks', ordinal, tileX: value.tileX, tileY: value.tileY, value: JSON.parse(JSON.stringify(value)) as ChunkJson })), assetIds: [], atlasPackIds: [],
     documentSchema: 1, documentCells: worldChunkDocumentCellsByChunk(normalized.cells, 64, 64).get('0:0')! });
   const contentHash = decodeWorldChunk(bytes).contentHash;
   const manifest: WorldChunkManifest = { schema: 1, chunkSize: 64, spaceId: 0, width: 64, height: 64,
