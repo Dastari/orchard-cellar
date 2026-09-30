@@ -521,10 +521,10 @@ describe('overworld retained UI layout', () => {
     expect(layout.moonPhase.x).toBeGreaterThan(layout.status.x + layout.status.width);
     expect(layout.collapsedZoneTab).toEqual({ x: 0, y: 4, width: 32, height: 16 });
     expect(layout.systemWindow.width).toBe(190);
-    expect(layout.systemWindow.height).toBe(220);
+    expect(layout.systemWindow.height).toBe(195);
     expect(layout.settingsButton.width).toBe(layout.resumeButton.width);
     const systemButtons = [
-      layout.resumeButton, layout.outdoorRewardsButton, layout.settingsButton, layout.helpButton,
+      layout.resumeButton, layout.settingsButton, layout.helpButton,
       layout.fullscreenButton, layout.signOutButton, layout.quitButton,
     ];
     expect(systemButtons.every((button) => button.x === systemButtons[0]!.x)).toBe(true);
@@ -553,7 +553,7 @@ describe('overworld retained UI layout', () => {
       delveActive: true,
     });
     const systemButtons = [
-      layout.resumeButton, layout.outdoorRewardsButton, layout.settingsButton, layout.helpButton,
+      layout.resumeButton, layout.settingsButton, layout.helpButton,
       layout.developerButton, layout.fullscreenButton, layout.updateButton,
       layout.exitDelveButton, layout.signOutButton, layout.quitButton,
     ];

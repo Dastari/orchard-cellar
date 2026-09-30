@@ -2,6 +2,10 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Root 0.81.9 / Client 0.56.4 / UI 0.54.6 — Remove Rewards menu entry
+
+- The Escape menu no longer offers Rewards, in either retained or legacy rendering. Reward collection remains available with O; Character book navigation continues to contain only its four player chapters.
+
 ## Root 0.81.8 / Client 0.56.3 / UI 0.54.5 — Stable hold-Tab player roster
 
 - **BUG-077:** a roster opened by holding Tab consumes Tab key repeats without cycling focus; a roster opened through the HUD retains keyboard focus navigation. Releasing the held key still closes only a hold-open roster.
