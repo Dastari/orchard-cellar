@@ -30,6 +30,7 @@ function table(initial: readonly Row[] = [], key = 'identity') {
 /** Execute the actual connection callback through its inventory initialization
  * phase, before unrelated stats/presence writes. No duplicate grant algorithm. */
 interface AuthoredLoadoutFixture {
+  readonly knownRecipeIds?: readonly string[];
   readonly selectedSlot: number;
   readonly equippedKind: string;
   readonly cells: readonly {
@@ -85,6 +86,7 @@ function runInventoryConnection(
     inventory_slot: inventory, inventory_cursor: cursor,
     hearth_stash_slot: table((legacy?.stash ?? []).map(row => ({ ...row, identity: sender, id: `fixture-player:${row['slot']}` })), 'id'),
     player_container_cell: cells,
+    player_known_recipe: table([], 'id'),
     inventory_overflow: { insert: (row: Row) => { overflow.push(row); writes.push(`overflow:${String(row['itemKind'])}`); return row; } },
     inventory_overflow_retry: table(),
     world_resource: table(), world_chest: table(), world_npc: table(), world_clock: table([], 'id'),
@@ -124,7 +126,7 @@ function runInventoryConnection(
     hotbarSlotCountForLayoutVersion: (version:number)=>version===0?9:HOTBAR_SLOT_COUNT,
     planNewPlayerLoadout: (_registry: unknown, request: { existingCharacter: boolean }) => request.existingCharacter
       ? { ok: true, apply: false, cells: [] }
-      : { ok: true, apply: true, definitionId: 'loadout:fixture', ...authoredLoadout },
+      : { ok: true, apply: true, definitionId: 'loadout:fixture', knownRecipeIds: authoredLoadout.knownRecipeIds ?? [], ...authoredLoadout },
     HUNGER_MAX_CENTI: 10000, TOPSIDE_SPACE_ID: 0,
     findSurvivalSpawnTile: () => ({ tileX: 1, tileY: 1 }), storedDurability: () => 0,
     storedLit: () => true, contentRegistry: () => ({}), runtimeDurabilityDefinition: () => null, runtimeMaxStack: () => 99,
@@ -132,18 +134,19 @@ function runInventoryConnection(
   };
   // The connect callback and the helpers it calls, all from the module source: the legacy layout steps and the move
   // live in migrateLegacyPlayerStorage, which the release-lane batch runs too.
-  const helpers = ['withSenderErrors', 'migrateLegacyPlayerStorage', 'stashOverflow'].map(name => source.statements.find(statement => ts.isFunctionDeclaration(statement)
+  const helpers = ['withSenderErrors', 'migrateLegacyPlayerStorage', 'stashOverflow', 'grantNewPlayerRecipeKnowledge'].map(name => source.statements.find(statement => ts.isFunctionDeclaration(statement)
     && statement.name?.text === name)!.getText(source)).join('\n');
-  const javascript = ts.transpileModule(`(ctx) => { ${helpers}\n${body} }`, {
+  const javascript = ts.transpileModule(`const connect = (ctx) => { ${helpers}\n${body} };`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
   }).outputText;
-  const connect = new Function(...Object.keys(dependencies), `return ${javascript}`)(...Object.values(dependencies)) as (context: typeof ctx) => void;
+  const connect = new Function(...Object.keys(dependencies), `${javascript}\nreturn connect;`)(...Object.values(dependencies)) as (context: typeof ctx) => void;
   connect(ctx);
   const firstConnectWrites = writes.length;
   connect(ctx);
   return {
     dryRun, plans,
     firstConnectWrites,
+    knownRecipes: [...ctx.db.player_known_recipe.iter()],
     secondConnectWrites: writes.slice(firstConnectWrites),
     stash: [...ctx.db.hearth_stash_slot.iter()],
     legacyRows: [...inventory.iter()],
@@ -159,7 +162,8 @@ function runInventoryConnection(
 
 describe('inventory preservation on reconnect', () => {
   it.each([false, true])('never replenishes spent, sold, or stored-away starter items (occupied=%s)', (occupied) => {
-    const {rows, legacyRows, migration} = runInventoryConnection(false, occupied);
+    const {rows, legacyRows, migration, knownRecipes} = runInventoryConnection(false, occupied);
+    expect(knownRecipes).toEqual([]);
     // Only occupied cells are stored: an emptied inventory moves as no cells, and nothing is granted in their place.
     expect(rows).toHaveLength(occupied ? INVENTORY_SLOT_COUNT : 0);
     expect(rows.every((row) => row['itemKind'] === 'fiber')).toBe(true);
@@ -210,7 +214,10 @@ describe('inventory preservation on reconnect', () => {
       existingCharacter: false, containerCapacity: inventoryContainerSlotCount,
     });
     if (!plan.ok || !plan.apply) throw new Error('bootstrap starter kit was not planned');
-    const { rows, survival } = runInventoryConnection(true, false, undefined, plan);
+    const { rows, survival, knownRecipes, secondConnectWrites } = runInventoryConnection(true, false, undefined, plan);
+    expect(knownRecipes.map(row => row['recipeId'])).toEqual(plan.knownRecipeIds);
+    expect(knownRecipes).toHaveLength(7);
+    expect(secondConnectWrites).toEqual([]);
     expect(survival).toMatchObject({ selectedSlot: 0 });
     // The output before container addressing: legacy slots 0-5, each the hotbar cell of the same number.
     expect(rows.map((row) => `${row['slot']}=${row['container']}:${row['index']}:${row['itemKind']}x${row['quantity']}d${row['durability']}:${row['lit']}`)).toEqual([
