@@ -25,8 +25,8 @@ function reducer(name:string,owner:()=>void,extra:Record<string,unknown>={},help
  if(!statement||!ts.isVariableStatement(statement))throw new Error(name);
  const declaration=statement.declarationList.declarations[0]!;
  const code=ts.transpileModule(`${topLevelFunctions(helpers)}\nreturn ${declaration.initializer!.getText(source)};`,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
- const t={array:()=>null,u8:()=>null,string:()=>null,u32:()=>null};
- const dependencies:Record<string,unknown>={spacetimedb:{reducer:(_schema:unknown,handler:unknown)=>handler},t,requireWorldOwner:owner,validateShadowBlob,validateShadowPublication,
+ const t={array:()=>null,u8:()=>null,string:()=>null,u32:()=>null,u64:()=>null,i32:()=>null};
+ const dependencies:Record<string,unknown>={spacetimedb:{reducer:(_schema:unknown,handler:unknown)=>handler,procedure:(_schema:unknown,_returns:unknown,handler:unknown)=>handler},t,requireWorldOwner:owner,validateShadowBlob,validateShadowPublication,
   contentRegistry:()=>({contentHash:'content-1'}),TOPSIDE_SPACE_ID:0,LIVE_ISLAND_MAP_ID:'live-island',SenderError,withShadowPublicationRefusals:refusals(),
   requireLiveMapPublisher:()=>{throw new Error('map_publisher_required');},...extra};
  return new Function(...Object.keys(dependencies),code)(...Object.values(dependencies)) as (ctx:unknown,args:unknown)=>void;
@@ -119,4 +119,19 @@ describe('publishLiveMapWithChunks (static world S7b): map and chunks in one tra
   w.publish(w.ctx,{...w.args,expectedChunkRevision:0});expect(w.inserted).toHaveLength(1);
   expect(w.events.filter(event=>event==='head')).toEqual([]);
  });
+});
+
+it('readWorldChunkBlob returns only the blob a current head references, to members',()=>{
+ const {blobs}=runtimeChunkFixture();const heads=new Map([['0:1:2',{contentHash:'hash-a'}]]);const stored=new Map([['hash-a',{bytes:blobs[0]}]]);
+ let member=true;
+ const tx={senderAuth:{jwt:null},sender:'a',db:{membership:{identity:{find:()=>null}},world_chunk_head:{id:{find:(id:string)=>heads.get(id)??null}},
+  world_chunk_blob:{contentHash:{find:(hash:string)=>stored.get(hash)??null}}}};
+ const read=reducer('readWorldChunkBlob',()=>{},{requireAuthorizedSender:()=>{if(!member)throw new SenderError('not_authorized');}},[]) as unknown as
+  (ctx:unknown,args:{spaceId:bigint;cx:number;cy:number;contentHash:string})=>unknown;
+ const ctx={withTx:<T>(run:(value:typeof tx)=>T)=>run(tx)};
+ expect(read(ctx,{spaceId:0n,cx:1,cy:2,contentHash:'hash-a'})).toBe(blobs[0]);
+ expect(()=>read(ctx,{spaceId:0n,cx:1,cy:2,contentHash:'hash-b'})).toThrow(new SenderError('chunk_blob_not_published'));
+ expect(()=>read(ctx,{spaceId:0n,cx:2,cy:2,contentHash:'hash-a'})).toThrow(new SenderError('chunk_blob_not_published'));
+ stored.clear();expect(()=>read(ctx,{spaceId:0n,cx:1,cy:2,contentHash:'hash-a'})).toThrow(new SenderError('chunk_blob_missing'));
+ member=false;expect(()=>read(ctx,{spaceId:0n,cx:1,cy:2,contentHash:'hash-a'})).toThrow(/not_authorized/);
 });

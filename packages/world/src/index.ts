@@ -26500,6 +26500,24 @@ function chunkShadowCollisionAt(ctx: WorldReducerContext, spaceId: bigint, x: nu
   });
 }
 
+/**
+ * Static world S7b: a published chunk blob, for members, when the origin's `/world/` directory does not
+ * have it yet (a Studio publication commits blobs to the database; the host installs them later). Only
+ * the blob the current head at (cx, cy) references is returned: that is public geometry every client
+ * downloads anyway. The caller verifies it against its manifest exactly as it verifies a served blob.
+ */
+export const readWorldChunkBlob = spacetimedb.procedure(
+  { spaceId: t.u64(), cx: t.i32(), cy: t.i32(), contentHash: t.string() }, t.array(t.u8()),
+  (ctx, { spaceId, cx, cy, contentHash }) => ctx.withTx(tx => {
+    requireAuthorizedSender(tx.senderAuth.jwt, tx.db.membership.identity.find(tx.sender));
+    const head = tx.db.world_chunk_head.id.find(`${spaceId}:${cx}:${cy}`);
+    if (head === null || head.contentHash !== contentHash) throw new SenderError('chunk_blob_not_published');
+    const blob = tx.db.world_chunk_blob.contentHash.find(contentHash);
+    if (blob === null) throw new SenderError('chunk_blob_missing');
+    return blob.bytes;
+  }),
+);
+
 export const inspectWorldChunkShadow = spacetimedb.procedure(
   { spaceId: t.u64(), x: t.i32(), y: t.i32() }, t.string(),
   (ctx, { spaceId, x, y }) => ctx.withTx(tx => {
