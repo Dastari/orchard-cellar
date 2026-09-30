@@ -134,3 +134,14 @@ it('offers a whisper glyph for other players only and passes their display name'
   // The window fits its rows inside the host bounds rather than filling them.
   const window = node(host.root, 'game.online-players'); expect(window.rect.width).toBeLessThan(300); expect(window.rect.height).toBeLessThan(250);
 });
+it('consumes held Tab repeats without moving focus, while HUD-open rosters retain Tab navigation', () => {
+  const { host } = fixture({ heldTab: true });
+  const first = focus(host.root, row('peer'));
+  for (let index = 0; index < 8; index++) {
+    expect(host.root.key({ key: 'Tab', repeat: true })).toBe(true);
+    expect(host.root.focus.current?.id).toBe(first.id);
+  }
+  host.update({ ...model, heldTab: false });
+  host.root.key({ key: 'Tab' });
+  expect(host.root.focus.current?.id).not.toBe(first.id);
+});

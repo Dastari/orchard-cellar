@@ -15,6 +15,8 @@ export interface GameOnlinePlayer {
 export interface GameOnlinePlayersModel {
   /** Current identity + connection generation + space; never credentials. */
   readonly scopeKey: string; readonly identityHex: string | null;
+  /** Hold-to-show owns Tab until release; HUD-open rosters keep ordinary focus navigation. */
+  readonly heldTab?: boolean;
   readonly visible: boolean; readonly canManage: boolean; readonly players: readonly GameOnlinePlayer[];
 }
 export interface OnlinePlayerManagementRequest {
@@ -124,6 +126,7 @@ export class GameOnlinePlayers {
   }
   private key(event: UiElementKey): boolean {
     if (!this.active) return false;
+    if (event.key === 'Tab' && this.model?.heldTab) return true;
     if (event.repeat && ['Enter', ' ', 'Escape'].includes(event.key)) return true;
     if (event.ctrlKey || event.metaKey || event.altKey) return false;
     // Escape closes the roster even while a row's tooltip is showing.
