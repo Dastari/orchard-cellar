@@ -49,7 +49,7 @@ describe('production help book retained adapter', () => {
     expect(help).toContain('homestead deed');
     expect(help).toContain('press F');
     expect(help).toContain('anvil');
-    expect(help).toContain('5 copper coins');
+    expect(help).toContain('5 bronze coins');
     expect(help).not.toContain('C / V');
   });
 

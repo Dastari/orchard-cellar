@@ -64,7 +64,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     'Use an axe for trees, a pickaxe for ore, a hoe for soil, a watering can for crops, and a rod for fishing.',
     'A successful tool contact spends Vigour and durability. Misses and rejected actions do not wear the tool.',
     'Durability bars change from green to gold to red. A broken tool stays in its slot until repaired.',
-    'Select a damaged tool and press E while facing an anvil. A full repair costs 5 copper coins; it does not consume the tool.',
+    'Select a damaged tool and press E while facing an anvil. A full repair costs 5 bronze coins; it does not consume the tool.',
     'Read item descriptions for tool strength, equipment slots and special uses. Better mining tools can work harder veins.',
   ], illustrations: [{ itemKind: 'axe', caption: 'Select the tool for the job.' }, { itemKind: 'anvil', caption: 'Anvil: repair your selected worn tool here.' }] },
   { title: 'FURNACE', entries: [
