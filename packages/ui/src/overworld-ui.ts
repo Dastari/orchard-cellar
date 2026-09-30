@@ -519,7 +519,6 @@ export interface OverworldUiLayout {
   readonly exitDelveButton: UiRect;
   readonly helpButton: UiRect;
   readonly settingsButton: UiRect;
-  readonly outdoorRewardsButton: UiRect;
   readonly fullscreenButton: UiRect;
   readonly updateButton: UiRect;
   readonly developerButton: UiRect;
@@ -818,7 +817,7 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
     }
   }
   type SystemMenuAction = 'outdoorRewards' | 'resume' | 'settings' | 'help' | 'developer' | 'fullscreen' | 'update' | 'exitDelve' | 'signOut' | 'quit';
-  const visibleSystemMenuActions: SystemMenuAction[] = ['resume', 'outdoorRewards', 'settings', 'help'];
+  const visibleSystemMenuActions: SystemMenuAction[] = ['resume', 'settings', 'help'];
   if (options.canAdministerWorld === true) visibleSystemMenuActions.push('developer');
   visibleSystemMenuActions.push('fullscreen');
   if (options.pwaUpdateVisible === true) visibleSystemMenuActions.push('update');
@@ -1140,7 +1139,6 @@ export function overworldUiLayout(width: number, height: number, options: Overwo
     },
     exitDelveButton: systemMenuButton('exitDelve'),
     settingsButton: systemMenuButton('settings'),
-    outdoorRewardsButton: systemMenuButton('outdoorRewards'),
     helpButton: systemMenuButton('help'),
     developerButton: systemMenuButton('developer'),
     fullscreenButton: systemMenuButton('fullscreen'),
@@ -1729,7 +1727,6 @@ export class OverworldUi {
   private questLog: QuestLog | null = null;
   private readonly ferryMenu:FerryMenu;
   private readonly outdoorRewards:OutdoorRewards;
-  private readonly outdoorRewardsNode:WidgetNode;
   private model: OverworldUiModel = {
     width: 480, height: 270, connected: false, playerCount: 0, selectedSlot: 0, balanceBronze: 0n,
     inventory: [], openChestInventory: [], hasBackpack: false, audioVolumes: { master: 0.8, music: 0.7, sfx: 0.35 },
@@ -2076,9 +2073,6 @@ export class OverworldUi {
         return true;
       },
     });
-    this.outdoorRewardsNode=widget('button','window.system.outdoor-rewards',{
-      onPointer:event=>{if(event.kind!=='pointer_down')return false;this.openWindow='outdoor-rewards';return true;},
-    });
     this.settingsNode = widget('button', 'window.system.settings', {
       onPointer: (event) => {
         if (event.kind !== 'pointer_down') return false;
@@ -2264,7 +2258,6 @@ export class OverworldUi {
       this.exitDelveNode,
       this.helpNode,
       this.settingsNode,
-      this.outdoorRewardsNode,
       this.fullscreenNode,
       this.updateNode,
       this.developerNode,
@@ -2484,7 +2477,6 @@ export class OverworldUi {
     this.exitDelveNode.setBounds(this.layout.exitDelveButton);
     this.helpNode.setBounds(this.layout.helpButton);
     this.settingsNode.setBounds(this.layout.settingsButton);
-    this.outdoorRewardsNode.setBounds(this.layout.outdoorRewardsButton);
     this.fullscreenNode.setBounds(this.layout.fullscreenButton);
     this.fullscreenNode.enabled = model.fullscreenAvailable ?? true;
     this.updateNode.setBounds(this.layout.updateButton);
@@ -3382,7 +3374,7 @@ export class OverworldUi {
     this.barrelSortNode.visible = barrelVisible;
     this.delveConfirmButton.node.visible = delveConfirmationVisible;
     this.delveCancelButton.node.visible = delveConfirmationVisible;
-    for (const node of [this.resumeNode, this.helpNode, this.settingsNode, this.outdoorRewardsNode, this.fullscreenNode, this.signOutNode, this.quitNode]) {
+    for (const node of [this.resumeNode, this.helpNode, this.settingsNode, this.fullscreenNode, this.signOutNode, this.quitNode]) {
       node.visible = systemVisible;
     }
     this.exitDelveNode.visible = systemVisible && this.model.delveActive === true;
@@ -4094,7 +4086,6 @@ export class OverworldUi {
     const updateStatus = this.model.pwaUpdateStatus ?? 'unsupported';
     const buttons: [UiRect, string, FantasyButtonTone, FantasyButtonGlyph, boolean][] = [
       [this.resumeNode.bounds, 'RETURN TO WORLD', 'green', 'play', false],
-      [this.outdoorRewardsNode.bounds, `REWARDS (${this.model.outdoorRewardCount??0}) [O]`, 'gold', 'star', false],
       [this.settingsNode.bounds, 'SETTINGS', 'peach', 'wrench', false],
       [this.helpNode.bounds, 'HELP', 'peach', 'help', false],
       [this.fullscreenNode.bounds,
