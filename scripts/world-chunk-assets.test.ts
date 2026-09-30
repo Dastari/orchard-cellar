@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { bootstrapContentRegistry } from '@orchard/sim';
-import { chunkDecorationAssetIds, chunkResourceAssetIds, chunkTerrainAssetIds } from './world-chunk-assets.js';
+import { CHUNK_ASSET_INVENTORY, CHUNK_ASSET_INVENTORY_PATH, chunkAssetInventorySource, chunkDecorationAssetIds, chunkResourceAssetIds, chunkTerrainAssetIds, scanChunkAssetInventory } from './world-chunk-assets.js';
 
 describe('offline chunk asset dependency resolution', () => {
   const registry = bootstrapContentRegistry();
@@ -21,5 +22,12 @@ describe('offline chunk asset dependency resolution', () => {
     expect(chunkResourceAssetIds(ore.visual)).toContain('resource_cf_ore_gold');
     expect(chunkResourceAssetIds(ore.visual)).toContain('resource_cf_ore_gold_pristine');
     expect(chunkTerrainAssetIds()).toContain('tile_cf_freshwater_inset');
+  });
+});
+
+describe('generated chunk asset inventory (browser-safe resolver, static world S7b)', () => {
+  it('matches the art loader source; regenerate with npm run world:chunks:asset-inventory', () => {
+    expect(readFileSync(CHUNK_ASSET_INVENTORY_PATH, 'utf8')).toBe(chunkAssetInventorySource());
+    expect(CHUNK_ASSET_INVENTORY).toEqual(scanChunkAssetInventory());
   });
 });

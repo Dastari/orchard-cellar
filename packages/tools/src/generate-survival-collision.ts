@@ -88,6 +88,6 @@ export function precomputedSurvivalCollisionMap(medium: 'ground' | 'water'): Col
   };
 }
 `;
-const target = resolve(dirname(fileURLToPath(import.meta.url)), '../../../scripts/precomputed-survival-collision.ts');
+const target = resolve(dirname(fileURLToPath(import.meta.url)), '../../../packages/studio/src/world-chunks/island-base.ts');
 await writeFile(target, `${prelude}${constants}\n${postlude}`);
 console.info(`Regenerated ${target}`);

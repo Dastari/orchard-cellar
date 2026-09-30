@@ -4,7 +4,7 @@ import { TILE_SIZE_FIXED, TOPSIDE_SPACE_ID, generateSurvivalResources, SURVIVAL_
 import type { LiveMapDocumentRow } from '@orchard/engine/live-map-runtime';
 import { authorityObstacleKey } from '@orchard/sim/chunk-runtime';
 import { canonicalChunkJson, decodeWorldChunk, WORLD_CHUNK_AUTHORITY_SCHEMA_V2 } from '@orchard/sim/world-chunk';
-import { precomputedSurvivalCollisionMap } from './precomputed-survival-collision.js';
+import { precomputedSurvivalCollisionMap } from '../packages/studio/src/world-chunks/island-base.js';
 import { createAuthoritySpaceCollisionMap } from '../packages/world/src/world-rules.js';
 import { assembleChunkLiveIslandRuntime, compareLiveIslandRuntime, composeChunkIslandCollision, type ChunkLiveIslandRuntime,
   type LiveIslandCollisionRuntime } from '../packages/world/src/content/chunk-authority-runtime.js';

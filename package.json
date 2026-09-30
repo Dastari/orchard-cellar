@@ -41,6 +41,7 @@
     "world:content-head": "tsx scripts/content-head-release.ts",
     "world:chunks:publish": "tsx scripts/world-chunks-publish.ts",
     "world:chunks:authority": "tsx scripts/world-chunk-authority.ts",
+    "world:chunks:asset-inventory": "tsx scripts/world-chunk-assets.ts --write",
     "content:load:acceptance": "bash scripts/run-content-load-acceptance.sh",
     "lifecycle:verify": "tsx scripts/lifecycle-code-build.ts verify",
     "lifecycle:build": "tsx scripts/lifecycle-code-build.ts build",

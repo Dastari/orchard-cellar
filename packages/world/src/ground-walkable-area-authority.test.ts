@@ -2,7 +2,7 @@ import {readFileSync} from 'node:fs';
 import {describe,expect,it} from 'vitest';
 
 // Static world S3-final: the compiled island (materializer reference) holds the ground-walkable projection.
-const source=readFileSync(new URL('../../../scripts/world-chunk-compiled-island.ts', import.meta.url),'utf8');
+const source=readFileSync(new URL('../../studio/src/world-chunks/compiled-island.ts', import.meta.url),'utf8');
 const runtime=source.slice(source.indexOf('function compiledLiveIslandRuntime('),source.indexOf('export function generatedSurvivalResources('));
 
 describe('authored ground-walkable world authority wiring',()=>{
