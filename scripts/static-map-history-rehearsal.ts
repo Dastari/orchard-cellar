@@ -1,7 +1,6 @@
 /** Fixed S7c acceptance runner, called before the isolated restore authority is cleaned up.
  * It never accepts a production host or port and never changes the release's expected snapshots.
  */
-import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { lstat, readFile, realpath, writeFile } from 'node:fs/promises';
 import { isAbsolute, resolve } from 'node:path';
@@ -12,7 +11,8 @@ import { normalizeMapDocumentV3, type MapDocumentV3 } from '@orchard/sim';
 import { normalizedMapDocumentSha256 } from '@orchard/sim/world-chunk-document';
 import { loadChunkMapHead } from '../packages/studio/src/world-chunks/map-head.js';
 import { allHistoryRows, historyTokenProvider, runHistory } from './world-chunks-history.js';
-import { historyFailure, historyPhase, type HistoryPhase, type HistoryPhaseRow } from './static-map-history-diagnostics.js';
+import { restoreHistoryWithPreview } from './static-map-history-restore.js';
+import { historyFailure, historyPhase, type HistoryPhase, type HistoryPhaseRow, type HistoryPhaseEvent } from './static-map-history-diagnostics.js';
 import { connectWorld, materializeInProcess, sha256Hex, type HistoryWorldPort, type LiveState,
   type MaterializePort, type OriginPort } from './world-chunks-publish.js';
 
@@ -63,7 +63,7 @@ export async function candidateAtlasOrigin(repository: string): Promise<{
 }
 
 export interface RehearsalAdmin {
-  restore(revisionId: bigint): Promise<{ readonly auditId: string; readonly inverseRevisionId: string }>;
+  restore(revisionId: bigint, row?: HistoryPhaseRow): Promise<{ readonly auditId: string; readonly inverseRevisionId: string }>;
   privateTableRefused(documentJson: string): Promise<void>;
   close(): void;
 }
@@ -127,7 +127,7 @@ export async function runStaticMapHistoryRehearsal(deps: {
   try {
     await phase('history-privacy', () => admin.privateTableRefused(before.mapRow!.documentJson));
     const restored = await phase('history-restore', async () => {
-      const result = await admin.restore(BigInt(selected.id));
+      const result = await admin.restore(BigInt(selected.id), selected);
       if (result.inverseRevisionId !== original.id) throw new Error('static_history_rehearsal_inverse_mismatch');
       return result;
     }, selected);
@@ -138,7 +138,7 @@ export async function runStaticMapHistoryRehearsal(deps: {
     }, selected);
     await phase('history-restore-publication', () => checkPublication(afterRestore, selectedDocument.documentJson), selected);
     // Replay the exact audited inverse through the same guarded preview/commit interface.
-    const undone = await phase('history-inverse', () => admin.restore(BigInt(restored.inverseRevisionId)), original);
+    const undone = await phase('history-inverse', () => admin.restore(BigInt(restored.inverseRevisionId), original), original);
     const afterUndo = await phase('history-inverse-settle', async () => {
       const state = await deps.world.settle(value => value.mapRow?.revision === before.mapRow.revision + 2, 30_000);
       if (state.mapRow?.revision !== before.mapRow.revision + 2 || state.shadow?.revision !== before.shadow.revision + 2) throw new Error('static_history_rehearsal_undo_not_atomic');
@@ -163,7 +163,7 @@ function bound<T>(promise: Promise<T>, code: string, timeout = 30_000): Promise<
     promise.then(value => { clearTimeout(timer); resolve(value); }, (error: unknown) => { clearTimeout(timer); reject(error); });
   });
 }
-async function connectAdmin(host: string, database: string, token: () => Promise<string>): Promise<RehearsalAdmin> {
+async function connectAdmin(host: string, database: string, token: () => Promise<string>, progress?: (entry: HistoryPhaseEvent) => void): Promise<RehearsalAdmin> {
   const credential = await token();
   const connection = await bound(new Promise<DbConnection>((resolve, reject) => {
     DbConnection.builder().withUri(host).withDatabaseName(database).withToken(credential)
@@ -188,37 +188,40 @@ async function connectAdmin(host: string, database: string, token: () => Promise
       if (head?.documentHash !== sha256Hex(new TextEncoder().encode(documentJson))) throw new Error('static_history_rehearsal_digest_mismatch');
       await bound(connection.procedures.listLiveMapChunkHistory({ afterId: 0n, limit: 1 }), 'static_history_rehearsal_authorized_probe_timeout');
     },
-    async restore(revisionId) {
-      const clientMutationId = `s7c-rehearsal-${randomUUID()}`;
-      const common = { revisionId, reason: 'Verify isolated S7c history restore and audited inverse.', clientMutationId };
-      await bound(connection.reducers.adminRestoreMap({ ...common, dryRun: true, expectedWorldVersion: '', previewFingerprint: undefined }), 'static_history_rehearsal_preview_timeout');
-      const deadline = Date.now() + 10_000;
-      let preview;
-      do {
-        preview = [...connection.db.ownAdminMutationPreviews.iter()].find(row => row.clientMutationId === clientMutationId);
-        if (preview === undefined) await new Promise<void>(resolve => setTimeout(resolve, 25));
-      } while (preview === undefined && Date.now() < deadline);
-      if (preview === undefined) throw new Error('static_history_rehearsal_preview_missing');
-      await bound(connection.reducers.adminRestoreMap({ ...common, dryRun: false, expectedWorldVersion: preview.baseVersion,
-        previewFingerprint: preview.fingerprint }), 'static_history_rehearsal_restore_timeout', 120_000);
-      let cursor: string | undefined;
-      const seen = new Set<string>();
-      for (;;) {
-        const page = JSON.parse(await bound(connection.procedures.adminAuditPage({ filter: JSON.stringify({ targetKey: 'world' }), cursor }),
-          'static_history_rehearsal_audit_timeout')) as { rows: { id: string; payload: { clientMutationId: string;
-            inverse: { operation: string; args: { revisionId?: string } } | null } }[]; nextCursor: string | null };
-        if (!Array.isArray(page.rows)) throw new Error('static_history_rehearsal_audit_failed');
-        const audit = page.rows.find(row => row.payload.clientMutationId === clientMutationId);
-        if (audit !== undefined) {
-          const inverse = audit.payload.inverse;
-          if (inverse?.operation !== 'restore_map' || !/^[1-9][0-9]*$/u.test(inverse.args.revisionId ?? '')) throw new Error('static_history_rehearsal_inverse_missing');
-          return { auditId: audit.id, inverseRevisionId: inverse.args.revisionId! };
+    restore: (revisionId, row) => restoreHistoryWithPreview(revisionId, {
+      async preview(common) {
+        await bound(connection.reducers.adminRestoreMap({ ...common, dryRun: true, expectedWorldVersion: '', previewFingerprint: undefined }), 'static_history_rehearsal_preview_timeout');
+        const deadline = Date.now() + 10_000;
+        let preview;
+        do {
+          preview = [...connection.db.ownAdminMutationPreviews.iter()].find(value => value.clientMutationId === common.clientMutationId);
+          if (preview === undefined) await new Promise<void>(resolve => setTimeout(resolve, 25));
+        } while (preview === undefined && Date.now() < deadline);
+        if (preview === undefined) throw new Error('static_history_rehearsal_preview_missing');
+        return { baseVersion: preview.baseVersion, fingerprint: preview.fingerprint };
+      },
+      commit: (common, preview) => bound(connection.reducers.adminRestoreMap({ ...common, dryRun: false,
+        expectedWorldVersion: preview.baseVersion, previewFingerprint: preview.fingerprint }), 'static_history_rehearsal_restore_timeout', 120_000),
+      async audit(clientMutationId) {
+        let cursor: string | undefined;
+        const seen = new Set<string>();
+        for (;;) {
+          const page = JSON.parse(await bound(connection.procedures.adminAuditPage({ filter: JSON.stringify({ targetKey: 'world' }), cursor }),
+            'static_history_rehearsal_audit_timeout')) as { rows: { id: string; payload: { clientMutationId: string;
+              inverse: { operation: string; args: { revisionId?: string } } | null } }[]; nextCursor: string | null };
+          if (!Array.isArray(page.rows)) throw new Error('static_history_rehearsal_audit_failed');
+          const audit = page.rows.find(value => value.payload.clientMutationId === clientMutationId);
+          if (audit !== undefined) {
+            const inverse = audit.payload.inverse;
+            if (inverse?.operation !== 'restore_map' || !/^[1-9][0-9]*$/u.test(inverse.args.revisionId ?? '')) throw new Error('static_history_rehearsal_inverse_missing');
+            return { auditId: audit.id, inverseRevisionId: inverse.args.revisionId! };
+          }
+          const next = page.nextCursor;
+          if (next === null || seen.has(next)) throw new Error('static_history_rehearsal_audit_missing');
+          seen.add(next); cursor = next;
         }
-        const next = page.nextCursor;
-        if (next === null || seen.has(next)) throw new Error('static_history_rehearsal_audit_missing');
-        seen.add(next); cursor = next;
-      }
-    },
+      },
+    }, progress, row),
   };
 }
 
@@ -242,7 +245,7 @@ export async function main(env = process.env): Promise<void> {
     const atlas = await historyPhase('candidate-atlas', () => candidateAtlasOrigin(repository), checkpoint);
     progress.push({stage:'candidate-atlas',...atlas.evidence});
     const result = await runStaticMapHistoryRehearsal({ world, database, progress: checkpoint, origin: atlas.origin, materialize: materializeInProcess,
-      openAdmin: () => connectAdmin(host, database, token), verifyRejoin: async () => {
+      openAdmin: () => connectAdmin(host, database, token, checkpoint), verifyRejoin: async () => {
         const run = promisify(execFile);
         const snapshot = `${report}.rejoin-before.json`, after = `${report}.rejoin-after.json`;
         const options = { cwd: repository, env: { ...env, SPACETIMEDB_HOST: host, SPACETIMEDB_DATABASE: database,

@@ -2,6 +2,10 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Root 0.81.5 / Tools 0.25.5 — Guarded rehearsal restore preview retries
+
+- **BUG-074:** the isolated history rehearsal retries only a definite reducer revision conflict with a fresh preview and mutation id, at most five attempts. Auth, invalid fingerprints, unknown failures and ambiguous timeouts stop immediately; bounded diagnostics identify admin codes, preview/commit/audit phases and attempts. Server guards are unchanged.
+
 ## Root 0.81.4 / Tools 0.25.4 — Safe history rehearsal failure diagnostics
 
 - **BUG-073:** isolated history acceptance records fixed operation/row phases and recognizes exact known SDK and timeout codes. Unknown error text, bodies and credentials remain redacted; primary failures survive reconnect cleanup, and acceptance gates stay strict.
