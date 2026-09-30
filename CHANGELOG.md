@@ -2,6 +2,10 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Root 0.81.7 / Client 0.56.2 / UI 0.54.4 — Contained crafting requirement
+
+- **BUG-076:** missing-station and skill requirements wrap within the crafting pattern pane, keeping the bench width stable when a locked result appears.
+
 ## Root 0.81.6 / World 0.33.2 / Tools 0.25.6 — Map restore preserves advancing time
 
 - **BUG-075:** guarded map restore excludes only the two clock fields it never writes from its operation comparison, so normal ticks no longer stale its preview. All other world fields, map/archive identity, authorization, fingerprint, expiry, atomic publication and audit guards remain enforced; other admin world operations retain their full clock guards.

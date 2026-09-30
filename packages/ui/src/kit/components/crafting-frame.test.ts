@@ -113,3 +113,20 @@ it('paints a craft result with an unmet requirement as the grey face with the it
   expect(result.disabled).toBe(false); expect(slot(result)).not.toEqual(approved);
   root.dispose();
 });
+it.each([480, 640, 1280])('keeps the bench width stable when a workbench warning appears at viewport %s', width => {
+  const definition = bootstrapContentDefinitions().find((entry): entry is FrameContentDefinition => entry.id === 'frame:crafting')!;
+  const snapshot: UiCraftingSnapshot = { recipes: [], selected: null, pattern: [], output: { itemKind: 'chest', quantity: 1 } };
+  const frame = uiCraftingFrame({ definition, aliases: { crafting: 'crafting', backpack: 'backpack', hotbar: 'hotbar' }, registry: { items: new Map(), processes: new Map() },
+    crafting: snapshot, onRecipe: vi.fn(), onRecipeFilter: vi.fn(), onCraft: vi.fn() });
+  const root = new UiRoot({ scale: 1 }); root.resize(width, 400); root.mount(frame); frame.setCraftingViewport(width, 400); root.arrange(); root.arrange();
+  const bench = frame.children[0]!;
+  const before = bench.rect.width;
+  frame.updateCrafting({ ...snapshot, requirement: 'REQUIRES A WORKBENCH WITHIN 2 TILES' }); root.arrange(); root.arrange();
+  expect(bench.rect.width).toBe(before);
+  const warning = root.entries().find(entry => entry.element.label === 'Requires a workbench within 2 tiles')!.element;
+  expect(warning.rect.x).toBeGreaterThanOrEqual(bench.rect.x);
+  expect(warning.rect.x + warning.rect.width).toBeLessThanOrEqual(bench.rect.x + bench.rect.width);
+  expect(warning.rect.height).toBeGreaterThan(10);
+  frame.updateCrafting(snapshot); root.arrange(); root.arrange(); expect(bench.rect.width).toBe(before);
+  root.dispose();
+});
