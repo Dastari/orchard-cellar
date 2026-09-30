@@ -2,6 +2,20 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Client 0.56.0 / World 0.32.0 / Sim 0.36.0 / World bindings 0.21.0 / Tools 0.24.10 / Studio 0.17.0 — Static world S7b: Studio publishes the island and its chunks together
+
+**Schema-only migration release.** Adds the atomic map/chunk reducer, a member blob-read procedure and the private staging table. Content is unchanged. Client chunk runtime remains on.
+- **Server chunk authority (#294):** published chunks are the only topside source. Unservable publications freeze topside safely; traversal-policy lag keeps serving the pinned publication. Fresh-world resource seeding ignores planted and hearth rows.
+- **Browser materializer (#295):** Studio builds the same verified chunks as the host, in a browser worker; the parity bytes remain unchanged.
+- **Atomic publication (#296):** map revision and complete chunk heads commit in one transaction. Staging has per-sender quotas and expiry; blob reads are member-only and bounded. Map-grant holders retain the authorized default publication right.
+- **Client blob fallback (#297):** missing host-served blobs load from the database and are verified before caching, with bounded requests and the current connection.
+- **Publishing tools (#299):** install database-backed blobs on the host; authored-document chunk publications reconstruct editable maps. The first authored republish changes all 169 blob hashes.
+- **Studio Publish (#298):** prepare, build, check, upload changed chunks and go live together, with the progress-button renders shown on the wiki. Failed publishes retain the draft and leave the live world unchanged.
+- **Studio reads chunks (#300):** verified chunk publications reconstruct the editable map. The whole-document fallback remains until the separately reviewed S7c privacy/history migration.
+- Workspace 0.80.0. Design and review: [Static World Conversion](https://wiki.orchard.dastari.net/Roadmap/Static%20World%20Conversion), [Owner Review 2026-09-30](https://wiki.orchard.dastari.net/Roadmap/Owner%20Review%202026-09-30), [S7b review](https://wiki.orchard.dastari.net/Roadmap/Static%20World%20S7b%20Review%202026-09-30).
+
+**Rollback:** restore the previous compatible module/client or the verified pre-migration backup. Server chunk authority off is a maintenance freeze; a pre-S6 client alone is no longer a rollback target after #294.
+
 ## Client 0.55.0 / Engine 0.30.1 / World 0.31.3 / Sim 0.35.3 / UI 0.54.3 / Tools 0.24.9 / Studio 0.16.22 — Static world S6: true chunk streaming and art by need
 
 **Routine release: client and world code, no schema change.** Chunk heads are republished, because the atlas index changes.
