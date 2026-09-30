@@ -134,13 +134,20 @@ export function connectWorld(target: SoakTarget, token: string, timeoutMs = 30_0
 }
 
 /** Subscribes to the public tables the chunk publication depends on. */
-export function subscribeChunkInputs(world: WorldConnection, timeoutMs = 60_000): Promise<void> {
-  return withTimeout('subscription', new Promise((resolvePromise, reject) => {
+const operationalMapBases = new WeakMap<DbConnection, LiveMapRowJson | null>();
+
+export async function refreshLiveMapBase(world: WorldConnection): Promise<void> {
+  operationalMapBases.set(world.connection, JSON.parse(await withTimeout('read_map_base', world.connection.procedures.readLiveMapPublicationBase({}), 60_000)) as LiveMapRowJson | null);
+}
+
+export async function subscribeChunkInputs(world: WorldConnection, timeoutMs = 60_000): Promise<void> {
+  await withTimeout('subscription', new Promise<void>((resolvePromise, reject) => {
     world.connection.subscriptionBuilder()
       .onApplied(() => resolvePromise())
       .onError(context => reject(new Error(String(context.event))))
-      .subscribe([tables.liveMapDocument, tables.contentDefinition, tables.contentHead, tables.worldChunkShadow, tables.worldChunkHead, tables.spaceAdminFlag]);
+      .subscribe([tables.contentDefinition, tables.contentHead, tables.worldChunkShadow, tables.worldChunkHead, tables.spaceAdminFlag]);
   }), timeoutMs);
+  await refreshLiveMapBase(world);
 }
 
 export interface LiveMapRowJson {
@@ -169,13 +176,12 @@ export interface LiveRows {
   readonly published: PublishedHeads;
 }
 
-const LIVE_ISLAND_MAP_ID = 'live-island';
 const LIVE_CONTENT_PACK_ID = 'live';
 
 /** Reads the live map row, content rows and published chunk heads from the subscription cache. */
 export function readLiveRows(world: WorldConnection): LiveRows {
   const db = world.connection.db;
-  const map = db.liveMapDocument.mapId.find(LIVE_ISLAND_MAP_ID);
+  const map = operationalMapBases.get(world.connection) ?? null;
   const head = [...db.contentHead.iter()].find(row => row.packId === LIVE_CONTENT_PACK_ID) ?? null;
   const shadow = [...db.worldChunkShadow.iter()].find(row => row.spaceId === 0n) ?? null;
   return {
@@ -218,7 +224,7 @@ export async function materializeLiveRows(rows: Pick<LiveRows, 'mapRow' | 'conte
   const contentPath = resolve(workDir, 'content-rows.json');
   const output = resolve(workDir, 'chunks');
   await writeFile(rowPath, `${JSON.stringify(rows.mapRow)}\n`, { mode: 0o600 });
-  const args = [resolve(REPO_ROOT, 'node_modules/tsx/dist/cli.mjs'), resolve(REPO_ROOT, 'scripts/materialize-world-chunks.ts'), '--input', rowPath, '--output', output];
+  const args = [resolve(REPO_ROOT, 'node_modules/tsx/dist/cli.mjs'), resolve(REPO_ROOT, 'scripts/materialize-world-chunks.ts'), '--input', rowPath, '--output', output, '--authored-document'];
   if (rows.contentRows !== null) {
     await writeFile(contentPath, `${JSON.stringify(rows.contentRows)}\n`, { mode: 0o600 });
     args.push('--content-rows', contentPath);

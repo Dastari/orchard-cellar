@@ -1,3 +1,5 @@
+import { worldChunkHash } from '@orchard/sim/world-chunk';
+import { serializeMapDocumentV3ForTransport } from '@orchard/sim';
 import { RULE_MEDIA, advanceHazardDamage, runtimeTraversalPolicy, runtimeActorCollision, runtimeCreatureDefinition, runtimeTraversalAbilities, traversalSolidGeometry, type RuntimeTraversalActor } from '@orchard/sim';
 import { planObjectStateSettlement } from './content/object-state-runtime.js';
 import { objectEnvironmentIntervals, type ObjectEnvironmentEpoch, effectsResult, type AnyHandlerRegistration, type ExternalStateTransitionEvent } from '@orchard/sim';
@@ -19,6 +21,7 @@ import {planLiveMapResourceMoves} from './live-map-resource-placement.js';
 import { runtimeObjectFootprintTiles, runtimeObjectOccupiesTile } from '@orchard/sim';
 import {mapStreetlampPlans,streetlampState,STREETLAMP_DEFINITION} from '@orchard/sim';
 import { LIVE_MAP_MAX_DOCUMENT_CHARACTERS, prepareLiveMapPublication } from './live-map-publication.js';
+import { chunkHistoryBlobReferences, repinChunkHistoryManifest, retireTopsideAuditDocuments, verifiedChunkHistoryDocument } from './live-map-chunk-history.js';
 import { DELVE_COMPLETION_FLAG, DELVE_COMPLETION_STATISTIC, delveCompletionTotal, delveCompletionRecipe } from '@orchard/sim';
 import { orchardHarvestResult, orchardFruitStatus } from '@orchard/sim';
 import { executeToolSwing, type SwingTarget, type ToolSwingContact } from './behaviour/tool-swing.js';
@@ -1837,10 +1840,8 @@ const admin_world_validation_report = table(
 );
 // --- end authoring lane 55-C tables ---
 
-/** The active authored map is one public, versioned snapshot. Clients compile
- * the JSON locally and receive one atomic row update, so terrain and prefab
- * changes can never appear at different revisions. Mutations remain owner or
- * administrator only. */
+/** Public chunk heads and their manifest advance atomically with the private
+ * authored server base. Clients reconstruct the map from verified blobs. */
 const world_chunk_head = table(
   { name: 'world_chunk_head', public: true, indexes: [{ accessor: 'by_space', algorithm: 'btree', columns: ['spaceId'] }] },
   { id: t.string().primaryKey(), spaceId: t.u64(), cx: t.i32(), cy: t.i32(), contentHash: t.string(), revision: t.u32(), byteLength: t.u32() },
@@ -1859,7 +1860,8 @@ const world_chunk_blob_stage = table(
   { contentHash: t.string().primaryKey(), stagedBy: t.identity(), stagedAt: t.timestamp(), byteLength: t.u32() },
 );
 const live_map_document = table(
-  { name: 'live_map_document', public: true },
+  // S7c option C: one private server delta/planning base; clients read chunks only.
+  { name: 'live_map_document' },
   {
     mapId: t.string().primaryKey(),
     revision: t.u32(),
@@ -1891,6 +1893,12 @@ const live_map_revision = table(
     actor: t.identity(),
     occurredAt: t.timestamp(),
   },
+);
+
+/** S7c: shared-blob manifests keyed by stable legacy audit/undo history ids. */
+const live_map_chunk_revision = table(
+  { name: 'live_map_chunk_revision' },
+  { id: t.u64().primaryKey(), manifestJson: t.string(), registryContentHash: t.string() },
 );
 
 // Chat storage is private and is exposed only through caller-filtered views.
@@ -3164,6 +3172,7 @@ const spacetimedb = schema({
   live_map_document,
   world_chunk_head, world_chunk_shadow, world_chunk_blob, world_chunk_blob_stage,
   live_map_revision,
+  live_map_chunk_revision,
   chat_channel,
   chat_channel_member,
   chat_message,
@@ -7849,6 +7858,20 @@ function respawnMiningResources(ctx: WorldReducerContext, authorityTick: bigint)
 // Game clients need complete definition payloads, but not editor audit columns.
 // The shared materialization changes only when content changes; indexed kind
 // reads preserve all supported definitions, including privately authored rows.
+/** S7c continuity metadata: no document body, including for ordinary-player reconnect checks. */
+export const liveMapHead = spacetimedb.anonymousView(
+  { name: 'live_map_head', public: true },
+  t.array(t.object('LiveMapHeadMetadata', { mapId: t.string(), revision: t.u32(), contentHash: t.string(),
+    documentHash: t.string(), assetRegistryRevision: t.string(), clientMutationId: t.string(),
+    updatedBy: t.identity(), updatedAt: t.timestamp() })),
+  ctx => {
+    const row = ctx.db.live_map_document.mapId.find(LIVE_ISLAND_MAP_ID);
+    return row === null ? [] : [{ mapId: row.mapId, revision: row.revision, contentHash: row.contentHash,
+      documentHash: worldChunkHash(new TextEncoder().encode(row.documentJson)), assetRegistryRevision: row.assetRegistryRevision,
+      clientMutationId: row.clientMutationId, updatedBy: row.updatedBy, updatedAt: row.updatedAt }];
+  },
+);
+
 export const runtimeContentDefinitions = spacetimedb.anonymousView(
   { name: 'runtime_content_definitions', public: true },
   t.array(t.object('RuntimeContentDefinition', { id: t.string(), kind: t.string(), json: t.string() })),
@@ -13358,17 +13381,19 @@ function commitLiveMapSnapshot(
       if(lamp.definitionId===STREETLAMP_DEFINITION&&!active.has(lamp.id)){ ctx.db.object_lifecycle_state.placeableId.delete(lamp.id); ctx.db.world_placeable.id.delete(lamp.id); }
     settleTownStreetlamps(ctx,ctx.db.world_environment.id.find(0)?.calendarTick??0n,liveIslandCollisionRuntime(ctx));
   }
-  ctx.db.live_map_revision.insert({
+  const history = ctx.db.live_map_revision.insert({
     id: 0n,
     mapId: canonical.id,
     revision,
     parentRevision: currentRevision,
     contentHash,
-    documentJson,
+    // S7c: topside history retains authored data in shared chunks, never another full document.
+    documentJson: canonical.id === LIVE_ISLAND_MAP_ID ? '' : documentJson,
     clientMutationId,
     actor: ctx.sender,
     occurredAt: ctx.timestamp,
   });
+  if (canonical.id === LIVE_ISLAND_MAP_ID) archiveLiveMapChunkRevision(ctx, history);
   insertLegacyAdminAudit(ctx, {
     id: 0n,
     actor: ctx.sender,
@@ -16815,6 +16840,184 @@ export const adminRunWorldRepair = spacetimedb.reducer(
 // --- end Studio lane 56-W5 bounded world validation and safe repair authority ---
 
 // --- Studio lane 56-U5 exact live world-control authority ---
+type LiveMapHistoryRow = NonNullable<ReturnType<WorldReducerContext['db']['live_map_revision']['id']['find']>>;
+
+function historyBlobReader(ctx: Pick<WorldReducerContext, 'db'>): (hash: string) => Uint8Array | undefined {
+  return hash => {
+    const row = ctx.db.world_chunk_blob.contentHash.find(hash);
+    return row === null ? undefined : Uint8Array.from(row.bytes);
+  };
+}
+
+/** New atomic publications archive the serving manifest under the unchanged history id. */
+function archiveLiveMapChunkRevision(ctx: WorldReducerContext, revision: LiveMapHistoryRow): void {
+  const shadow = ctx.db.world_chunk_shadow.spaceId.find(BigInt(TOPSIDE_SPACE_ID));
+  if (shadow === null) throw new SenderError('chunk_history_publication_missing');
+  const base = ctx.db.live_map_document.mapId.find(revision.mapId);
+  try { verifiedChunkHistoryDocument(revision, shadow.manifestJson, historyBlobReader(ctx), base?.documentJson); }
+  catch (error) { throw new SenderError(error instanceof Error ? error.message : 'chunk_history_invalid'); }
+  ctx.db.live_map_chunk_revision.insert({ id: revision.id, manifestJson: shadow.manifestJson, registryContentHash: shadow.contentHash });
+}
+
+function liveMapRevisionDocument(ctx: Pick<WorldReducerContext, 'db'>, revision: LiveMapHistoryRow): string {
+  const history = ctx.db.live_map_chunk_revision.id.find(revision.id);
+  if (history === null) {
+    if (revision.documentJson.length === 0) throw new SenderError('chunk_history_not_backfilled');
+    return revision.documentJson; // Retained only until exact historical backfill completes.
+  }
+  try {
+    return serializeMapDocumentV3ForTransport(verifiedChunkHistoryDocument(revision, history.manifestJson, historyBlobReader(ctx)));
+  } catch (error) { throw new SenderError(error instanceof Error ? error.message : 'chunk_history_invalid'); }
+}
+
+/** Restore/undo never advances the topside document alone. Old blobs are repinned, not regenerated. */
+function commitRestoredLiveMapSnapshot(ctx: WorldReducerContext, document: MapDocumentV3,
+  expectedRevision: number, clientMutationId: string, revisionId: bigint): void {
+  if (document.id !== LIVE_ISLAND_MAP_ID) {
+    commitLiveMapSnapshot(ctx, document, expectedRevision, clientMutationId, false);
+    return;
+  }
+  const history = ctx.db.live_map_chunk_revision.id.find(revisionId);
+  if (history === null) throw new SenderError('chunk_history_not_backfilled');
+  const shadow = ctx.db.world_chunk_shadow.spaceId.find(BigInt(TOPSIDE_SPACE_ID));
+  const manifestJson = repinChunkHistoryManifest(history.manifestJson, document, expectedRevision + 1);
+  try {
+    commitLiveMapSnapshot(ctx, document, expectedRevision, clientMutationId, false, () => {
+      requireSameChunkAssetRevision(ctx, manifestJson);
+      commitWorldChunkShadow(ctx, { manifestJson, mapId: document.id,
+        contentHash: history.registryContentHash, expectedRevision: shadow?.revision ?? 0 });
+      requireServableChunkPublication(ctx);
+    });
+  } catch (error) { chunkAuthorityDispatcher.release(); throw error; }
+}
+
+/** Owner/admin operational read; never a public whole-document subscription. */
+export const readLiveMapPublicationBase = spacetimedb.procedure({}, t.string(), ctx => ctx.withTx(tx => {
+  requireWorldOwner(tx.senderAuth.jwt, tx.db.membership.identity.find(tx.sender));
+  const row = tx.db.live_map_document.mapId.find(LIVE_ISLAND_MAP_ID);
+  return JSON.stringify(row === null ? null : { mapId: row.mapId, revision: row.revision,
+    contentHash: row.contentHash, documentJson: row.documentJson });
+}));
+
+/** Bounded pages: metadata only; no all-history document payload. */
+export const listLiveMapChunkHistory = spacetimedb.procedure({ afterId: t.u64(), limit: t.u32() }, t.string(),
+  (ctx, { afterId, limit }) => ctx.withTx(tx => {
+    requireWorldOwner(tx.senderAuth.jwt, tx.db.membership.identity.find(tx.sender));
+    if (limit < 1 || limit > 100) throw new SenderError('chunk_history_page_size_invalid');
+    // Infrequent operational scan, bounded result; history is not a gameplay/tick path.
+    const candidates = [...tx.db.live_map_revision.by_map.filter(LIVE_ISLAND_MAP_ID)]
+      .filter(row => row.id > afterId).sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    const rows = candidates.slice(0, limit).map(row => ({ id: row.id.toString(), mapId: row.mapId,
+      revision: row.revision, contentHash: row.contentHash, hasDocumentCopy: row.documentJson.length > 0,
+      archived: tx.db.live_map_chunk_revision.id.find(row.id) !== null }));
+    return JSON.stringify({ rows, more: candidates.length > limit });
+  }));
+
+/** Exact reconstructed historical document, only for backfill/rematerialization by owner/admin. */
+export const readLiveMapChunkHistory = spacetimedb.procedure({ revisionId: t.u64() }, t.string(),
+  (ctx, { revisionId }) => ctx.withTx(tx => {
+    requireWorldOwner(tx.senderAuth.jwt, tx.db.membership.identity.find(tx.sender));
+    const row = tx.db.live_map_revision.id.find(revisionId);
+    if (row === null || row.mapId !== LIVE_ISLAND_MAP_ID) throw new SenderError('live_map_revision_not_found');
+    return JSON.stringify({ mapId: row.mapId, revision: row.revision, contentHash: row.contentHash,
+      documentJson: liveMapRevisionDocument(tx, row),
+      manifestHash: (() => { const archive = tx.db.live_map_chunk_revision.id.find(row.id); return archive === null ? '' : worldChunkHash(new TextEncoder().encode(archive.manifestJson)); })() });
+  }));
+
+/** Verify first, then retire the document copy. Replacement rematerializes old history for current art/content. */
+export const backfillLiveMapChunkHistory = spacetimedb.reducer(
+  { revisionId: t.u64(), manifestJson: t.string(), registryContentHash: t.string(), expectedManifestHash: t.string() },
+  (ctx, input) => {
+    requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+    const row = ctx.db.live_map_revision.id.find(input.revisionId);
+    if (row === null || row.mapId !== LIVE_ISLAND_MAP_ID) throw new SenderError('live_map_revision_not_found');
+    if (input.manifestJson.length > 1024 * 1024) throw new SenderError('chunk_manifest_too_large');
+    const previous = ctx.db.live_map_chunk_revision.id.find(row.id);
+    if (previous?.manifestJson === input.manifestJson && previous.registryContentHash === input.registryContentHash && row.documentJson.length === 0) return;
+    const previousHash = previous === null ? '' : worldChunkHash(new TextEncoder().encode(previous.manifestJson));
+    if (input.expectedManifestHash !== previousHash) throw new SenderError('chunk_history_revision_conflict');
+    const documentJson = liveMapRevisionDocument(ctx, row);
+    requireSameChunkAssetRevision(ctx, input.manifestJson);
+    withShadowPublicationRefusals(() => validateShadowPublication(
+      { manifestJson: input.manifestJson, contentHash: input.registryContentHash, expectedRevision: 0 },
+      { mapRevision: row.revision, mapHash: row.contentHash, contentHash: contentRegistry(ctx).contentHash, shadowRevision: 0 }, historyBlobReader(ctx)));
+    try { verifiedChunkHistoryDocument(row, input.manifestJson, historyBlobReader(ctx), documentJson); }
+    catch (error) { throw new SenderError(error instanceof Error ? error.message : 'chunk_history_invalid'); }
+    const archive = { id: row.id, manifestJson: input.manifestJson, registryContentHash: input.registryContentHash };
+    if (previous === null) ctx.db.live_map_chunk_revision.insert(archive);
+    else ctx.db.live_map_chunk_revision.id.update(archive);
+    if (row.documentJson.length > 0) ctx.db.live_map_revision.id.update({ ...row, documentJson: '' });
+    // Historical references are durable, no longer charged to temporary sender staging quotas.
+    const manifest = JSON.parse(input.manifestJson) as { chunks: { contentHash: string }[] };
+    for (const head of manifest.chunks) ctx.db.world_chunk_blob_stage.contentHash.delete(head.contentHash);
+    insertLegacyAdminAudit(ctx, { id: 0n, actor: ctx.sender, action: 'backfill_live_map_chunk_history',
+      value: `${row.mapId}:${row.revision}:history-row-${row.id}`, occurredAt: ctx.timestamp });
+  });
+
+export const verifyLiveMapChunkHistory = spacetimedb.procedure({ revisionId: t.u64() }, t.string(),
+  (ctx, { revisionId }) => ctx.withTx(tx => {
+    requireWorldOwner(tx.senderAuth.jwt, tx.db.membership.identity.find(tx.sender));
+    const row = tx.db.live_map_revision.id.find(revisionId);
+    if (row === null || row.mapId !== LIVE_ISLAND_MAP_ID) throw new SenderError('live_map_revision_not_found');
+    const history = tx.db.live_map_chunk_revision.id.find(revisionId);
+    if (history === null) throw new SenderError('chunk_history_not_backfilled');
+    verifiedChunkHistoryDocument(row, history.manifestJson, historyBlobReader(tx), row.documentJson || undefined);
+    return JSON.stringify({ id: row.id.toString(), revision: row.revision, hasDocumentCopy: row.documentJson.length > 0,
+      manifestHash: worldChunkHash(new TextEncoder().encode(history.manifestJson)) });
+  }));
+
+/** Audit inverses/diffs historically duplicated map bodies. Resolve all bytes before touching a row. */
+function retiredTopsideAuditPayload(ctx: WorldReducerContext, payload: string): { payloadJson: string; copies: number } {
+  return retireTopsideAuditDocuments(payload, documentJson => {
+    const document = JSON.parse(documentJson) as MapDocumentV3;
+    const row = [...ctx.db.live_map_revision.by_map.filter(LIVE_ISLAND_MAP_ID)]
+      .find(candidate => candidate.revision === document.revision);
+    if (row === undefined) throw new SenderError('chunk_history_audit_orphan');
+    const archive = ctx.db.live_map_chunk_revision.id.find(row.id);
+    if (archive === null) throw new SenderError('chunk_history_not_backfilled');
+    const rebuilt = verifiedChunkHistoryDocument(row, archive.manifestJson, historyBlobReader(ctx));
+    if (JSON.stringify(rebuilt) !== JSON.stringify(JSON.parse(documentJson))) {
+      throw new SenderError('chunk_history_audit_document_mismatch');
+    }
+    return { revisionId: row.id.toString(), mapId: row.mapId, revision: row.revision, contentHash: row.contentHash,
+      documentHash: worldChunkHash(new TextEncoder().encode(documentJson)) };
+  });
+}
+
+export const retireLiveMapAuditDocuments = spacetimedb.reducer({}, ctx => {
+  requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
+  const audited = [...ctx.db.world_admin_audit.by_operation.filter('restore_map')]
+    .map(row => ({ row, retired: retiredTopsideAuditPayload(ctx, row.payload) }));
+  // Old body-based fingerprints are obsolete. Delete only verified topside restore receipts.
+  const previews = [...ctx.db.admin_mutation_preview.iter()]
+    .filter(row => row.operation === 'restore_map')
+    .filter(row => retiredTopsideAuditPayload(ctx, row.previewJson).copies > 0);
+  // Verify every copy before any write, in addition to the reducer's transaction rollback.
+  for (const { row, retired } of audited) {
+    if (retired.copies > 0) ctx.db.world_admin_audit.id.update({ ...row, payload: retired.payloadJson });
+  }
+  for (const row of previews) ctx.db.admin_mutation_preview.id.delete(row.id);
+});
+
+export const liveMapChunkHistoryCopyStatus = spacetimedb.procedure({}, t.string(), ctx => ctx.withTx(tx => {
+  requireWorldOwner(tx.senderAuth.jwt, tx.db.membership.identity.find(tx.sender));
+  let historyCopies = 0, missingArchives = 0, auditCopies = 0, previewCopies = 0;
+  for (const row of tx.db.live_map_revision.by_map.filter(LIVE_ISLAND_MAP_ID)) {
+    if (row.documentJson.length > 0) historyCopies += 1;
+    if (tx.db.live_map_chunk_revision.id.find(row.id) === null) missingArchives += 1;
+  }
+  for (const row of tx.db.world_admin_audit.by_operation.filter('restore_map')) {
+    auditCopies += retireTopsideAuditDocuments(row.payload, () => ({ revisionId: '', mapId: LIVE_ISLAND_MAP_ID,
+      revision: 0, contentHash: '', documentHash: '' }), false).copies;
+  }
+  for (const row of tx.db.admin_mutation_preview.iter()) {
+    if (row.operation !== 'restore_map') continue;
+    previewCopies += retireTopsideAuditDocuments(row.previewJson, () => ({ revisionId: '', mapId: LIVE_ISLAND_MAP_ID,
+      revision: 0, contentHash: '', documentHash: '' }), false).copies;
+  }
+  return JSON.stringify({ historyCopies, missingArchives, auditCopies, previewCopies });
+}));
+
 function adminWorldControlRevision(
   ctx: WorldReducerContext,
   revisionId: string,
@@ -16826,7 +17029,7 @@ function adminWorldControlRevision(
   const row = ctx.db.live_map_revision.id.find(id);
   return row === null ? null : {
     revisionId: row.id.toString(), mapId: row.mapId, revision: row.revision,
-    contentHash: row.contentHash, documentJson: row.documentJson,
+    contentHash: row.contentHash, documentJson: liveMapRevisionDocument(ctx, row),
   };
 }
 
@@ -16955,11 +17158,19 @@ function writeAdminWorldControlAction(
   }
   if (action.kind === 'global_notice') return;
   if (action.kind === 'restore_map') {
+    const inverseHead = adminWorldControlMapHead(ctx);
+    if (inverseHead !== null && inverseHead.mapId === LIVE_ISLAND_MAP_ID) {
+      const row = ctx.db.live_map_revision.id.find(BigInt(inverseHead.revisionId || '0'));
+      const archive = row === null ? null : ctx.db.live_map_chunk_revision.id.find(row.id);
+      if (row === null || archive === null) throw new SenderError('chunk_history_not_backfilled');
+      verifiedChunkHistoryDocument(row, archive.manifestJson, historyBlobReader(ctx), inverseHead.documentJson);
+    }
+
     const current = ctx.db.live_map_document.mapId.find(action.revision.mapId);
     const document = validatedLiveMapDocument(
       ctx, action.revision.mapId, action.revision.documentJson,
     );
-    commitLiveMapSnapshot(ctx, document, current?.revision ?? 0, clientMutationId, false);
+    commitRestoredLiveMapSnapshot(ctx, document, current?.revision ?? 0, clientMutationId, BigInt(action.revision.revisionId));
     return;
   }
   const spaceId = adminWorldSpaceId(action.spaceId);
@@ -17975,6 +18186,7 @@ export const publishLiveMapDocument = spacetimedb.reducer(
   },
   (ctx, { mapId, expectedRevision, documentJson, clientMutationId }) => {
     requireLiveMapPublisher(ctx);
+    if (mapId === LIVE_ISLAND_MAP_ID) throw new SenderError('live_map_chunks_required');
     const document = preparedLiveMapPublication(ctx, mapId, expectedRevision, documentJson, clientMutationId);
     if (document === null) return;
     commitLiveMapSnapshot(ctx, document, expectedRevision, clientMutationId);
@@ -18120,8 +18332,8 @@ export const restoreLiveMapRevision = spacetimedb.reducer(
     requireWorldOwner(ctx.senderAuth.jwt, ctx.db.membership.identity.find(ctx.sender));
     const revision = ctx.db.live_map_revision.id.find(revisionId);
     if (revision === null) throw new SenderError('live_map_revision_not_found');
-    const document = validatedLiveMapDocument(ctx, revision.mapId, revision.documentJson);
-    commitLiveMapSnapshot(ctx, document, expectedRevision, clientMutationId, false);
+    const document = validatedLiveMapDocument(ctx, revision.mapId, liveMapRevisionDocument(ctx, revision));
+    commitRestoredLiveMapSnapshot(ctx, document, expectedRevision, clientMutationId, revisionId);
     insertLegacyAdminAudit(ctx, {
       id: 0n,
       actor: ctx.sender,
@@ -26446,7 +26658,8 @@ export const stageWorldChunkBlob = spacetimedb.reducer({ bytes: t.array(t.u8()) 
   // within the expiry are removed (lazily, when that sender stages again).
   const now = ctx.timestamp.microsSinceUnixEpoch;
   const rows = [...ctx.db.world_chunk_blob_stage.by_staged_by.filter(ctx.sender)];
-  const referenced = new Set([...ctx.db.world_chunk_head.by_space.filter(BigInt(TOPSIDE_SPACE_ID))].map(head => head.contentHash));
+  const referenced = chunkHistoryBlobReferences([...ctx.db.live_map_chunk_revision.iter()].map(row => row.manifestJson));
+  for (const head of ctx.db.world_chunk_head.by_space.filter(BigInt(TOPSIDE_SPACE_ID))) referenced.add(head.contentHash);
   const plan = planChunkStage(rows.map(row => ({ contentHash: row.contentHash, stagedAtMicros: row.stagedAt.microsSinceUnixEpoch,
     byteLength: row.byteLength })), referenced, now, bytes.length);
   for (const expired of plan.expired) {

@@ -42,7 +42,11 @@ describe('U5 exact world-control registration', () => {
     for (const kind of ['set_environment', 'set_wind', 'set_motd', 'global_notice', 'restore_map']) {
       expect(writer).toContain(`action.kind === '${kind}'`);
     }
-    expect(writer).toContain('commitLiveMapSnapshot(ctx, document');
+    expect(writer).toContain('commitRestoredLiveMapSnapshot(ctx, document');
+    const restore = between('function commitRestoredLiveMapSnapshot(', 'export const readLiveMapPublicationBase');
+    expect(restore).toContain('commitLiveMapSnapshot(ctx, document');
+    expect(restore).toContain('commitWorldChunkShadow');
+    expect(restore).toContain('requireServableChunkPublication');
     expect(writer).toContain('ctx.db.homestead.spaceId.update');
     expect(writer).toContain('ctx.db.space_portal.id.update');
     const execution = between('function executeAdminWorldControlMutation(', 'const adminWorldControlEnvelope');

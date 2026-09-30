@@ -1,3 +1,4 @@
+import { publishFixtureMap } from './chunk-fixture-publication.js';
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { createWriteStream, readFileSync } from 'node:fs';
 import { cp, lstat, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
@@ -15,7 +16,7 @@ import { validateRuntimeManifest } from '../packages/sim/src/chunk-runtime.js';
 import { WORLD_CHUNK_SIZE, type WorldChunkManifest } from '../packages/sim/src/world-chunk.js';
 import { stableAssetId } from '../packages/tools/src/assets/asset-id.js';
 import { composeHearthContentMap } from '../packages/tools/src/hearth-map-composition.js';
-import { assertSoakTarget, connectWorld, readTokenFile, subscribeChunkInputs, withTimeout, type WorldConnection } from './chunk-authority-live-rows.js';
+import { assertSoakTarget, connectWorld, readLiveRows, readTokenFile, subscribeChunkInputs, withTimeout, type WorldConnection } from './chunk-authority-live-rows.js';
 import { assembleChunkLiveIslandRuntime } from '../packages/world/src/content/chunk-authority-runtime.js';
 import { chunkWalkTargets, type WalkTarget } from './chunk-authority-soak.js';
 
@@ -474,7 +475,7 @@ export class OwnerWorld {
   #sequence = 0;
   readonly #positionSubscriptions = new Set<string>();
   readonly #heartbeat: ReturnType<typeof setInterval>;
-  constructor(readonly world: WorldConnection) {
+  constructor(readonly world: WorldConnection, private readonly options: AcceptanceOptions) {
     this.#heartbeat = setInterval(() => { void world.connection.reducers.heartbeat({ active: true }).catch(() => undefined); }, 5_000);
   }
   static async open(options: AcceptanceOptions): Promise<OwnerWorld> {
@@ -484,11 +485,11 @@ export class OwnerWorld {
       world.connection.subscriptionBuilder().onApplied(() => resolvePromise()).onError(context => reject(new Error(String(context.event))))
         .subscribe([tables.ownAdminMutationPreviews]);
     }), 60_000);
-    return new OwnerWorld(world);
+    return new OwnerWorld(world, options);
   }
   get db() { return this.world.connection.db; }
   close(): void { clearInterval(this.#heartbeat); this.world.connection.disconnect(); }
-  mapRow() { return this.db.liveMapDocument.mapId.find('live-island'); }
+  mapRow() { return readLiveRows(this.world).mapRow; }
   shadowRevision(): number { return [...this.db.worldChunkShadow.iter()].find(row => row.spaceId === 0n)?.revision ?? 0; }
   manifest(): WorldChunkManifest {
     const row = [...this.db.worldChunkShadow.iter()].find(entry => entry.spaceId === 0n);
@@ -503,8 +504,11 @@ export class OwnerWorld {
   async publishMap(documentJson: string): Promise<{ revision: number; contentHash: string }> {
     const current = this.mapRow();
     const expectedRevision = current?.revision ?? 0;
-    await this.world.connection.reducers.publishLiveMapDocument({ mapId: 'live-island', expectedRevision, documentJson,
-      clientMutationId: `s4g-map-${Date.now()}` });
+    const atlasPath = resolve(this.options.evidenceDir, 'atomic-map-atlas.json');
+    const atlas = await fetch(`${this.options.onUrl.replace(/\/+$/u, '')}/generated/atlas.packs.json`).then(response => { if (!response.ok) throw new Error('atlas_index_unavailable'); return response.text(); });
+    await writeFile(atlasPath, atlas, { mode: 0o600 });
+    await publishFixtureMap(this.world, documentJson, expectedRevision, resolve(this.options.evidenceDir, `atomic-map-${Date.now()}`),
+      { atlasIndex: atlasPath, assetRevision: (await import('@orchard/sim/world-chunk')).worldChunkHash(new TextEncoder().encode(atlas)) });
     const row = await waitFor('map_published', () => { const next = this.mapRow(); return next !== null && next.revision !== expectedRevision ? next : null; }, 60_000);
     return { revision: row.revision, contentHash: row.contentHash };
   }

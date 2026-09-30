@@ -63,6 +63,10 @@ describe('exact world-control planner', () => {
       expect(commit.preview.baseVersion).toBe(base);
       if (draft.operation === 'global_notice') expect(commit.audit.inverse).toBeNull();
       else expect(commit.audit.inverse?.operation).toBe(draft.operation);
+      if (draft.operation === 'restore_map') {
+        expect(commit.audit.inverse?.args).toMatchObject({revisionId:'19'});
+        expect(JSON.stringify(commit.audit)).not.toContain('documentJson');
+      }
     },
   );
 

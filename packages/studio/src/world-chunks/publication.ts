@@ -2,7 +2,7 @@
  * Static world S7b-3: Studio publishes a topside map edit together with its chunk publication.
  *
  *   1. Predict the head the server commits (`predictLiveMapHead`): the same delta application and
- *      parse as `publishLiveMapDocument`, then `liveMapHeadSource` at `expectedRevision + 1`.
+ *      parse on the server, then `liveMapHeadSource` at `expectedRevision + 1`.
  *   2. Materialise the chunks for that head and verify them against the server reference
  *      (`materializeLiveMapPublication`, in a worker: tens of seconds for the whole island).
  *   3. Stage the blobs the current publication does not already reference (content addressed, so an

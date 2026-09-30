@@ -56,6 +56,9 @@ rehearsal_port=${WORLD_RELEASE_REHEARSAL_PORT:-3300}
 dry_run=${WORLD_RELEASE_DRY_RUN:-false}
 migration_kind=${WORLD_RELEASE_MIGRATION_KIND:-legacy-chests}
 [[ "$migration_kind" = legacy-chests || "$migration_kind" = schema-only ]] || usage
+static_map_history=${WORLD_RESTORE_STATIC_MAP_HISTORY:-skip}
+[[ "$static_map_history" = run || "$static_map_history" = skip ]] || usage
+[[ "$static_map_history" = skip || "$migration_kind" = schema-only ]] || usage
 studio_mode=${WORLD_RELEASE_STUDIO_MODE:-build}
 studio_reviewed_source=${WORLD_RELEASE_STUDIO_REVIEWED_SOURCE:-}
 studio_reviewed_artifact=${WORLD_RELEASE_STUDIO_REVIEWED_ARTIFACT:-}

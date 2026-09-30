@@ -64,21 +64,24 @@ async function refreshCredential(credential: Required<Pick<StoredRejoinCredentia
   };
 }
 
+/** Shared, locked rotation path for long-running release/history tools. */
+export async function refreshRejoinCredentials(path: string): Promise<readonly RejoinCredential[]> {
+  const resolved = await refreshRejoinCredentialFile({
+    path,
+    refresh: refreshCredential,
+    validate: async (token, clientId) => {
+      const issuer = (process.env['OIDC_ISSUER'] ?? 'https://auth.orchard.dastari.net/realms/orchard').replace(/\/$/u, '');
+      await verifyIdTokenSignature(token, `${issuer}/protocol/openid-connect/certs`);
+      validateIdTokenClaims(decodeJwtClaims(token), undefined, Date.now(), issuer, clientId);
+    },
+    requireRefresh: process.env['WORLD_REJOIN_REQUIRE_REFRESH'] === '1',
+  });
+  return resolved.credentials;
+}
+
 async function credentials(): Promise<readonly RejoinCredential[]> {
   const path = process.env['WORLD_REJOIN_TOKENS_FILE'];
-  if (path !== undefined) {
-    const resolved = await refreshRejoinCredentialFile({
-      path,
-      refresh: refreshCredential,
-      validate: async (token, clientId) => {
-        const issuer = (process.env['OIDC_ISSUER'] ?? 'https://auth.orchard.dastari.net/realms/orchard').replace(/\/$/u, '');
-        await verifyIdTokenSignature(token, `${issuer}/protocol/openid-connect/certs`);
-        validateIdTokenClaims(decodeJwtClaims(token), undefined, Date.now(), issuer, clientId);
-      },
-      requireRefresh: process.env['WORLD_REJOIN_REQUIRE_REFRESH'] === '1',
-    });
-    return resolved.credentials;
-  }
+  if (path !== undefined) return refreshRejoinCredentials(path);
   const token = process.env['WORLD_REJOIN_TOKEN'];
   if (token === undefined || token.length === 0) throw new Error('WORLD_REJOIN_TOKENS_FILE_required');
   return [{ label: process.env['WORLD_REJOIN_LABEL'] ?? 'operator', token }];
@@ -89,7 +92,7 @@ export function assertCurrentBindings(): void {
   const querySurface = tables as unknown as Record<string, unknown>;
   assertRejoinTableCoverage(new Set(REQUIRED_REJOIN_TABLES
     .map(({ accessor }) => accessor)
-    .filter((accessor) => querySurface[accessor] !== undefined)));
+    .filter((accessor) => querySurface[accessor === 'liveMapDocument' ? 'liveMapHead' : accessor] !== undefined)));
 }
 
 function connect(credential: RejoinCredential): Promise<ConnectedIdentity> {
@@ -105,6 +108,7 @@ function connect(credential: RejoinCredential): Promise<ConnectedIdentity> {
 }
 
 function queryFor(accessor: string, identity: Identity): unknown {
+  if (accessor === 'liveMapDocument') return tables.liveMapHead;
   if (accessor === 'playerPublic') return tables.playerPublic.where((row) => row.identity.eq(identity));
   if (accessor === 'playerAppearance') return tables.playerAppearance.where((row) => row.identity.eq(identity));
   if (accessor === 'playerPosition') return tables.playerPosition.where((row) => row.identity.eq(identity));
@@ -127,7 +131,7 @@ function subscribe(client: ConnectedIdentity, label: string): Promise<void> {
 function captureIdentity(client: ConnectedIdentity, label: string): WorldRejoinIdentitySnapshot {
   const database = client.connection.db as unknown as Record<string, { iter(): Iterable<unknown> } | undefined>;
   const rawTables = Object.fromEntries(REQUIRED_REJOIN_TABLES.map(({ accessor }) => {
-    const table = database[accessor];
+    const table = database[accessor === 'liveMapDocument' ? 'liveMapHead' : accessor];
     if (table === undefined) throw new Error(`required_cache_table_missing:${accessor}`);
     return [accessor, [...table.iter()]];
   }));

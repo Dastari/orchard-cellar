@@ -12,7 +12,7 @@ function fixture(blocked = false){
   const landmarks=sim.activeSurvivalLandmarks(sim.bootstrapContentRegistry(),sim.TOPSIDE_SPACE_ID);
   const initial={...sim.createLiveIslandMapDocument({landmarks}),combatRegions:sim.HEARTH_COMBAT_REGIONS};
   let row={mapId:initial.id,revision:1,documentJson:sim.serializeMapDocumentV3(initial),contentHash:sim.mapDocumentV3Hash(initial),clientMutationId:'initial'};
-  const history:unknown[]=[];
+  const history:unknown[]=[];const archived:unknown[]=[];
   const tree={id:42n,kind:'tree_oak',definitionId:'resource:tree_oak',tileX:3,tileY:4,chunkX:0,chunkY:0,spaceId:0,health:7,regrowthProgress:35,depleted:false,growthStage:3};
   const resources=new Map([[tree.id,tree]]);
   const resourceWrites:typeof tree[]=[];
@@ -21,14 +21,14 @@ function fixture(blocked = false){
     world_chest:{by_chunk:{filter:()=>[]}},world_combat_target:{by_chunk:{filter:()=>[]}},
     live_map_document:{mapId:{find:()=>row,update:(next:typeof row)=>{row=next;}}},
     world_placeable:{by_placer:{filter:()=>[]}},world_environment:{id:{find:()=>null}},
-    live_map_revision:{insert:(next:unknown)=>history.push(next)}}};
+    live_map_revision:{insert:(next:unknown)=>{history.push(next);return next;}}}};
   const dependencies={...sim,planLiveMapResourceMoves,planLiveMapEntityStates,SenderError:Error,activeTopsideLandmarks:()=>landmarks,insertLegacyAdminAudit:()=>{},settleTownStreetlamps:()=>{},liveIslandCollisionRuntime:()=>null,
-    contentRegistry:()=>sim.bootstrapContentRegistry(),
+    contentRegistry:()=>sim.bootstrapContentRegistry(),archiveLiveMapChunkRevision:(_ctx:unknown,revision:unknown)=>archived.push(revision),
     runtimeResourceDefinition:()=>[...sim.bootstrapContentRegistry().resources.values()].find(d=>d.runtimeKind==='tree_oak'),
     collisionForSpace:()=>({width:832,height:832,blocked:new Uint8Array(832*832).fill(blocked?1:0)}),
     tileOverlapsAnyPlayer:()=>false};
   const commit=new Function(...Object.keys(dependencies),`${javascript};return commitLiveMapSnapshot;`)(...Object.values(dependencies));
-  return {ctx,initial,history,current:()=>row,commit,resources,resourceWrites,tree};
+  return {ctx,initial,history,archived,current:()=>row,commit,resources,resourceWrites,tree};
 }
 describe('combat policy custody across map publication',()=>{
   it('preserves policy omitted by an older editor and retries that mutation idempotently',()=>{
@@ -42,6 +42,7 @@ describe('combat policy custody across map publication',()=>{
     const committedHash=f.current().contentHash;
     f.commit(f.ctx,edited,1,'older-editor');
     expect(f.history).toHaveLength(1);expect(f.current().revision).toBe(2);
+    expect(f.archived).toEqual(f.history);expect(f.history[0]).toMatchObject({documentJson:''});
     expect(f.current().contentHash).toBe(committedHash);
   });
   it('allows an explicit empty policy and intentional historical restore',()=>{

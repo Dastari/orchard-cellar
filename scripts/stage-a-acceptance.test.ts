@@ -50,7 +50,7 @@ describe('redacted Stage-A acceptance evidence', () => {
 
   it('fails closed on missing rows, subscription-scope leaks, and shared/reconnect parity changes', () => {
     expect(() => buildStageAAcceptanceEvidence({ ...input(), initial: [observation('owner', alice),
-      observation('player', bob, { mapRows: [] })] })).toThrow('stage_a_required_singleton:liveMapDocument');
+      observation('player', bob, { mapRows: [] })] })).toThrow('stage_a_required_singleton:liveMapHead');
     expect(() => buildStageAAcceptanceEvidence({ ...input(), initial: [observation('owner', alice),
       observation('player', bob, { playerPublicRows: [{ identity: alice }] })] }))
       .toThrow('stage_a_player_identity_scope_mismatch');
@@ -98,7 +98,7 @@ describe('Stage-A live harness safety contract', () => {
     const main = source.slice(source.indexOf('export async function main'));
     expect(main.indexOf('assertCurrentBindings()')).toBeLessThan(main.indexOf('loadCredentials()'));
     const queries = source.slice(source.indexOf('function targetedQueries'), source.indexOf('function subscribe'));
-    for (const table of ['liveMapDocument', 'contentHead', 'contentDefinition', 'worldPlaceable',
+    for (const table of ['liveMapHead', 'contentHead', 'contentDefinition', 'worldPlaceable',
       'playerPublic', 'playerPosition']) expect(queries).toContain(`tables.${table}`);
     expect(queries).toContain("definitionId.eq('object:chest')");
     expect(queries).not.toMatch(/worldChest|ownOpenChest|ownActiveChest/);
