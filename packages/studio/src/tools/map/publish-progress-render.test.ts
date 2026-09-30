@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { createCanvas } from '@napi-rs/canvas';
+import { createCanvas, type Canvas } from '@napi-rs/canvas';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createLiveIslandMapDocument, mapDocumentV3Hash, normalizeMapDocumentV3, serializeMapDocumentV3 } from '@orchard/sim';
 import { UiRoot, type UiElement, type UiKitArt } from '@orchard/ui/studio';
@@ -72,7 +72,7 @@ describe('Map Editor publish progress (static world S7b-3)', () => {
         const region = Object.values(surface.kit ?? {}).find(node => node && tree(node).includes(button))!;
         const width = CONTROLS.width, height = 200, scale = 2;
         const root = new UiRoot({ art, scale, dpr: 1 }); root.resize(width * scale, height * scale, 1); root.mount(region); root.arrange();
-        const frame = (): ReturnType<typeof createCanvas> => {
+        const frame = (): Canvas => {
           const layer = createCanvas(width * scale, height * scale), paint = layer.getContext('2d');
           paint.fillStyle = '#ffffff'; paint.fillRect(0, 0, width * scale, height * scale);
           root.draw(paint as unknown as CanvasRenderingContext2D, 0);
