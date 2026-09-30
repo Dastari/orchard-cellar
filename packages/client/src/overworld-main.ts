@@ -1200,7 +1200,7 @@ function updateOnlinePlayers(): void {
   onlineRoster.setBounds({ x: Math.round((width-frameWidth)/2), y: Math.round((height-frameHeight)/2), width: frameWidth, height: frameHeight }, width, height);
   onlineRoster.update({ scopeKey: onlinePlayersScope(), identityHex: latestSnapshot.identityHex,
     visible: onlinePlayersVisible && retainedUiAvailable() && !characterNamePrompt.isActive && !npcInteractionUi.active && !tradeUi.active,
-    canManage: canManageOnlinePlayers(), players: onlinePlayerEntries(latestSnapshot) });
+    heldTab: rosterOpenedByHeldTab, canManage: canManageOnlinePlayers(), players: onlinePlayerEntries(latestSnapshot) });
 }
 function setOnlinePlayersVisible(visible: boolean, heldTab = false): void {
   onlinePlayersVisible = visible;
