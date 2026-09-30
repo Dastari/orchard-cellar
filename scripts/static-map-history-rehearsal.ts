@@ -12,6 +12,7 @@ import { normalizeMapDocumentV3, type MapDocumentV3 } from '@orchard/sim';
 import { normalizedMapDocumentSha256 } from '@orchard/sim/world-chunk-document';
 import { loadChunkMapHead } from '../packages/studio/src/world-chunks/map-head.js';
 import { allHistoryRows, historyTokenProvider, runHistory } from './world-chunks-history.js';
+import { historyFailure, historyPhase, type HistoryPhase, type HistoryPhaseRow } from './static-map-history-diagnostics.js';
 import { connectWorld, materializeInProcess, sha256Hex, type HistoryWorldPort, type LiveState,
   type MaterializePort, type OriginPort } from './world-chunks-publish.js';
 
@@ -73,29 +74,38 @@ export async function runStaticMapHistoryRehearsal(deps: {
   readonly openAdmin: () => Promise<RehearsalAdmin>; readonly verifyRejoin: () => Promise<void>;
   readonly progress?: (entry: object) => void;
 }): Promise<object> {
-  const rows = await allHistoryRows(deps.world);
-  if (rows.length === 0) throw new Error('static_history_rehearsal_empty');
+  const phase = <T>(name: HistoryPhase, action: () => T | Promise<T>, row?: HistoryPhaseRow) => historyPhase(name, action, deps.progress, row);
+  const rows = await phase('inventory-list', async () => {
+    const result = await allHistoryRows(deps.world);
+    if (result.length === 0) throw new Error('static_history_rehearsal_empty');
+    return result;
+  });
   const inventory: object[] = [];
   for (const row of rows) {
     deps.progress?.({stage:'inventory',historyId:row.id,revision:row.revision});
-    const historical = await deps.world.readHistory(BigInt(row.id));
-    const raw = JSON.parse(historical.documentJson) as MapDocumentV3;
-    inventory.push({ id: row.id, revision: row.revision, schemaVersion: raw.schemaVersion,
-      generatorVersion: raw.provenance.generatorVersion ?? null,
-      exactDocumentSha256: normalizedMapDocumentSha256(raw),
-      currentNormalizationUnchanged: normalizedMapDocumentSha256(raw) === normalizedMapDocumentSha256(normalizeMapDocumentV3(raw)) });
+    inventory.push(await phase('inventory-read', async () => {
+      const historical = await deps.world.readHistory(BigInt(row.id));
+      const raw = JSON.parse(historical.documentJson) as MapDocumentV3;
+      return { id: row.id, revision: row.revision, schemaVersion: raw.schemaVersion,
+        generatorVersion: raw.provenance.generatorVersion ?? null,
+        exactDocumentSha256: normalizedMapDocumentSha256(raw),
+        currentNormalizationUnchanged: normalizedMapDocumentSha256(raw) === normalizedMapDocumentSha256(normalizeMapDocumentV3(raw)) };
+    }, row));
   }
   deps.progress?.({stage:'inventory-complete',inventory});
   const planned = {...deps,log:(message:string)=>deps.progress?.({stage:'backfill',message})};
-  const plan = await runHistory('plan', planned);
-  await runHistory('backfill', { ...planned, confirmation: plan.confirmation! });
-  const history = await runHistory('check', deps);
-  const before = await deps.world.settle(() => true, 10_000);
-  if (before.mapRow === null || before.shadow === null) throw new Error('static_history_rehearsal_head_missing');
-  const original = rows.find(row => row.revision === before.mapRow!.revision && row.contentHash === before.mapRow!.contentHash);
-  if (original === undefined) throw new Error('static_history_rehearsal_current_archive_missing');
+  const plan = await phase('history-plan', () => runHistory('plan', planned));
+  await phase('history-backfill', () => runHistory('backfill', { ...planned, confirmation: plan.confirmation! }));
+  const history = await phase('history-check', () => runHistory('check', deps));
+  const { before, original } = await phase('history-head', async () => {
+    const state = await deps.world.settle(() => true, 10_000);
+    if (state.mapRow === null || state.shadow === null) throw new Error('static_history_rehearsal_head_missing');
+    const archived = rows.find(row => row.revision === state.mapRow!.revision && row.contentHash === state.mapRow!.contentHash);
+    if (archived === undefined) throw new Error('static_history_rehearsal_current_archive_missing');
+    return { before: { ...state, mapRow: state.mapRow, shadow: state.shadow }, original: archived };
+  });
   const selected = rows[0]!;
-  const selectedDocument = await deps.world.readHistory(BigInt(selected.id));
+  const selectedDocument = await phase('history-read', () => deps.world.readHistory(BigInt(selected.id)), selected);
   const cachedBlobs = new Map<string, Uint8Array>();
   const checkPublication = async (state: LiveState, expectedBody: string): Promise<void> => {
     if (state.mapRow === null || state.shadow === null) throw new Error('static_history_rehearsal_head_missing');
@@ -113,27 +123,32 @@ export async function runStaticMapHistoryRehearsal(deps: {
       throw new Error('static_history_rehearsal_document_mismatch');
     }
   };
-  const admin = await deps.openAdmin(); // Open after CPU materialization, which closes long-lived SDK sockets.
+  const admin = await phase('history-open-admin', () => deps.openAdmin()); // Open after CPU materialization, which closes long-lived SDK sockets.
   try {
-    await admin.privateTableRefused(before.mapRow.documentJson);
-    const restored = await admin.restore(BigInt(selected.id));
-    if (restored.inverseRevisionId !== original.id) throw new Error('static_history_rehearsal_inverse_mismatch');
-    const afterRestore = await deps.world.settle(state => state.mapRow?.revision === before.mapRow!.revision + 1, 30_000);
-    if (afterRestore.mapRow?.revision !== before.mapRow.revision + 1 || afterRestore.shadow?.revision !== before.shadow.revision + 1) {
-      throw new Error('static_history_rehearsal_restore_not_atomic');
-    }
-    await checkPublication(afterRestore, selectedDocument.documentJson);
+    await phase('history-privacy', () => admin.privateTableRefused(before.mapRow!.documentJson));
+    const restored = await phase('history-restore', async () => {
+      const result = await admin.restore(BigInt(selected.id));
+      if (result.inverseRevisionId !== original.id) throw new Error('static_history_rehearsal_inverse_mismatch');
+      return result;
+    }, selected);
+    const afterRestore = await phase('history-restore-settle', async () => {
+      const state = await deps.world.settle(value => value.mapRow?.revision === before.mapRow.revision + 1, 30_000);
+      if (state.mapRow?.revision !== before.mapRow.revision + 1 || state.shadow?.revision !== before.shadow.revision + 1) throw new Error('static_history_rehearsal_restore_not_atomic');
+      return state;
+    }, selected);
+    await phase('history-restore-publication', () => checkPublication(afterRestore, selectedDocument.documentJson), selected);
     // Replay the exact audited inverse through the same guarded preview/commit interface.
-    const undone = await admin.restore(BigInt(restored.inverseRevisionId));
-    const afterUndo = await deps.world.settle(state => state.mapRow?.revision === before.mapRow!.revision + 2, 30_000);
-    if (afterUndo.mapRow?.revision !== before.mapRow.revision + 2 || afterUndo.shadow?.revision !== before.shadow.revision + 2) {
-      throw new Error('static_history_rehearsal_undo_not_atomic');
-    }
-    await checkPublication(afterUndo, before.mapRow.documentJson);
-    await runHistory('check', deps); // Also verifies both newly created revision archives.
-    await deps.world.suspend(); await deps.world.resume();
-    await checkPublication(deps.world.read(), before.mapRow.documentJson);
-    await deps.verifyRejoin();
+    const undone = await phase('history-inverse', () => admin.restore(BigInt(restored.inverseRevisionId)), original);
+    const afterUndo = await phase('history-inverse-settle', async () => {
+      const state = await deps.world.settle(value => value.mapRow?.revision === before.mapRow.revision + 2, 30_000);
+      if (state.mapRow?.revision !== before.mapRow.revision + 2 || state.shadow?.revision !== before.shadow.revision + 2) throw new Error('static_history_rehearsal_undo_not_atomic');
+      return { ...state, mapRow: state.mapRow, shadow: state.shadow };
+    }, original);
+    await phase('history-inverse-publication', () => checkPublication(afterUndo, before.mapRow!.documentJson), original);
+    await phase('history-check', () => runHistory('check', deps)); // Also verifies both newly created revision archives.
+    await phase('history-reconnect', async () => { await deps.world.suspend(); await deps.world.resume(); });
+    await phase('history-reconnect-publication', () => checkPublication(deps.world.read(), before.mapRow!.documentJson));
+    await phase('rejoin-verify', () => deps.verifyRejoin());
     return { ok: true, inventory, retainedRowsVerified: history.rows, restoredHistoryId: selected.id,
       restoreAuditId: restored.auditId, inverseHistoryId: restored.inverseRevisionId, inverseAuditId: undone.auditId,
       privacy: 'authorized-admin public subscription refused; ordinary-player live credential not exercised',
@@ -218,30 +233,31 @@ export async function main(env = process.env): Promise<void> {
     throw new Error('static_history_rehearsal_report_exists');
   }
   const token = historyTokenProvider(file, label);
-  const world = await connectWorld({ host, database }, token);
   const progress: object[] = [];
+  const checkpoint = (entry: object): void => { progress.push(entry); console.error(`[static-history] ${JSON.stringify(entry)}`); };
+  let world: Awaited<ReturnType<typeof connectWorld>> | undefined;
   const repository = fileURLToPath(new URL('..', import.meta.url));
   try {
-    const atlas = await candidateAtlasOrigin(repository);
+    world = await historyPhase('connect', () => connectWorld({ host, database }, token), checkpoint);
+    const atlas = await historyPhase('candidate-atlas', () => candidateAtlasOrigin(repository), checkpoint);
     progress.push({stage:'candidate-atlas',...atlas.evidence});
-    const result = await runStaticMapHistoryRehearsal({ world, database, progress: entry => {progress.push(entry);console.error(`[static-history] ${JSON.stringify(entry)}`);}, origin: atlas.origin, materialize: materializeInProcess,
+    const result = await runStaticMapHistoryRehearsal({ world, database, progress: checkpoint, origin: atlas.origin, materialize: materializeInProcess,
       openAdmin: () => connectAdmin(host, database, token), verifyRejoin: async () => {
         const run = promisify(execFile);
         const snapshot = `${report}.rejoin-before.json`, after = `${report}.rejoin-after.json`;
         const options = { cwd: repository, env: { ...env, SPACETIMEDB_HOST: host, SPACETIMEDB_DATABASE: database,
           WORLD_REJOIN_TOKENS_FILE: file, WORLD_REJOIN_REQUIRE_REFRESH: '1' } };
-        await run('node', ['--import', 'tsx', 'scripts/world-rejoin-smoke.ts', 'capture', snapshot], options);
-        await run('node', ['--import', 'tsx', 'scripts/world-rejoin-smoke.ts', 'verify', snapshot, after], options);
+        await historyPhase('rejoin-capture', () => run('node', ['--import', 'tsx', 'scripts/world-rejoin-smoke.ts', 'capture', snapshot], options), checkpoint);
+        await historyPhase('rejoin-verify', () => run('node', ['--import', 'tsx', 'scripts/world-rejoin-smoke.ts', 'verify', snapshot, after], options), checkpoint);
       } });
-    await atlas.assertUnchanged();
+    await historyPhase('candidate-atlas-final', () => atlas.assertUnchanged(), checkpoint);
     await writeFile(report, `${JSON.stringify({...result,candidateAtlas:atlas.evidence}, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
     console.log(JSON.stringify({ ok: true, evidence: report }));
   } catch (error) {
-    const code = error instanceof Error && /^(?:static_history_rehearsal|chunk_history|live_map_revision)[a-z0-9_:.-]*$/u.test(error.message) ? error.message : 'static_history_rehearsal_failed';
-    await writeFile(report, `${JSON.stringify({ok:false,code,progress},null,2)}\n`, {flag:'wx',mode:0o600});
-    throw new Error(code, {cause:error});
-  } finally { world.close(); }
+    await writeFile(report, `${JSON.stringify({ok:false,...historyFailure(error),progress},null,2)}\n`, {flag:'wx',mode:0o600});
+    throw error;
+  } finally { world?.close(); }
 }
 if (process.argv[1] !== undefined && fileURLToPath(import.meta.url) === process.argv[1]) {
-  main().catch(() => { console.error('static_history_rehearsal_failed'); process.exitCode = 1; });
+  main().catch(error => { console.error(JSON.stringify(historyFailure(error))); process.exitCode = 1; });
 }

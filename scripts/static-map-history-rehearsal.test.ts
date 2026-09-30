@@ -9,6 +9,7 @@ import { repinChunkHistoryManifest } from '../packages/world/src/live-map-chunk-
 import { assertHistoryRehearsalTarget, candidateAtlasOrigin, runStaticMapHistoryRehearsal } from './static-map-history-rehearsal.js';
 import { httpOrigin, sha256Hex } from './world-chunks-publish.js';
 import type { HistoryWorldPort, LiveState } from './world-chunks-publish.js';
+import { historyFailure } from './static-map-history-diagnostics.js';
 
 function fixture() {
   const publications=[chunkHistoryFixture(7),chunkHistoryFixture(8)];
@@ -75,11 +76,24 @@ describe('fixed isolated S7c history rehearsal',()=>{
     expect(deps.admin.restore.mock.calls.map(call=>call[0])).toEqual([1n,2n]);expect(deps.admin.close).toHaveBeenCalledOnce();expect(deps.verifyRejoin).toHaveBeenCalledOnce();expect(deps.world.retireAuditDocuments).toHaveBeenCalledOnce();
   });
   it('keeps restore inaccessible on a failed history archive and closes admin on privacy/inverse failure',async()=>{
-    const deps=fixture();await expect(runStaticMapHistoryRehearsal({...deps,materialize:async()=>{throw new Error('incompatible_history');}})).rejects.toThrow('incompatible_history');expect(deps.openAdmin).not.toHaveBeenCalled();
+    const deps=fixture();await expect(runStaticMapHistoryRehearsal({...deps,materialize:async()=>{throw new Error('incompatible_history');}})).rejects.toMatchObject({failure:{phase:'history-materialize',code:'static_history_rehearsal_failed'}});expect(deps.openAdmin).not.toHaveBeenCalled();
     const privateFailure=fixture();privateFailure.admin.privateTableRefused.mockRejectedValueOnce(new Error('private_allowed'));
-    await expect(runStaticMapHistoryRehearsal(privateFailure)).rejects.toThrow('private_allowed');expect(privateFailure.admin.restore).not.toHaveBeenCalled();expect(privateFailure.admin.close).toHaveBeenCalledOnce();
+    await expect(runStaticMapHistoryRehearsal(privateFailure)).rejects.toMatchObject({failure:{phase:'history-privacy',code:'static_history_rehearsal_failed'}});expect(privateFailure.admin.restore).not.toHaveBeenCalled();expect(privateFailure.admin.close).toHaveBeenCalledOnce();
     const inverseFailure=fixture();inverseFailure.admin.restore.mockResolvedValueOnce({auditId:'1',inverseRevisionId:'99'});
     await expect(runStaticMapHistoryRehearsal(inverseFailure)).rejects.toThrow('inverse_mismatch');expect(inverseFailure.verifyRejoin).not.toHaveBeenCalled();
+  });
+
+  it('identifies complete-history check failures after backfill and never opens restore authority', async () => {
+    const deps = fixture(); const events: object[] = [];
+    const verify = vi.spyOn(deps.world, 'verifyHistory');
+    verify.mockImplementationOnce(async () => ({ id: '1', revision: 7, hasDocumentCopy: false, manifestHash: 'verified' }))
+      .mockImplementationOnce(async () => ({ id: '2', revision: 8, hasDocumentCopy: false, manifestHash: 'verified' }))
+      .mockRejectedValueOnce('Procedure failed: chunk_history_document_mismatch');
+    const error = await runStaticMapHistoryRehearsal({ ...deps, progress: entry => events.push(entry) }).catch(value => value as unknown);
+    expect(historyFailure(error)).toMatchObject({ phase: 'history-verify-server', code: 'chunk_history_document_mismatch', historyId: '1', revision: 7 });
+    expect(events).toContainEqual({ stage: 'phase', phase: 'history-backfill', status: 'complete' });
+    expect(events).not.toContainEqual({ stage: 'phase', phase: 'history-check', status: 'complete' });
+    expect(deps.openAdmin).not.toHaveBeenCalled(); expect(deps.verifyRejoin).not.toHaveBeenCalled();
   });
   it('runs the fixed hook after unchanged normal schema capture/verify and before normal success/cleanup',()=>{
     const shell=readFileSync(new URL('../ops/orchard-runtime/bin/restore-world-rehearsal.sh',import.meta.url),'utf8');
