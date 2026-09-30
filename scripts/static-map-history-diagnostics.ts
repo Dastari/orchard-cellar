@@ -1,4 +1,5 @@
 /** Bounded diagnostics for the isolated history gate. Never serialize error messages or causes. */
+import { ADMIN_ERROR_CODES } from '../packages/world/src/admin/contracts.js';
 import { SHADOW_PUBLICATION_REFUSAL_CODES } from '../packages/world/src/content/chunk-shadow-runtime.js';
 export const HISTORY_PHASES = [
   'connect', 'candidate-atlas', 'inventory-list', 'inventory-read', 'history-plan', 'history-backfill',
@@ -9,23 +10,24 @@ export const HISTORY_PHASES = [
   'history-restore-settle', 'history-restore-publication', 'history-inverse', 'history-inverse-settle',
   'history-inverse-publication', 'history-reconnect', 'history-reconnect-publication',
   'rejoin-capture', 'rejoin-verify', 'candidate-atlas-final',
+  'history-restore-preview', 'history-restore-commit', 'history-restore-audit',
 ] as const;
 export type HistoryPhase = typeof HISTORY_PHASES[number];
 export interface HistoryPhaseRow { readonly id: string; readonly revision: number }
 export interface HistoryPhaseEvent {
   readonly stage: 'phase'; readonly phase: HistoryPhase; readonly status: 'start' | 'complete';
-  readonly historyId?: string; readonly revision?: number;
+  readonly historyId?: string; readonly revision?: number; readonly attempt?: number;
 }
 export interface HistoryFailure {
   readonly code: string; readonly phase: HistoryPhase | 'unclassified';
   readonly errorKind: 'error' | 'sender-error' | 'internal-error' | 'pipeline-error' | 'sdk-string' | 'unknown';
-  readonly historyId?: string; readonly revision?: number;
+  readonly historyId?: string; readonly revision?: number; readonly attempt?: number;
 }
 
 // Exact identifiers only. Dynamic details (document JSON, names, paths, confirmations, tokens)
 // following a known identifier are discarded rather than allowed by a permissive prefix regex.
 const KNOWN_CODES = new Set([
-  ...SHADOW_PUBLICATION_REFUSAL_CODES, 'chunk_stage_quota_exceeded', 'chunk_asset_revision_changed',
+  ...ADMIN_ERROR_CODES, ...SHADOW_PUBLICATION_REFUSAL_CODES, 'chunk_stage_quota_exceeded', 'chunk_asset_revision_changed',
   'static_history_rehearsal_failed', 'static_history_rehearsal_empty', 'static_history_rehearsal_head_missing',
   'static_history_rehearsal_inputs_required', 'static_history_rehearsal_opt_in_required',
   'static_history_rehearsal_report_exists', 'static_history_rehearsal_target_refused',
@@ -100,8 +102,8 @@ class HistoryPhaseError extends Error {
 
 /** Preserve the innermost failing phase; an outer backfill/check wrapper must not obscure it. */
 export async function historyPhase<T>(phase: HistoryPhase, action: () => T | Promise<T>,
-  progress?: (entry: HistoryPhaseEvent) => void, row?: HistoryPhaseRow): Promise<T> {
-  const metadata = rowMetadata(row);
+  progress?: (entry: HistoryPhaseEvent) => void, row?: HistoryPhaseRow, attempt?: number): Promise<T> {
+  const metadata = { ...rowMetadata(row), ...(attempt !== undefined && Number.isInteger(attempt) && attempt >= 1 && attempt <= 5 ? { attempt } : {}) };
   progress?.({ stage: 'phase', phase, status: 'start', ...metadata });
   try {
     const result = await action();

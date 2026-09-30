@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ADMIN_ERROR_CODES } from '../packages/world/src/admin/contracts.js';
 import { PipelineError } from './world-chunks-publish.js';
 import { SHADOW_PUBLICATION_REFUSAL_CODES } from '../packages/world/src/content/chunk-shadow-runtime.js';
 import { historyFailure, historyPhase, type HistoryPhaseEvent } from './static-map-history-diagnostics.js';
@@ -35,7 +36,7 @@ describe('bounded static history diagnostics (BUG-073)', () => {
   });
 
   it('recognizes the finite real staging and archive publication refusals', () => {
-    for (const code of [...SHADOW_PUBLICATION_REFUSAL_CODES, 'chunk_stage_quota_exceeded', 'chunk_asset_revision_changed']) {
+    for (const code of [...ADMIN_ERROR_CODES, ...SHADOW_PUBLICATION_REFUSAL_CODES, 'chunk_stage_quota_exceeded', 'chunk_asset_revision_changed']) {
       expect(historyFailure(new Error(`${code}: private-body-marker`)).code).toBe(code);
     }
   });
@@ -52,6 +53,13 @@ describe('bounded static history diagnostics (BUG-073)', () => {
       { stage: 'phase', phase: 'history-backfill', status: 'start' },
       { stage: 'phase', phase: 'history-verify-server', status: 'start', historyId: '20481', revision: 13 },
     ]);
+  });
+
+  it('bounds restore attempt metadata independently from error text', async () => {
+    for (const attempt of [0, 6, 1.5, Infinity]) {
+      const error = await historyPhase('history-restore-commit', () => { throw new Error('admin_role_forbidden'); }, undefined, undefined, attempt).catch(value => value as unknown);
+      expect(historyFailure(error)).not.toHaveProperty('attempt');
+    }
   });
 
   it('bounds row metadata and completes successful phases without changing their values', async () => {
