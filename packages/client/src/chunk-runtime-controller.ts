@@ -271,10 +271,14 @@ export class ChunkRuntimeController {
     if (this.#active === buffer) this.#active = undefined;
     if (this.#pending === buffer) this.#pending = undefined;
   }
-  #buffer(revision: string, spaceId: bigint, manifest: WorldChunkManifest, connection: DbConnection): ChunkBuffer {
-    // S7b: a blob the origin does not serve yet comes from the world database (readWorldChunkBlob).
-    const fetchBlob = withDatabaseBlobFallback(this.#fetchBlob, manifest, head => connection.procedures.readWorldChunkBlob({
-      spaceId: BigInt(head.spaceId), cx: head.cx, cy: head.cy, contentHash: head.contentHash }));
+  #buffer(revision: string, spaceId: bigint, manifest: WorldChunkManifest): ChunkBuffer {
+    // S7b: a blob the origin does not serve yet comes from the world database (readWorldChunkBlob), over
+    // the connection current at call time: a buffer outlives a reconnect at the same revision.
+    const fetchBlob = withDatabaseBlobFallback(this.#fetchBlob, manifest, head => {
+      const connection = this.#latest?.connection;
+      if (connection === undefined || this.#disposed) return Promise.reject(new Error('chunk_blob_connection_unavailable'));
+      return connection.procedures.readWorldChunkBlob({ spaceId: BigInt(head.spaceId), cx: head.cx, cy: head.cy, contentHash: head.contentHash });
+    });
     return { revision, spaceId, manifest, loader: new ChunkShadowLoader(manifest, fetchBlob, this.#cache) };
   }
   #assetRevision(): Promise<string> {
@@ -331,7 +335,7 @@ export class ChunkRuntimeController {
     if (revision !== this.#active?.revision) {
       if (this.#active) this.#drop(this.#active);
       if (this.#pending) this.#drop(this.#pending);
-      this.#active = this.#buffer(revision, input.spaceId, manifest, input.connection);
+      this.#active = this.#buffer(revision, input.spaceId, manifest);
     }
     const buffer = this.#active!;
     if (!headsConsistent) throw new Error('chunk_head_revision_mismatch');
@@ -368,7 +372,7 @@ export class ChunkRuntimeController {
     } else if (input.spaceId === this.#latest?.spaceId) {
       if (this.#pending?.revision !== revision) {
         if (this.#pending) this.#drop(this.#pending);
-        this.#pending = this.#buffer(revision, input.spaceId, manifest, input.connection);
+        this.#pending = this.#buffer(revision, input.spaceId, manifest);
       }
       target = this.#pending;
     }

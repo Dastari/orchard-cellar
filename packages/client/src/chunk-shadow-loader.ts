@@ -99,7 +99,7 @@ export type ChunkBlobFallback = (head: { readonly spaceId: number; readonly cx: 
  * verifies the bytes against the manifest exactly as it verifies a served blob.
  */
 export function withDatabaseBlobFallback(fetchBlob: (path: string, maxBytes: number) => Promise<Uint8Array>, manifest: WorldChunkManifest,
-  fallback: ChunkBlobFallback): (path: string, maxBytes: number) => Promise<Uint8Array> {
+  fallback: ChunkBlobFallback, timeoutMs = 15_000): (path: string, maxBytes: number) => Promise<Uint8Array> {
   return async (path, maxBytes) => {
     try {
       return await fetchBlob(path, maxBytes);
@@ -109,7 +109,12 @@ export function withDatabaseBlobFallback(fetchBlob: (path: string, maxBytes: num
       if (head === undefined) throw error;
       let bytes: Uint8Array;
       try {
-        bytes = await fallback({ spaceId: manifest.spaceId, cx: head.cx, cy: head.cy, contentHash: head.contentHash });
+        // Bounded like an origin fetch: a call on a lost connection must not hold a loader slot.
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        bytes = await Promise.race([
+          fallback({ spaceId: manifest.spaceId, cx: head.cx, cy: head.cy, contentHash: head.contentHash }),
+          new Promise<never>((_resolve, reject) => { timer = setTimeout(() => reject(new Error('chunk_blob_read_timeout')), timeoutMs); }),
+        ]).finally(() => clearTimeout(timer));
       } catch (databaseError) {
         // Still the origin's miss for the caller's status and retry; the database refusal is the cause.
         throw new Error(error.message, { cause: databaseError });

@@ -435,3 +435,23 @@ describe('spawn readiness (static world S4f)',()=>{
   }finally{controller.dispose();}
  });
 });
+
+describe('database blob fallback (static world S7b, review of #297)',()=>{
+ it('reads an unserved blob over the connection current at call time, so a reconnect at the same revision recovers',async()=>{
+  const h=harness({authority:'on'}),rev1=revision(0);
+  const reads:string[]=[];
+  const withProcedure=(name:string,answer:()=>Promise<Uint8Array>)=>({...(h.connection as object),
+   procedures:{readWorldChunkBlob:async()=>{reads.push(name);return answer();}}} as unknown as DbConnection);
+  const dead=withProcedure('dead',()=>Promise.reject(new Error('connection closed')));
+  const fresh=withProcedure('fresh',async()=>rev1.bytes);
+  try{
+   h.failing.add(rev1.hash);h.publish(1,rev1);
+   h.controller.update(dead,0n,view,source);
+   await vi.waitFor(()=>expect(reads).toContain('dead'));
+   h.controller.update(fresh,0n,view,source);h.controller.retry();
+   await vi.waitFor(()=>expect(h.controller.status.servingRevision).toBe('0:1'));
+   expect(reads.at(-1)).toBe('fresh');
+   expect(h.controller.sample(5,5)).toMatchObject({ready:true});
+  }finally{h.controller.dispose();}
+ });
+});

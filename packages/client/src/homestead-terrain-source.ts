@@ -97,12 +97,18 @@ export function ensureHomesteadIslandPatch(site: Site, sizeTiles: number, shadow
       for (const { cx, cy } of homesteadPatchChunks(site, sizeTiles)) {
         const head = manifest.chunks.find(entry => entry.cx === cx && entry.cy === cy);
         if (head === undefined) continue;
-        let bytes = await cache?.get(head.contentHash).catch(() => undefined);
-        if (bytes === undefined) {
-          bytes = await read(chunkBlobPath(manifest.spaceId, head.contentHash), head.byteLength);
+        // Verified before it is cached (review of #297); a cached copy that fails is dropped and refetched.
+        let chunk: WorldChunk | undefined;
+        const cached = await cache?.get(head.contentHash).catch(() => undefined);
+        if (cached !== undefined) {
+          try { chunk = verifyRuntimeChunk(cached, manifest, cx, cy); } catch { await cache?.delete(head.contentHash).catch(() => undefined); }
+        }
+        if (chunk === undefined) {
+          const bytes = await read(chunkBlobPath(manifest.spaceId, head.contentHash), head.byteLength);
+          chunk = verifyRuntimeChunk(bytes, manifest, cx, cy);
           await cache?.put(head.contentHash, bytes, manifest.spaceId).catch(() => undefined);
         }
-        chunks.set(`${cx}:${cy}`, verifyRuntimeChunk(bytes, manifest, cx, cy));
+        chunks.set(`${cx}:${cy}`, chunk);
       }
       patches.set(siteKey(site), homesteadIslandPatch(shadow.revision, site, chunks));
       failedAt.delete(key);
