@@ -22,6 +22,11 @@ export const studioProxy = {
     target: STUDIO_GAME_FRONTEND, changeOrigin: true,
     rewrite: (): string => '/generated/atlas.packs.json',
   },
+  // Static world S7b-4: Studio reads the map from the published chunk blobs.
+  '/game/world/': {
+    target: STUDIO_GAME_FRONTEND, changeOrigin: true,
+    rewrite: (path: string): string => path.replace(/^\/game\/world\//u, '/world/'),
+  },
 };
 
 export const studioListenOptions = {
