@@ -33,6 +33,8 @@ done
 for required in \
   'map $uri $orchard_studio_client_key' \
   '~^/(?:assets|generated|ui)(?:/|$) "";' \
+  '~^/game/world/[0-9]+/[a-f0-9]{64}\.bin$' \
+  '/game/atlas.packs.json "";' \
   'limit_req_zone $orchard_studio_client_key' \
   'limit_conn_zone $orchard_studio_client_key'; do
   grep -Fq "$required" "$edge_http_top" || {
