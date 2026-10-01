@@ -51,4 +51,26 @@ describe('Native island art provenance and emission',()=>{
     });
     expect(molten).toBeGreaterThan(1000);expect(nonMolten).toBeGreaterThan(molten);
   });
+  it('whole scenery crops contain every connected opaque source pixel, including crowns and roots',()=>{
+    for(const specification of islandArtImports){
+      if('bank' in specification)continue;
+      const file=resolve(root,'references/art/kenmi/cute-fantasy/volcano/'+specification.sheet);
+      if(!existsSync(file))continue;
+      const png=decodePng(readFileSync(file)),[sx,sy,w,h]=specification.rect;
+      const visited=new Set<number>();
+      for(let y=sy;y<sy+h;y++)for(let x=sx;x<sx+w;x++){
+        const index=y*png.width+x;if(visited.has(index)||png.rgba[index*4+3]!==255)continue;
+        const queue=[index];visited.add(index);
+        for(let at=0;at<queue.length;at++){
+          const pixel=queue[at]!,px=pixel%png.width,py=Math.floor(pixel/png.width);
+          expect(px>=sx&&px<sx+w&&py>=sy&&py<sy+h,`${specification.name} cuts connected source art at ${px},${py}`).toBe(true);
+          for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+            const nx=px+dx,ny=py+dy,next=ny*png.width+nx;
+            if(nx<0||ny<0||nx>=png.width||ny>=png.height||visited.has(next)||png.rgba[next*4+3]!==255)continue;
+            visited.add(next);queue.push(next);
+          }
+        }
+      }
+    }
+  });
 });

@@ -4,11 +4,13 @@ export interface NativePlacement {
   id: string; asset: string; x: number; y: number;
   frame?: number; crop?: [number, number, number, number];
   layer: 'ground' | 'wall' | 'object'; material?: 'lava' | 'stone' | 'water';
+  role?: 'terrain' | 'cliff' | 'lava' | 'basin' | 'lavafall' | 'masonry' | 'clutter' | 'foliage' | 'water';
 }
 export interface NativeIslandScene {
   id: string; title: string; document: MapDocumentV3; placements: NativePlacement[];
   intendedTerraces: { level: number; polygon: number[][] }[];
   views: { id: string; x: number; y: number; width: number; height: number }[];
+  review?: { falls: {x:number;y:number;left:number;width:number}[]; basinCells: string[]; cliffCells: string[]; roadCells: string[] };
 }
 const inside = (polygon: number[][], x: number, y: number) => {
   let hit = false;
@@ -39,6 +41,18 @@ function base(id: string, width: number, height: number): DraftDocument {
   return { ...migrateMapDocumentV2(createEmptyMapDocument({ id, title: id, width, height })), baseBiome: 'water' };
 }
 
+/** Source masonry bank topology: border fragments belong only on boundaries. */
+export function cinderPavingFrame(n:boolean,e:boolean,s:boolean,w:boolean,nw=true,ne=true,se=true,sw=true):number {
+  let col=20,row=7;
+  if(!n&&!w){col=18;row=6;}else if(!n&&!e){col=19;row=6;}
+  else if(!s&&!w){col=18;row=7;}else if(!s&&!e){col=19;row=7;}
+  else if(!n){col=16;row=8;}else if(!s){col=16;row=6;}
+  else if(!e){col=15;row=7;}else if(!w){col=17;row=7;}
+  else if(!se){col=15;row=6;}else if(!sw){col=17;row=6;}
+  else if(!ne){col=15;row=8;}else if(!nw){col=17;row=8;}
+  return row*29+col;
+}
+
 export function cinderwakeDesign(): NativeIslandScene {
   const width = 104, height = 92, document = base('native-cinderwake-draft', width, height);
   const land = [[11,31],[18,22],[15,17],[28,13],[35,7],[48,9],[59,5],[73,12],[81,10],[90,22],[87,32],[96,40],[91,50],[97,61],[88,70],[87,79],[73,83],[63,79],[51,86],[40,81],[30,84],[22,77],[12,79],[8,67],[14,57],[6,50],[10,43]];
@@ -52,8 +66,8 @@ export function cinderwakeDesign(): NativeIslandScene {
   ];
   const at = (x: number, y: number) => inside(land, x + .5, y + .5);
   const p: NativePlacement[] = [], rand = random(4101);
-  const add = (asset: string, x: number, y: number, layer: NativePlacement['layer'], crop?: NativePlacement['crop'], material?: NativePlacement['material']) => p.push({ id: `cinder-${String(p.length).padStart(6,'0')}`, asset, x, y, layer, ...(crop ? { crop } : {}), ...(material ? { material } : {}) });
-  const tile = (x: number, y: number, col: number, row: number, layer: NativePlacement['layer'] = 'ground', material: NativePlacement['material'] = 'stone') => add('source:volcano-tiles', x * 16, y * 16, layer, [col * 16, row * 16, 16, 16], material);
+  const add = (asset: string, x: number, y: number, layer: NativePlacement['layer'], crop?: NativePlacement['crop'], material?: NativePlacement['material'],role?:NativePlacement['role']) => p.push({ id: `cinder-${String(p.length).padStart(6,'0')}`, asset, x, y, layer, ...(crop ? { crop } : {}), ...(material ? { material } : {}),role:role??(layer==='wall'?'cliff':layer==='object'?'foliage':'terrain') });
+  const tile = (x: number, y: number, col: number, row: number, layer: NativePlacement['layer'] = 'ground', material: NativePlacement['material'] = 'stone',role?:NativePlacement['role']) => add('source:volcano-tiles', x * 16, y * 16, layer, [col * 16, row * 16, 16, 16], material,role);
   // The flat ash-edge bank is not coastal rock. Use full ash tops and basalt
   // cap/side/front courses; surf is composed outside the complete visual footprint.
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) if (at(x, y)) {
@@ -106,49 +120,149 @@ export function cinderwakeDesign(): NativeIslandScene {
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) if (lava(x,y)) {
     const col = !lava(x-1,y) ? 7 : !lava(x+1,y) ? 9 : 8;
     const row = !lava(x,y-1) ? 6 : !lava(x,y+1) ? 8 : 7;
-    tile(x,y,col,row,'wall','lava');
+    tile(x,y,col,row,'ground','lava','lava');
     // Sparse native floating crust, not prop pillars masquerading as a river.
-    if (col===8 && row===7 && rand()<.11) tile(x,y,12+Math.floor(rand()*3),6+Math.floor(rand()*3),'wall','lava');
-    if (col===8 && row===7 && rand()<.05)p.push({id:`cinder-${String(p.length).padStart(6,'0')}`,asset:'tile_cf_volcano_design_bubbles',frame:4,x:x*16,y:y*16,layer:'wall',material:'lava'});
+    if (col===8 && row===7 && rand()<.11) tile(x,y,12+Math.floor(rand()*3),6+Math.floor(rand()*3),'ground','lava','lava');
+    if (col===8 && row===7 && rand()<.05)p.push({id:`cinder-${String(p.length).padStart(6,'0')}`,asset:'tile_cf_volcano_design_bubbles',frame:4,x:x*16,y:y*16,layer:'ground',material:'lava',role:'lava'});
   }
-  // Native fall strips at real visual drops; bottom impact pool belongs to the same flow.
-  for(const face of faces) if(lava(face.x,face.y) && (face.level===0||lava(face.x,face.y+3))) {
-    const col=!lava(face.x-1,face.y)?0:!lava(face.x+1,face.y)?2:1;
-    for(let dy=1;dy<=3;dy++) add('source:volcano-lavafall',face.x*16,(face.y+dy)*16,'wall',[col*16,dy*16,16,16],'lava');
-  }
-  const road = [[16,79],[16,72],[25,72],[25,64],[43,64],[43,57],[67,57],[67,49],[46,49],[46,42],[56,42],[56,35]];
+  const road = [[16,79],[16,72],[25,72],[25,64],[43,64],[43,57],[83,57],[83,49],[46,49],[46,42],[56,42],[56,35]];
   const roadAt=(x:number,y:number)=>onLine(road,x,y,1.5);
-  for(let y=0;y<height;y++)for(let x=0;x<width;x++)if(roadAt(x,y) && at(x,y))tile(x,y,19+(x+y)%2,6,'object');
-  // Horizontal native stone bridges include their proper top/bottom parapets.
-  for(const [cx,cy,length] of [[31,64,8],[73,57,9],[37,43,7]] as const) {
-    for(let dx=0;dx<length;dx++)for(let dy=0;dy<3;dy++)add('source:volcano-bridge',(cx+dx)*16,(cy+dy-1)*16,'object',[(4+(dx===0?0:dx===length-1?2:1))*16,dy*16,16,16],'stone');
+  const roadCells=new Set<string>();
+  const pave=(x:number,y:number)=>roadCells.add(`${x},${y}`);
+  for(let y=0;y<height;y++)for(let x=0;x<width;x++)if(roadAt(x,y)&&at(x,y))pave(x,y);
+  for(let y=27;y<=36;y++)for(let x=47;x<=60;x++)pave(x,y);
+  for(let y=77;y<=81;y++)for(let x=12;x<=20;x++)pave(x,y);
+  // A connected three-tile quay; all deck rows exist, rather than repeating
+  // the empty centre of the bridge's bottom row as a detached ladder.
+  for(let y=81;y<=85;y++)for(let x=14;x<=16;x++)pave(x,y);
+  const paved=(x:number,y:number)=>roadCells.has(`${x},${y}`);
+  for(const cell of roadCells){
+    const [x,y]=cell.split(',').map(Number) as [number,number];
+    const frame=cinderPavingFrame(paved(x,y-1),paved(x+1,y),paved(x,y+1),paved(x-1,y),paved(x-1,y-1),paved(x+1,y-1),paved(x+1,y+1),paved(x-1,y+1));
+    tile(x,y,frame%29,Math.floor(frame/29),'object','stone','masonry');
   }
-  for(const [cx,cy] of [[25,70],[43,62],[67,55],[46,47],[56,40],[56,35]] as const) {
-    for(let dy=0;dy<4;dy++)for(let dx=0;dx<3;dx++)tile(cx+dx-1,cy+dy-3,26+dx,dy===0?0:dy===3?5:1,'object');
-  }
-  // Summit forecourt and tower: true native sizes, never scaled stand-ins.
-  for(let y=27;y<=36;y++)for(let x=47;x<=60;x++)tile(x,y,19+(x+y)%2,6,'object');
-  add('building_cf_cinder_tower',54*16,31*16,'object');
-  // Arrival quay built from the same native masonry and bridge set.
-  for(let y=77;y<=81;y++)for(let x=12;x<=20;x++)tile(x,y,19+(x+y)%2,6,'object');
-  for(let y=81;y<=85;y++)for(let x=14;x<=16;x++)add('source:volcano-bridge',x*16,y*16,'object',[(x-14)*16,48,16,16],'stone');
-  add('prop_oak_barrel',13*16,79*16,'object');add('prop_oak_barrel',19*16,79*16,'object');
-  const clear = (x:number,y:number) => at(x,y) && !lava(x,y) && !roadAt(x,y) && !(x>43&&x<64&&y>17&&y<37) && !faces.some(f=>Math.abs(f.x-x)<2&&y>=f.y-1&&y<f.y+4);
-  const clusters=[[21,27],[30,19],[78,24],[83,42],[19,54],[50,55],[69,67],[49,74],[25,76],[76,77],[63,38],[32,34]];
-  for(const [cx,cy] of clusters) {
-    for(let i=0;i<22;i++) {
-      const x=Math.round(cx!+(rand()-.5)*12),y=Math.round(cy!+(rand()-.5)*10);if(!clear(x,y))continue;
-      const choice=rand();
-      if(choice<.22)add(rand()<.5?'prop_cf_cinder_blossom_large':'prop_cf_cinder_blossom_small',x*16,y*16,'object');
-      else if(choice<.36)add(`prop_cf_cinder_detail_dead_shrub_${1+Math.floor(rand()*4)}`,x*16,y*16,'object');
-      else if(choice<.68)add(`prop_cf_cinder_detail_ember_${1+Math.floor(rand()*5)}`,x*16,y*16,'object');
-      else if(choice<.84)add(`prop_cf_cinder_detail_blue_crystal_${1+Math.floor(rand()*3)}`,x*16,y*16,'object');
-      else add(`prop_cf_cinder_detail_hot_shrub_${1+Math.floor(rand()*4)}`,x*16,y*16,'object');
+  // Bridges are derived from real crossings of the connected route. Each
+  // native end overlaps a masonry landing; unrelated floating spans are gone.
+  for(let i=1;i<road.length;i++){
+    const a=road[i-1]!,b=road[i]!;if(a[1]!==b[1])continue;
+    const y=a[1]!,end=Math.max(a[0]!,b[0]!);
+    for(let x=Math.min(a[0]!,b[0]!);x<=end;x++)if(lava(x,y)){
+      const left=x-1;while(x<=end&&lava(x,y))x++;const right=x;
+      for(let bx=left;bx<=right;bx++)for(let dy=0;dy<3;dy++)
+        add('source:volcano-bridge',bx*16,(y+dy-1)*16,'object',[(bx===left?4:bx===right?6:5)*16,dy*16,16,16],'stone','masonry');
     }
   }
-  for(let i=0;i<190;i++) {const x=Math.floor(rand()*width),y=Math.floor(rand()*height);if(!clear(x,y))continue;
-    if(rand()<.1)add('prop_cf_cinder_column_cluster',x*16,y*16,'object');
-    else tile(x,y,4+Math.floor(rand()*6),Math.floor(rand()*5),'ground');
+  // Each staircase uses all six rows of the native stone stair bank and is
+  // placed where a vertical route actually crosses a visible front.
+  const stairHeads=new Set<string>();
+  const stairs:{x:number;y:number}[]=[];
+  for(let i=1;i<road.length;i++){
+    const a=road[i-1]!,b=road[i]!;if(a[0]!==b[0])continue;
+    const cx=a[0]!,lo=Math.min(a[1]!,b[1]!),hi=Math.max(a[1]!,b[1]!);
+    for(const face of faces)if(face.x===cx&&face.y>=lo&&face.y<=hi&&!lava(cx,face.y)){
+      const key=`${cx},${face.y}`;if(stairHeads.has(key))continue;stairHeads.add(key);
+      if(stairs.some(stair=>stair.x===cx&&Math.abs(stair.y-face.y)<6))continue;
+      stairs.push({x:cx,y:face.y});
+      for(let dy=0;dy<6;dy++)for(let dx=0;dx<3;dx++){
+        tile(cx+dx-1,face.y+dy-1,26+dx,dy,'object','stone','masonry');pave(cx+dx-1,face.y+dy-1);
+      }
+    }
+  }
+  for(let dy=0;dy<5;dy++)for(let dx=0;dx<3;dx++)
+    add('source:volcano-bridge',(14+dx)*16,(81+dy)*16,'object',[dx*16,(dy===0?0:dy===4?3:1)*16,16,16],'stone','masonry');
+  add('building_cf_cinder_tower',54*16,31*16,'object',undefined,'stone','masonry');
+  add('prop_oak_barrel',13*16,79*16,'object',undefined,'stone','masonry');
+  add('prop_oak_barrel',19*16,79*16,'object',undefined,'stone','masonry');
+
+  // Compose complete native 3x5 spill poses: intake, all three wall-body rows,
+  // and orange landing. Flat lava is below cliffs; only these deliberate
+  // outlets cut a flowing opening through a structural face.
+  const falls:{x:number;y:number;left:number;width:number}[]=[],fallCells=new Set<string>();
+  for(let level=0;level<=6;level++)for(const side of ['west','east']){
+    const candidates=faces.filter(f=>f.level===level&&(side==='west'?f.x<53:f.x>=53)&&lava(f.x,f.y)&&lava(f.x,f.y-1));
+    const mean=candidates.reduce((sum,f)=>sum+f.x,0)/Math.max(1,candidates.length);
+    candidates.sort((a,b)=>Math.abs(a.x-mean)-Math.abs(b.x-mean));
+    for(const f of candidates){
+      const channel:number[]=[];
+      for(let dx=-6;dx<=6;dx++)if(lava(f.x+dx,f.y))channel.push(f.x+dx);
+      const left=Math.min(...channel),right=Math.max(...channel),width=Math.max(3,right-left+1);
+      if(falls.some(old=>left<old.left+old.width+1&&right>old.left-1&&Math.abs(old.y-f.y)<6))continue;
+      let blocked=false;
+      for(let dy=0;dy<5;dy++)for(let dx=0;dx<width;dx++)if(paved(left+dx,f.y+dy))blocked=true;
+      if(blocked)continue;
+      falls.push({x:f.x,y:f.y,left,width});
+      for(let dy=0;dy<5;dy++)for(let dx=0;dx<width;dx++){
+        const sourceColumn=dx===0?0:dx===width-1?2:1;
+        add('source:volcano-lavafall',(left+dx)*16,(f.y+dy)*16,'wall',[sourceColumn*16,dy*16,16,16],'lava','lavafall');
+        fallCells.add(`${left+dx},${f.y+dy}`);
+        occupy(left+dx,f.y+dy);
+      }
+      break;
+    }
+  }
+  // A spill lands in a lower receiving pool, rather than a rectangular footer
+  // clipped by the next ledge. Shape the native banks around the union of the
+  // pool and its downstream channel; preserve the vertical spill itself.
+  const basinCells=new Set<string>();
+  const basinAt=(x:number,y:number)=>basinCells.has(`${x},${y}`);
+  const basin=(x:number,y:number)=>{if(at(x,y)&&!paved(x,y)){basinCells.add(`${x},${y}`);occupy(x,y);}};
+  for(const fall of falls){
+    const cx=fall.left+(fall.width-1)/2,cy=fall.y+4.8,rx=fall.width/2+1.1;
+    for(let y=fall.y+4;y<=fall.y+6;y++)for(let x=fall.left-2;x<=fall.left+fall.width+1;x++)
+      if((x-cx)**2/rx**2+(y-cy)**2/2.2**2<1)basin(x,y);
+    const downstream=Array.from({length:17},(_,i)=>Math.round(cx)+i-8)
+      .filter(x=>lava(x,fall.y+7)&&!paved(x,fall.y+7)).sort((a,b)=>Math.abs(a-cx)-Math.abs(b-cx))[0];
+    if(downstream!==undefined)for(let y=fall.y+5;y<=fall.y+7;y++)for(let x=fall.left-3;x<=fall.left+fall.width+3;x++)
+      if(distanceToLine(x,y,[cx,fall.y+5],[downstream,fall.y+7])<1.4)basin(x,y);
+  }
+  const receivingLava=(x:number,y:number)=>basinAt(x,y)||lava(x,y);
+  for(const cell of basinCells){
+    const [x,y]=cell.split(',').map(Number) as [number,number];
+    const col=!receivingLava(x-1,y)?7:!receivingLava(x+1,y)?9:8;
+    const row=!receivingLava(x,y-1)?6:!receivingLava(x,y+1)?8:7;
+    tile(x,y,col,row,'ground','lava','basin');
+  }
+  const cliffCells=new Set(p.filter(item=>item.role==='cliff').map(item=>`${item.x/16},${item.y/16}`));
+  const moltenCells=new Set(p.filter(item=>item.material==='lava').map(item=>`${item.x/16},${item.y/16}`));
+  const occupied=new Set<string>();
+  const clear=(x:number,y:number)=>at(x,y)&&!moltenCells.has(`${x},${y}`)&&!paved(x,y)&&!cliffCells.has(`${x},${y}`)&&!fallCells.has(`${x},${y}`)&&!occupied.has(`${x},${y}`);
+  const cellsForSprite=(x:number,y:number,w:number,h:number,ax:number,ay:number)=>{
+    const cells:string[]=[];
+    const left=x*16+8-ax,top=y*16+16-ay;
+    for(let cy=Math.floor(top/16);cy<=Math.floor((top+h-1)/16);cy++)for(let cx=Math.floor(left/16);cx<=Math.floor((left+w-1)/16);cx++)cells.push(`${cx},${cy}`);
+    return cells;
+  };
+  const placePlant=(asset:string,x:number,y:number)=>{
+    const dimensions=asset==='prop_cf_cinder_blossom_large'?[48,48,22,41]:asset==='prop_cf_cinder_blossom_small'?[32,48,16,41]:asset==='prop_cf_cinder_column_cluster'?[32,32,9,29]:asset==='prop_cf_cinder_detail_hot_columns'?[48,32,24,31]:asset.includes('shrub')?[16,32,8,31]:[16,16,8,15];
+    const cells=cellsForSprite(x,y,...dimensions as [number,number,number,number]);
+    if(!cells.every(cell=>{const [cx,cy]=cell.split(',').map(Number) as [number,number];return clear(cx,cy);}))return false;
+    add(asset,x*16,y*16,'object',undefined,'stone','foliage');cells.forEach(cell=>occupied.add(cell));
+    return true;
+  };
+  const clusters=[[21,27],[30,19],[78,24],[83,42],[19,54],[50,55],[69,67],[49,74],[25,76],[76,77],[63,38],[32,34],[43,16],[64,13],[67,75],[33,77]];
+  // Reserve room for complete fire-tree silhouettes before small undergrowth
+  // fills those ledges; original 32/48px crowns and roots are never resized.
+  for(const [cx,cy] of clusters){let trees=0;for(let i=0;i<24&&trees<2;i++){
+    const x=Math.round(cx!+(rand()-.5)*14),y=Math.round(cy!+(rand()-.5)*12);
+    if(placePlant(rand()<.5?'prop_cf_cinder_blossom_large':'prop_cf_cinder_blossom_small',x,y))trees++;
+  }}
+  for(const [cx,cy] of clusters)for(let i=0;i<60;i++){
+    const x=Math.round(cx!+(rand()-.5)*14),y=Math.round(cy!+(rand()-.5)*12),choice=rand();
+    if(choice<.28)placePlant(rand()<.5?'prop_cf_cinder_blossom_large':'prop_cf_cinder_blossom_small',x,y);
+    else if(choice<.43)placePlant(`prop_cf_cinder_detail_dead_shrub_${1+Math.floor(rand()*4)}`,x,y);
+    else if(choice<.72)placePlant(`prop_cf_cinder_detail_ember_${1+Math.floor(rand()*5)}`,x,y);
+    else if(choice<.87)placePlant(`prop_cf_cinder_detail_blue_crystal_${1+Math.floor(rand()*3)}`,x,y);
+    else if(choice<.97)placePlant(`prop_cf_cinder_detail_hot_shrub_${1+Math.floor(rand()*4)}`,x,y);
+    else placePlant('prop_cf_cinder_column_cluster',x,y);
+  }
+  // Whole 3x3 cracked-ground patches retain their connected source topology.
+  // Detail paints before the cliff structure and is never scattered over faces.
+  for(let i=0;i<100;i++){
+    const x=Math.floor(rand()*width),y=Math.floor(rand()*height);
+    const cells=Array.from({length:9},(_,j)=>[x+j%3,y+Math.floor(j/3)] as const);
+    if(!cells.every(([cx,cy])=>clear(cx,cy)))continue;
+    for(let dy=0;dy<3;dy++)for(let dx=0;dx<3;dx++)tile(x+dx,y+dy,4+dx,dy,'ground','stone','clutter');
+    cells.forEach(([cx,cy])=>occupied.add(`${cx},${cy}`));
   }
   // Native basalt courses make offshore islets. The previous little burning
   // rock props were not sea stacks and had no water contact at all.
@@ -161,6 +275,7 @@ export function cinderwakeDesign(): NativeIslandScene {
   }
   // First temporal pose of the real 3x3 foam ring. Choose the edge that faces
   // adjacent basalt; never stamp the centre wave over the shore itself.
+  for(const cell of roadCells)coastalFootprint.add(cell);
   const solid=(x:number,y:number)=>coastalFootprint.has(`${x},${y}`);
   for(let y=0;y<height;y++)for(let x=0;x<width;x++)if(!solid(x,y)){
     const n=solid(x,y-1),e=solid(x+1,y),s=solid(x,y+1),w=solid(x-1,y);
@@ -174,7 +289,22 @@ export function cinderwakeDesign(): NativeIslandScene {
     if(col>=0)p.push({id:`cinder-${String(p.length).padStart(6,'0')}`,asset:'tile_cf_cinder_coast_foam',frame:row*20+col,x:x*16,y:y*16,layer:'ground',material:'water'});
     else if(rand()<.12)add(rand()<.6?'nature_cf_ocean_surface_01':'nature_cf_ocean_surface_02',x*16,y*16,'ground',undefined,'water');
   }
-  return { id:'cinderwake', title:'Cinderwake — basalt terraces, lava and summit road',document,placements:registered(p),
+  const phase:Record<NonNullable<NativePlacement['role']>,number>={terrain:0,clutter:0,lava:1,basin:1,cliff:2,lavafall:3,masonry:4,foliage:5,water:6};
+  const frontCells=new Set(faces.flatMap(f=>Array.from({length:4},(_,dy)=>`${f.x},${f.y+dy}`)));
+  // A thin back/side join is not a vertical lava drop. Keep actual front faces
+  // and their full falls, but do not leave detached cap strips in molten pools.
+  const visible=p.filter(item=>{
+    const x=item.x/16,y=item.y/16;
+    // Pool outlines own these cells, including any previous floating crust.
+    if(basinAt(x,y)&&(item.role==='cliff'||item.role==='lava'))return false;
+    if(item.role==='cliff'&&moltenCells.has(`${x},${y}`)&&(!frontCells.has(`${x},${y}`)||item.crop?.[1]===0||item.crop?.[0]===11*16||item.crop?.[0]===13*16))return false;
+    // Flat river pixels cannot continue down a vertical spill face. The full
+    // native fall owns this channel span until its landing on the lower ledge.
+    if(item.role==='lava'&&falls.some(f=>Math.abs(x-f.x)<=6&&y>f.y&&y<f.y+4))return false;
+    return true;
+  });
+  const placements=registered(visible).sort((a,b)=>phase[a.role??'water']-phase[b.role??'water']).map((item,i)=>({...item,id:`cinder-${String(i).padStart(6,'0')}`}));
+  return { id:'cinderwake', title:'Cinderwake — basalt terraces, lava and summit road',document,placements,review:{falls,basinCells:[...basinCells],cliffCells:[...cliffCells],roadCells:[...roadCells]},
     intendedTerraces:polygons.map((polygon,i)=>({level:i+1,polygon})),
     views:[{id:'summit',x:38*16,y:14*16,width:39*16,height:35*16},{id:'ascent',x:16*16,y:40*16,width:68*16,height:40*16}] };
 }

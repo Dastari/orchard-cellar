@@ -1,8 +1,8 @@
 import { readFileSync,readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { it,expect } from 'vitest';
-import { framesForAsset } from '../packages/tools/src/assets/pixels.js';
-import type { AssetSource } from '../packages/tools/src/assets/types.js';
+import { framesForAsset,resolveColor } from '../packages/tools/src/assets/pixels.js';
+import type { AssetSource,PaletteSource } from '../packages/tools/src/assets/types.js';
 import type { LoadedAsset } from '../packages/ui/src/index.js';
 import type { OverworldArt } from '../packages/engine/src/overworld-art.js';
 import { createNativeIslandRenderer } from './native-island-preview/core.js';
@@ -42,4 +42,44 @@ it('exports both native drafts as valid Studio maps with the same art coordinate
       expect(object.elevation).toBe(0);
     }
   }
+});
+
+it('uses complete waterfall poses and masonry interiors while leaving visible cliff cells clear of scenery',()=>{
+  const scene=cinderwakeDesign(),review=scene.review!;
+  expect(review.falls.length).toBeGreaterThanOrEqual(4);
+  for(const fall of review.falls){
+    const pieces=scene.placements.filter(p=>p.role==='lavafall'&&p.x>=fall.left*16&&p.x<(fall.left+fall.width)*16&&p.y>=fall.y*16&&p.y<(fall.y+5)*16);
+    expect(pieces.length).toBe(fall.width*5);
+    for(let dy=0;dy<5;dy++)for(let dx=0;dx<fall.width;dx++)expect(pieces.some(p=>p.x===(fall.left+dx)*16&&p.y===(fall.y+dy)*16&&p.frame===dy*54+(dx===0?0:dx===fall.width-1?2:1))).toBe(true);
+    expect(scene.placements.some(p=>p.role==='lava'&&p.x>=fall.left*16&&p.x<(fall.left+fall.width)*16&&p.y>fall.y*16&&p.y<(fall.y+4)*16)).toBe(false);
+  }
+  const basins=new Set(review.basinCells);
+  expect(basins.size).toBeGreaterThan(50);
+  for(const p of scene.placements)if(basins.has(`${p.x/16},${p.y/16}`)){
+    expect(p.role).not.toBe('cliff');expect(p.role).not.toBe('lava');
+  }
+  for(const [x,y] of [[36,56],[36,57],[39,79],[86,67],[86,68]])expect(basins.has(`${x},${y}`)).toBe(true);
+  const palette={colors:{},markerDefaults:{}} as PaletteSource;
+  const bank=sources.get('tile_cf_volcano_design_sheet')!,bankFrames=framesForAsset(bank).base!;
+  const interior=scene.placements.filter(p=>p.role==='masonry'&&p.asset===bank.name&&p.frame===223);
+  expect(interior.length).toBeGreaterThan(100);
+  const masonryColors=new Set(['104,92,112','155,171,178','124,139,146','78,69,84']);
+  // A full masonry frame has no volcanic ash. Border frames are tested through
+  // source topology, rather than accepting arbitrary source-correct fragments.
+  for(const row of bankFrames[223]!)for(const token of row){
+    const rgba=resolveColor(token,palette,{},bank.markers??{},bank.sourcePalette??{});
+    expect(rgba[3]).toBe(255);expect(masonryColors.has(rgba.slice(0,3).join(','))).toBe(true);
+  }
+  const protectedCells=new Set([...review.cliffCells,...review.roadCells]);
+  const plants=scene.placements.filter(p=>p.role==='foliage');expect(plants.length).toBeGreaterThan(30);
+  for(const p of plants){
+    const asset=sources.get(p.asset)!,grid=framesForAsset(asset).base![p.frame??0]!;
+    const left=p.x-asset.anchor[0],top=p.y-asset.anchor[1];
+    for(let y=0;y<grid.length;y++)for(let x=0;x<grid[y]!.length;x++){
+      const rgba=resolveColor(grid[y]![x]!,palette,{},asset.markers??{},asset.sourcePalette??{});if(rgba[3]!==255)continue;
+      expect(protectedCells.has(`${Math.floor((left+x)/16)},${Math.floor((top+y)/16)}`),`${p.asset} overlaps structural cliff/route`).toBe(false);
+    }
+  }
+  const cliffs=new Set(review.cliffCells);
+  for(const p of scene.placements.filter(p=>p.role==='clutter'))expect(cliffs.has(`${p.x/16},${p.y/16}`)).toBe(false);
 });

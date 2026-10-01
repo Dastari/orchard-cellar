@@ -17,10 +17,10 @@ export const islandArtImports = [
   ...Array.from({length:5}, (_,i) => ({name:`prop_cf_cinder_detail_ember_${i+1}`,sheet:'Volcano_Props/Volcano_Plants.png',category:'props',size:[16,16],rect:[i*16,48,16,16]})),
   ...Array.from({length:3}, (_,i) => ({name:`prop_cf_cinder_detail_blue_crystal_${i+1}`,sheet:'Volcano_Props/Volcano_Plants.png',category:'props',size:[16,16],rect:[i*16,64,16,16]})),
   ...Array.from({length:2}, (_,i) => ({name:`prop_cf_cinder_detail_violet_crystal_${i+1}`,sheet:'Volcano_Props/Volcano_Plants.png',category:'props',size:[16,16],rect:[i*16,80,16,16]})),
-  ...Array.from({length:4}, (_,i) => ({name:`prop_cf_cinder_detail_dead_shrub_${i+1}`,sheet:'Volcano_Props/Volcano_Rocks.png',category:'props',size:[16,32],rect:[i*32,32,16,32]})),
-  ...Array.from({length:4}, (_,i) => ({name:`prop_cf_cinder_detail_hot_shrub_${i+1}`,sheet:'Volcano_Props/Volcano_Rocks.png',category:'props',size:[16,32],rect:[i*32+16,32,16,32]})),
+  ...Array.from({length:4}, (_,i) => ({name:`prop_cf_cinder_detail_dead_shrub_${i+1}`,sheet:'Volcano_Props/Volcano_Rocks.png',category:'props',size:[16,32],rect:[i*32,16,16,32]})),
+  ...Array.from({length:4}, (_,i) => ({name:`prop_cf_cinder_detail_hot_shrub_${i+1}`,sheet:'Volcano_Props/Volcano_Rocks.png',category:'props',size:[16,32],rect:[i*32+16,16,16,32]})),
   ...[0,32,96].map((x,i)=>({name:`prop_cf_cinder_detail_broad_pillar_${i+1}`,sheet:'Volcano_Props/Volcano_Rocks.png',category:'props',size:[32,32],rect:[x,112,32,32]})),
-  {name:'prop_cf_cinder_detail_hot_columns',sheet:'Volcano_Props/Volcano_Rocks.png',category:'props',size:[32,32],rect:[80,80,32,32]},
+  {name:'prop_cf_cinder_detail_hot_columns',sheet:'Volcano_Props/Volcano_Rocks.png',category:'props',size:[48,32],rect:[64,80,48,32]},
 ] as const;
 
 export function importNativeIslandArt(): void {

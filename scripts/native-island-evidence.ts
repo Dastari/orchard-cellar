@@ -37,7 +37,7 @@ for(const scene of [cinderwakeDesign(),willowharbourDesign()]){
   for(const view of scene.views){const c=createCanvas(view.width*2,view.height*2),ctx=c.getContext('2d');ctx.imageSmoothingEnabled=false;ctx.drawImage(full,view.x,view.y,view.width,view.height,0,0,c.width,c.height);await writeFile(resolve(output,`${scene.id}-${view.id}.png`),c.toBuffer('image/png'));}
   if(scene.id==='cinderwake')for(const mode of ['night-off','night-self','night-glow'] as const){const c=renderer.render(scene,mode) as unknown as Canvas;await writeFile(resolve(output,`${scene.id}-${mode}.png`),c.toBuffer('image/png'));}
   await writeFile(resolve(output,scene.id+'-map.json'),JSON.stringify(renderer.editable(scene),null,2)+'\n');
-  await writeFile(resolve(output,scene.id+'-design.json'),JSON.stringify({placements:scene.placements,intendedTerraces:scene.intendedTerraces,note:'Native visual draft. Traversal pending; intended heights are separate from flat art placement.'},null,2)+'\n');
+  await writeFile(resolve(output,scene.id+'-design.json'),JSON.stringify({placements:scene.placements,intendedTerraces:scene.intendedTerraces,review:scene.review,note:'Native visual draft. Traversal pending; intended heights are separate from flat art placement.'},null,2)+'\n');
   console.log(`${scene.id}: ${scene.placements.length} native placements rendered`);
 }
 
@@ -52,7 +52,7 @@ const {values}=parseArgs({options:{reference:{type:'string'},before:{type:'strin
 if(values.reference){
   const inputs=[['Approved reference',values.reference],
     ...(values.before?[['Previous native draft',values.before]]:[]),
-    ['Native shoreline correction',resolve(output,'cinderwake-overview.png')]];
+    ['Reviewed native art correction',resolve(output,'cinderwake-overview.png')]];
   const board=createCanvas(inputs.length*640,620),ctx=board.getContext('2d');
   ctx.fillStyle='#18212b';ctx.fillRect(0,0,board.width,board.height);ctx.imageSmoothingEnabled=false;
   for(const [index,[label,path]] of inputs.entries()){
