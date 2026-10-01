@@ -4,7 +4,7 @@ One heading per game version, newest first. Parallel branches that bumped to the
 
 ## Root 0.84.1 / Studio 0.19.1 — Readable startup status
 
-- **BUG-085:** put connection, sign-in and failure text on the reviewed neutral UI-kit frame, wrap status messages within a responsive card and retain keyboard-operable retry. An already-connected session awaiting its map says “Loading published map” and offers “Reconnect”, preserving the explicit reconnect action.
+- **BUG-085:** put connection, sign-in and failure text on the reviewed neutral UI-kit frame, wrap status messages within a responsive card and retain keyboard-operable retry. Connected sessions keep the workspace open while the map displays its own verified-loading status; other authoring tools remain reachable.
 
 ## Root 0.84.0 / Studio 0.19.0 — Studio workspace controls
 
