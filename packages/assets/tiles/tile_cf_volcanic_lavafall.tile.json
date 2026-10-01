@@ -6526,5 +6526,8 @@
     ],
     "blocksMovement": false,
     "builderAvailable": false
-  }
+  },
+  "emissiveColors": [
+    "#fb6b1d"
+  ]
 }
