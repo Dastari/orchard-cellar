@@ -2,6 +2,10 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Root 0.84.0 / Studio 0.19.0 — Studio authored-prop group editing
+
+- Select multiple editable authored props and move, duplicate or delete the group as one undoable transaction. Group movement preserves offsets and checks bounds/occupancy atomically; live/player-owned props retain their existing custody guards.
+
 ## Root 0.83.0 / Client 0.57.0 / UI 0.55.0 — Illustrated player guide
 
 - Refresh the help book into 27 player-facing topics across Basics, Crafting, World and Adventures. Explain current activities, storage, equipment, gathering, food, weather, travel, trade, progression and expeditions; remove administrative commands and server/debug details.

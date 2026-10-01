@@ -88,6 +88,7 @@ import {
 } from './editor-terrain-derivatives.js';
 import {
   mapEditorAuthoredDragFootprint,
+  mapEditorAuthoredObjectFootprint,
   type MapEditorSelectionFootprintCell,
 } from './selection-footprint.js';
 import type { MapEditorTransitionPlan } from './transition-authoring.js';
@@ -619,8 +620,11 @@ export class MapEditorRenderer {
   ): void {
     if (this.#disposed) return;
     const sourceDocument = model.document();
+    const groupDrag = interaction.snapshot().groupDrag;
+    const selectedObjects = new Set(model.selectedObjectIds());
     const drag = interaction.snapshot().dragDestination;
-    const document:MapDocumentV3 = drag===null?sourceDocument:{...sourceDocument,
+    const document:MapDocumentV3 = groupDrag ? { ...sourceDocument, objects: sourceDocument.objects.map(object => groupDrag.ids.includes(object.id)
+      ? { ...object, tileX: object.tileX + groupDrag.deltaX, tileY: object.tileY + groupDrag.deltaY } : object) } : drag===null?sourceDocument:{...sourceDocument,
       objects:drag.kind==='object'?sourceDocument.objects.map(object=>object.id===drag.id?{...object,tileX:drag.tileX,tileY:drag.tileY,elevation:drag.elevation}:object):sourceDocument.objects,
       landmarks:drag.kind==='landmark'?sourceDocument.landmarks.map(object=>object.id===drag.id?{...object,tileX:drag.tileX,tileY:drag.tileY,elevation:drag.elevation}:object):sourceDocument.landmarks};
     const lamps = resolveMapLampPresentation(document, model.publishedDocument(), interaction.liveMarkers());
@@ -764,10 +768,10 @@ export class MapEditorRenderer {
         : 0;
       const y = viewport.y
         + (worldY - TILE_SIZE_PIXELS / 2 - projection - camera.y) * camera.zoom;
-      const selected = selection.kind === 'player' ? entityKind === 'player'
+      const selected = (entityKind === 'map-object' && selectedObjects.has(id)) || (selection.kind === 'player' ? entityKind === 'player'
         && selection.identity === id && (selection.spaceId === null || selection.spaceId === spaceId)
         : selection.kind === 'entity' && selection.entityKind === entityKind
-          && selection.id === id && selection.spaceId === spaceId;
+          && selection.id === id && selection.spaceId === spaceId);
       const radius = Math.max(3, Math.min(9, TILE_SIZE_PIXELS * camera.zoom * 0.38));
       if (!artworkRendered || !enabled) {
         context.fillStyle = enabled ? color : MAP_SPATIAL_COLOURS.disabledMarker;
@@ -811,6 +815,11 @@ export class MapEditorRenderer {
         live.spaceId, artworkVisible && this.liveMarkerHasArtwork(live), live.worldX, live.worldY);
     }
     if(wantsObjectSprites&&terrain!==null)this.drawSelectedSilhouette(context,model,interaction,terrain,viewport,camera,document);
+    if (selectedObjects.size > 1 && terrain !== null) {
+      for (const object of document.objects) if (selectedObjects.has(object.id) && model.isLayerVisible(object.layer)) {
+        drawMapEditorSelectionFootprint(context, visibleMapSelectionFootprint(mapEditorAuthoredObjectFootprint(document, object), range), terrain, viewport, camera);
+      }
+    }
     if (dragDestination !== null) {
       context.setLineDash([5, 3]);
       const draggedObject = dragDestination.kind === 'object'
@@ -1312,6 +1321,9 @@ export class MapEditorRenderer {
     const object=selection.kind==='entity'&&selection.entityKind==='map-object'?document.objects.find(value=>value.id===selection.id):undefined;
     const landmark=selection.kind==='entity'&&selection.entityKind==='map-object'?document.landmarks.find(value=>value.id===selection.id):undefined;
     if(object&&model.isLayerVisible(object.layer)) {
+      const group = new Set(model.selectedObjectIds());
+      const extra = document.objects.filter(candidate => group.has(candidate.id) && candidate.id !== object.id && model.isLayerVisible(candidate.layer));
+      if (extra.length) enqueueLiveMapObjects({ ...document, objects: extra }, { connectionDocument: document, context: mask, cameraX: camera.x, cameraY: camera.y, scale: camera.zoom, timeMs: performance.now(), visible: () => true, enqueue });
       const replacement = lamps.replacements.get(object.id);
       if (replacement !== undefined && this.liveLampHasArtwork(replacement)) {
         this.enqueueLiveMarker(enqueue,mask,this.#art,replacement,replacement.worldX,replacement.worldY,camera,Math.floor(performance.now()/125));

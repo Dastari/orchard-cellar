@@ -36,7 +36,7 @@ import type {
 } from '../../shell/canvas-tool.js';
 import { requestStudioFileDownload } from '../../shell/file-download.js';
 import type { AdminObjectsApi } from '../../admin/objects-api.js';
-import type { StudioSelection } from '../../shell/index.js';
+import type { StudioSelection, StudioConnectionView } from '../../shell/index.js';
 import { studioRoleCan } from '../../shell/access.js';
 import { buildAssetPalette, type AssetPaletteItem } from '../object/asset-palette.js';
 
@@ -309,13 +309,19 @@ interface TerrainPaletteSnapshot {
   readonly palette: TerrainAuthoringPalette;
 }
 
+/** Region failures must not authorize mutations against stale live projections. */
+function mapRegionAvailable(view: StudioConnectionView | undefined): boolean {
+  return view?.connected === true && !view.synchronizing && view.error === null
+    && (!('mapError' in view) || view.mapError == null);
+}
+
 function terrainPaletteSnapshot(context: StudioCanvasToolContext): TerrainPaletteSnapshot {
   const live = context.controller.liveAdapter();
   if (live === null) return { source: null, palette: OFFLINE_TERRAIN_AUTHORING_PALETTE };
   const view = live.view();
   const head = view.contentHead;
   const rows = view.contentDefinitions;
-  const ready = view.connected && !view.synchronizing && view.error === null
+  const ready = mapRegionAvailable(view)
     && head !== undefined && head !== null && rows !== undefined
     && rows.length === head.definitionCount;
   const readinessKey = ready
@@ -638,7 +644,7 @@ function syncMapAutoPublish(
     editKey: state.model.document(),
     conflictRevision: state.model.conflictRevision(),
     validation: state.model.validationState(),
-    connected: liveView?.connected === true,
+    connected: mapRegionAvailable(liveView),
     synchronizing: liveView?.synchronizing === true,
     writable: mapId === 'live-island' && context.route.access === 'write',
     authorized: studioRoleCan(liveView?.role ?? null, 'publish_map'),
@@ -737,7 +743,7 @@ function currentSchemaInspectorAuthority(
   return Object.freeze({
     mapId,
     routeAccess: context.route.access,
-    connected: view?.connected === true,
+    connected: mapRegionAvailable(view),
     role: view?.role ?? null,
     hasLiveApi: state.schemaActionModel !== null,
     target: state.model.schemaInspectorTarget(),
@@ -841,7 +847,7 @@ function currentLiveSpawnAvailability(
   return mapLiveSpawnAvailability({
     mapId,
     routeAccess: context.route.access,
-    connected: view?.connected === true,
+    connected: mapRegionAvailable(view),
     role: view?.role ?? null,
     hasLiveApi: state.liveSpawnApi !== null,
     contentVersion: view?.contentHead === null || view?.contentHead === undefined
@@ -914,6 +920,7 @@ function requestLiveSpawnPreview(
 
 function confirmLiveSpawn(state: MapCanvasState, context: StudioCanvasToolContext): void {
   if (state.liveSpawnCommitting) return;
+  if (!mapRegionAvailable(context.controller.liveAdapter()?.view())) { resetLiveSpawn(state); context.invalidate(); return; }
   const model = state.liveSpawnModel;
   if (model === null || model.pending() === null) return;
   const request = ++state.liveSpawnRequest;
@@ -952,7 +959,7 @@ function currentRuntimeObjectAvailability(
   return mapRuntimeObjectAvailability({
     mapId,
     routeAccess: context.route.access,
-    connected: view?.connected === true,
+    connected: mapRegionAvailable(view),
     role: view?.role ?? null,
     hasLiveApi: state.runtimeObjectModel !== null,
     marker,
@@ -1039,9 +1046,11 @@ function requestRuntimeObjectMovePreview(
 }
 
 function confirmRuntimeObjectAction(state: MapCanvasState, context: StudioCanvasToolContext): void {
+  if (state.runtimeObjectCommitting) return;
+  if (!mapRegionAvailable(context.controller.liveAdapter()?.view())) { resetRuntimeObjectAction(state); context.invalidate(); return; }
   const model = state.runtimeObjectModel;
   const receipt = model?.pending();
-  if (model === null || receipt === null || state.runtimeObjectCommitting) return;
+  if (model === null || receipt === null) return;
   const request = ++state.runtimeObjectRequest;
   state.runtimeObjectCommitting = true;
   void model.commit(true).then((result) => {
@@ -1075,7 +1084,7 @@ function currentNpcLocationAvailability(
   return mapNpcLocationAvailability({
     mapId,
     routeAccess: context.route.access,
-    connected: view?.connected === true,
+    connected: mapRegionAvailable(view),
     role: view?.role ?? null,
     hasLiveApi: state.npcLocationModel !== null,
     marker,
@@ -1140,9 +1149,11 @@ function requestNpcLocationPreview(
 }
 
 function confirmNpcLocationAction(state: MapCanvasState, context: StudioCanvasToolContext): void {
+  if (state.npcLocationCommitting) return;
+  if (!mapRegionAvailable(context.controller.liveAdapter()?.view())) { resetNpcLocationAction(state); context.invalidate(); return; }
   const model = state.npcLocationModel;
   const receipt = model?.pending();
-  if (model === null || receipt == null || state.npcLocationCommitting) return;
+  if (model === null || receipt == null) return;
   const request = ++state.npcLocationRequest;
   state.npcLocationCommitting = true;
   void model.commit(true).then((result) => {
@@ -1597,7 +1608,7 @@ function mapPublishButton(state:MapCanvasState,context:StudioCanvasToolContext):
   const view=context.controller.liveAdapter()?.view();
   const publish=mapEditorPublishPresentation({dirty:state.model.dirty(),publishing:state.model.publishing()||view?.publishingMap===true,progress:view?.mapPublishProgress??null,
     conflictRevision:state.model.conflictRevision(),validation:state.model.validationState(),baseRevision:state.model.baseRevision(),
-    connected:view?.connected===true,synchronizing:view?.synchronizing===true,authorized:context.route.access==='write'&&studioRoleCan(view?.role??null,'publish_map'),
+    connected:mapRegionAvailable(view),synchronizing:view?.synchronizing===true,authorized:context.route.access==='write'&&studioRoleCan(view?.role??null,'publish_map'),
     publishAvailable:context.controller.liveAdapter()?.publishMap!==undefined});
   return kit.tooltip(publish.tooltip,kit.button({id:'map-publish',ariaLabel:publish.tooltip,label:state.model.publishing()?mapPublishProgressText(view?.mapPublishProgress).label:state.publishError!==null?'Retry publish':state.model.dirty()?'Publish changes':'Published',
     disabled:publish.disabled,onPress:()=>state.autoPublish.requestManual(),layout:{width:'grow',minWidth:uiFixed(0),shrink:0},leading:kit.icon({cf:'save'})}),
@@ -1858,7 +1869,20 @@ function appendRightDrawer(state: MapCanvasState, context: StudioCanvasToolConte
   // Scrolling now belongs to the retained drawer, not the map's wheel router.
   state.selectionBounds = {x:0,y:0,width:0,height:0}; state.layerBounds = {x:0,y:0,width:0,height:0};
   state.selectionRowCount = 0;
-  if (inspection) {
+  children.push(kit.checkbox({ id: 'map-group-selection-mode', label: 'Group selection', value: state.model.groupSelectionMode(),
+    onChange: value => { state.model.setGroupSelectionMode(value === true); context.invalidate(); } }));
+  const groupCount = state.model.selectedObjectIds().length;
+  if (groupCount > 1) {
+    children.push(kit.text(`${groupCount} authored props selected`, { id: 'map-group-count' }));
+    children.push(kit.text('Shift-click to toggle props. Turn Group selection off to drag. Arrow keys move; Ctrl/Cmd+D duplicates one tile right.', { maxLines: 4 }));
+    for (const [id, label, x, y] of [['left', 'Move left', -1, 0], ['right', 'Move right', 1, 0], ['up', 'Move up', 0, -1], ['down', 'Move down', 0, 1]] as const) {
+      action(`group-${id}`, label, () => { state.interaction.nudgeSelected(x, y); context.invalidate(); }, { disabled: state.model.publishing() });
+    }
+    action('group-duplicate', 'Duplicate group', () => { state.interaction.cloneSelected(); context.invalidate(); }, { disabled: state.model.publishing() });
+    action('group-delete', 'Delete group', () => { state.interaction.deleteSelected(); context.invalidate(); }, { tone: 'danger', disabled: state.model.publishing() });
+    action('group-clear', 'Clear selection', () => { state.model.clearSelection(); context.invalidate(); });
+  }
+  if (inspection && groupCount <= 1) {
     const selected=state.model.document().objects.find(value=>value.id===inspection.entity?.id);
     const prefab=selected&&state.model.document().prefabs.find(value=>value.id===selected.prefabId);
     const terrainCell=state.model.document().cells[mapCellKey(inspection.tileX,inspection.tileY)];
@@ -2018,10 +2042,16 @@ export function buildMapCanvasTool(context: StudioCanvasToolContext): StudioCanv
   // unrelated server update and overlaid entities from the wrong document.
 
   const liveView = mapId === 'live-island' ? context.controller.liveAdapter()?.view() : undefined;
-  const liveRows = liveView?.rows ?? null;
+  const liveRows = mapRegionAvailable(liveView) ? liveView?.rows ?? null : null;
+  if (liveView !== undefined && !mapRegionAvailable(liveView)) {
+    if (!state.liveSpawnCommitting) resetLiveSpawn(state);
+    if (!state.runtimeObjectCommitting) resetRuntimeObjectAction(state);
+    if (!state.npcLocationCommitting) resetNpcLocationAction(state);
+    if (!state.schemaActionCommitting) resetSchemaInspectorAction(state);
+  }
   const contentSource = liveView?.contentDefinitions ?? null;
   const contentAuthorityKey = liveView === undefined ? 'unavailable'
-    : `${liveView.connected}:${liveView.synchronizing}:${liveView.error ?? ''}:${String(liveView.contentHead?.revision ?? '')}:${liveView.contentHead?.contentHash ?? ''}:${contentSource?.length ?? -1}`;
+    : `${liveView.connected}:${liveView.synchronizing}:${liveView.error ?? ''}:${'mapError' in liveView ? String(liveView.mapError ?? '') : ''}:${String(liveView.contentHead?.revision ?? '')}:${liveView.contentHead?.contentHash ?? ''}:${contentSource?.length ?? -1}`;
   if (state.schemaLiveRowsSource !== liveRows || state.schemaContentSource !== contentSource
     || state.schemaContentAuthorityKey !== contentAuthorityKey) {
     if (state.schemaContentSource !== contentSource
@@ -2036,7 +2066,7 @@ export function buildMapCanvasTool(context: StudioCanvasToolContext): StudioCanv
     state.interaction.setLiveRows(liveRows, state.liveObjectRegistry);
     state.model.refreshKernels();
   }
-  if (state.schemaActionField !== null) {
+  if (state.schemaActionField !== null && !state.schemaActionCommitting) {
     const target = state.model.schemaInspectorTarget();
     const action = parseMapSchemaInspectorAction(state.schemaActionField.action);
     if (target === null || target.entityId !== state.schemaActionTargetId || action === null
@@ -2044,7 +2074,7 @@ export function buildMapCanvasTool(context: StudioCanvasToolContext): StudioCanv
       resetSchemaInspectorAction(state);
     }
   }
-  if (state.runtimeObjectMarker !== null) {
+  if (state.runtimeObjectMarker !== null && !state.runtimeObjectCommitting) {
     const currentMarker = selectedRuntimeObjectMarker(state);
     if (currentMarker === null
       || currentMarker.id !== state.runtimeObjectMarker.id
@@ -2055,7 +2085,7 @@ export function buildMapCanvasTool(context: StudioCanvasToolContext): StudioCanv
       resetRuntimeObjectAction(state);
     }
   }
-  if (state.npcLocationMarker !== null) {
+  if (state.npcLocationMarker !== null && !state.npcLocationCommitting) {
     const currentMarker = selectedNpcLocationMarker(state);
     if (currentMarker === null
       || currentMarker.id !== state.npcLocationMarker.id
