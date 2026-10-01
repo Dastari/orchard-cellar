@@ -137,6 +137,74 @@ function selectPress(context: StudioCanvasToolContext): void {
 }
 
 describe('Map Editor Canvas runtime object actions', () => {
+  it('invalidates live projections and prevents admin previews on isolated map errors', async () => {
+    const probe = liveProbe(), context = await runtimeContext(probe.api);
+    selectPress(context);
+    let surface = buildMapCanvasTool(context);
+    expect(kitElement(surface, 'map-selection-runtime-move')?.disabled).toBe(false);
+    const view = context.controller.liveAdapter()!.view() as StudioConnectionView & { mapError?: string | null };
+    view.mapError = 'The published map could not load. Retrying…';
+    surface = buildMapCanvasTool(context);
+    expect(view.error).toBeNull();
+    const state = context.controller.toolState<{ interaction: { liveMarkers(): readonly unknown[] } }>('map-canvas:live-island', () => { throw new Error('Missing state'); });
+    expect(state.interaction.liveMarkers()).toEqual([]);
+    expect(kitElement(surface, 'map-selection-runtime-move')).toBeUndefined();
+    expect(probe.calls).toHaveLength(0);
+    view.mapError = null;
+    selectPress(context); surface = buildMapCanvasTool(context);
+    expect(kitElement(surface, 'map-selection-runtime-move')?.disabled).toBe(false);
+  });
+
+  it('rejects stale confirmation controls and invalidates receipts before recovery', async () => {
+    const probe = liveProbe(), context = await runtimeContext(probe.api);
+    selectPress(context);
+    let surface = buildMapCanvasTool(context);
+    pressKit(surface, 'map-selection-runtime-repair');
+    await vi.waitFor(() => expect(probe.calls).toHaveLength(1));
+    surface = buildMapCanvasTool(context);
+    const stale = surface;
+    const view = context.controller.liveAdapter()!.view() as StudioConnectionView & { mapError?: string | null };
+    view.mapError = 'The map region could not load.';
+    // The old button can still exist until repaint; its handler must check current authority.
+    pressKit(stale, 'map-runtime-object-confirm');
+    await Promise.resolve();
+    expect(probe.calls).toHaveLength(1);
+    view.mapError = null;
+    selectPress(context); surface = buildMapCanvasTool(context);
+    expect(kitElement(surface, 'map-runtime-object-confirm')).toBeUndefined();
+    pressKit(surface, 'map-selection-runtime-repair');
+    await vi.waitFor(() => expect(probe.calls).toHaveLength(2));
+    expect(probe.calls.every(([mutation]) => mutation.dryRun)).toBe(true);
+  });
+
+  it('observes an in-flight commit outcome through a region failure and repeated confirmation', async () => {
+    const probe = liveProbe(), original = probe.api.mutate;
+    let finish: (() => void) | undefined;
+    probe.api.mutate = vi.fn(async (...args: Parameters<AdminObjectsApi['mutate']>) => {
+      const result = await original(...args);
+      return args[0].dryRun ? result : new Promise<AdminObjectMutationResult>(resolve => { finish = () => resolve(result); });
+    });
+    const context = await runtimeContext(probe.api);
+    selectPress(context);
+    let surface = buildMapCanvasTool(context);
+    pressKit(surface, 'map-selection-runtime-repair');
+    await vi.waitFor(() => expect(probe.calls).toHaveLength(1));
+    surface = buildMapCanvasTool(context);
+    pressKit(surface, 'map-runtime-object-confirm');
+    await vi.waitFor(() => expect(finish).toBeDefined());
+    const view = context.controller.liveAdapter()!.view() as StudioConnectionView & { mapError?: string | null };
+    view.mapError = 'The map region could not load.';
+    // A retained confirmation callback must preserve the request already sent to the server.
+    pressKit(surface, 'map-runtime-object-confirm');
+    buildMapCanvasTool(context);
+    expect(probe.calls).toHaveLength(2);
+    finish!();
+    await vi.waitFor(() => expect(context.controller.notifications.items()).toContainEqual(
+      expect.objectContaining({ kind: 'success', title: 'Runtime object changed', detail: expect.stringContaining('audit-runtime-canvas') }),
+    ));
+    expect(probe.calls.filter(([mutation]) => !mutation.dryRun)).toHaveLength(1);
+  });
+
   it('keeps player-owned move behind exact preview and explicit Canvas confirmation', async () => {
     const probe = liveProbe();
     const context = await runtimeContext(probe.api);

@@ -83,6 +83,22 @@ describe('Orchard Studio static deployment', () => {
       .toBe('orchard-studio');
   });
 
+  it('exempts only read-only game assets from shared Studio dynamic limits', () => {
+    const entry = edgeHttpTop.split('\n').find(line => line.includes('~^/game/world/'))!;
+    const expression = entry.trim().split('"')[1]!.slice(1);
+    const immutable = new RegExp(expression);
+    const hash = 'a'.repeat(64);
+    expect(immutable.test(`/game/world/0/${hash}.bin`)).toBe(true);
+    expect(immutable.test(`/game/world/65532/${hash}.bin`)).toBe(true);
+    for (const path of [ '/v1/database', '/auth', '/game/world', `/game/world/-1/${hash}.bin`,
+      `/game/world/0/${hash.toUpperCase()}.bin`, `/game/world/0/${hash}.bin/extra`,
+      `/game/world/../${hash}.bin`, `/game/world/0/${hash.slice(1)}.bin`, '/game/world/0/manifest.json' ]) {
+      expect(immutable.test(path), path).toBe(false);
+    }
+    expect(edgeHttpTop).toContain('/game/atlas.packs.json "";');
+    expect(edgeHttpTop).toContain('default $binary_remote_addr;');
+  });
+
   it('keeps the build environment, static unit, and edge fragment aligned', () => {
     expect(studioEnvironment).toContain('VITE_SPACETIMEDB_PRODUCTION_URI=https://cellar.dastari.net');
     expect(studioEnvironment).toContain('VITE_SPACETIMEDB_LOCAL_URI=https://cellar.dastari.net');

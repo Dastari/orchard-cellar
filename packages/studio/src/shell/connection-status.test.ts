@@ -83,6 +83,15 @@ describe('Studio startup status (BUG-085)', () => {
     } finally { root.unmount(node); root.dispose(); }
   });
 
+  it('opens the connected workspace while its map is not ready', () => {
+    const { node, app } = shell('connected');
+    const root = new UiRoot(); root.resize(1280, 800); root.mount(node); root.arrange();
+    try {
+      expect(root.entries().some(({ element }) => element.id === 'studio-connection-status')).toBe(false);
+      expect(root.entries().some(({ element }) => element.id === 'workbench.workspace.content')).toBe(true);
+    } finally { root.unmount(node); root.dispose(); app.dispose(); }
+  });
+
   it('does not offer a second connection while a connection is in progress', () => {
     const { node, app } = shell('connecting');
     const root = new UiRoot(); root.resize(1280, 800); root.mount(node); root.arrange();

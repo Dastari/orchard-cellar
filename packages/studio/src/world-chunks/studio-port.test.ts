@@ -27,6 +27,15 @@ describe('Studio chunk-only bounded blob reads', () => {
     expect(read).toHaveBeenCalledTimes(2);
   });
 
+  it('never substitutes database bytes for rate limits or authentication failures', async () => {
+    const read = vi.fn(async () => new Uint8Array([1, 2, 3]));
+    for (const status of [429, 401, 403]) {
+      const reader = studioChunkBlobReader(connection(read), (async () => new Response(null, { status })) as typeof fetch);
+      await expect(reader(head)).rejects.toThrow(`chunk_fetch_${status}`);
+    }
+    expect(read).not.toHaveBeenCalled();
+  });
+
   it('times out an SDK call that never resolves, allowing the head loader to retry', async () => {
     vi.useFakeTimers();
     const reader = studioChunkBlobReader(connection(() => new Promise(() => {})), (async () => new Response(null, { status: 404 })) as typeof fetch);
