@@ -7,6 +7,9 @@ import { ui, uiFixed, UiRoot, type UiElement, UiTextBridge, UiLabWorld, CanvasTe
   type UiPoint, type UiRect, type UiKitArt, type UiWorkbenchRegion, type StudioSpatialArt } from '@orchard/ui/studio';
 import { StudioShellController } from './controller.js';
 import { studioLiveContentSnapshot } from './live-content-readiness.js';
+import { studioWorkspaceToolbar } from './workspace-controls.js';
+import { clampStudioDrawerWidth, persistStudioWorkspaceView, restoreStudioWorkspaceView, studioWorkspaceLayoutDocks, studioWorkspaceViewFromDocks, type StudioWorkspaceView } from './workspace-layout.js';
+import { studioMapLoadError, studioMapLoadStatus } from './map-load-status.js';
 import { StudioShortcutMap } from './shortcuts.js';
 import { defaultStudioCanvasToolRegistry, type StudioCanvasToolRegistry } from './canvas-tool-registry.js';
 import type { StudioCanvasToolSurface, StudioCanvasToolLifecycle, StudioCanvasToolPointerInput, StudioCanvasToolActionActivation } from './canvas-tool.js';
@@ -119,6 +122,7 @@ export class StudioShellApp {
   readonly #loadingTools = new Set<string>();
   #drawerWidths = { left: 270, right: 286 };
   #activeDrawer: 'controls' | 'inspector' | 'none' = 'controls';
+  #workspaceView: StudioWorkspaceView = 'both';
   #toolInspectorPath: string | null = null;
   #toolControlsPath: string | null = null;
   #layoutState = defaultStudioCanvasLayoutState();
@@ -134,7 +138,7 @@ export class StudioShellApp {
 
   mount(): void {
     try { const saved = JSON.parse(sessionStorage.getItem(DRAWER_WIDTHS_KEY) ?? 'null') as { left?: unknown; right?: unknown } | null;
-      if (saved && typeof saved.left === 'number' && typeof saved.right === 'number') this.#drawerWidths = { left: this.clampDrawer(saved.left), right: this.clampDrawer(saved.right) };
+      if (saved) this.#drawerWidths = { left: clampStudioDrawerWidth(saved.left, 270), right: clampStudioDrawerWidth(saved.right, 286) };
     } catch { /* Optional session storage. */ }
     this.controller.navigate(location.pathname === '/' ? '/build/map' : location.pathname);
     this.restoreLayoutSession(this.controller.activeRoute().path);
@@ -184,7 +188,7 @@ export class StudioShellApp {
     if (this.canvas.width !== Math.round(width*dpr)) this.canvas.width = Math.round(width*dpr);
     if (this.canvas.height !== Math.round(height*dpr)) this.canvas.height = Math.round(height*dpr);
     this.#root.resize(width,height,dpr);
-    const route = this.controller.activeRoute(), key = JSON.stringify([route.path,route.access,this.controller.session.snapshot().role,this.controller.session.snapshot().phase,this.controller.session.snapshot().mapRevision,this.controller.liveAdapter()?.view().mapDocument?.contentHash,this.controller.liveAdapter()?.view().synchronizing,this.controller.session.snapshot().error,this.#layoutState.splitOpen,this.#layoutState.direction,this.#layoutState.secondaryPath,this.#activeDrawer]);
+    const route = this.controller.activeRoute(), key = JSON.stringify([route.path,route.access,this.controller.session.snapshot().role,this.controller.session.snapshot().phase,this.controller.session.snapshot().mapRevision,this.controller.liveAdapter()?.view().mapDocument?.contentHash,this.controller.liveAdapter()?.view().synchronizing,studioMapLoadError(this.controller.liveAdapter()?.view()),this.controller.session.snapshot().error,this.#layoutState.splitOpen,this.#layoutState.direction,this.#layoutState.secondaryPath,this.#activeDrawer,this.#workspaceView]);
     if (key !== this.#shellKey) { this.#shellKey = key; this.buildShell(); this.#dirtyTools = true; }
     this.#root.arrange();
     if (this.#dirtyTools && this.#uiPointerOwner === null && !this.#root.entries().some(({element}) => element.kind === 'popover' && element.visible)) { this.#dirtyTools = false; this.buildTools(); this.#root.arrange(); }
@@ -198,6 +202,7 @@ export class StudioShellApp {
     this.canvas.dataset['canvasLeftDrawerWidth'] = String(this.#drawerWidths.left); this.canvas.dataset['canvasRightDrawerWidth'] = String(this.#drawerWidths.right);
     this.canvas.dataset['canvasSplit'] = this.#layoutState.splitOpen ? this.#layoutState.direction : 'closed'; this.canvas.dataset['canvasSplitRatio'] = this.#layoutState.ratio.toFixed(3);
     this.canvas.dataset['canvasSecondaryRoute'] = this.#layoutState.secondaryPath ?? ''; this.canvas.dataset['canvasPalette'] = this.#palette?.visible ? 'open' : 'closed';
+    this.canvas.dataset['canvasWorkspaceView'] = this.#workspaceView;
     this.canvas.setAttribute('aria-label', `Orchard Studio${this.#root.focus.current ? `: ${this.#root.focus.current.label}` : ''}`);
     if (this.#root.entries().some(({element})=>element.hooks.animated && element.clip.width>0 && element.clip.height>0)) this.schedule();
   }
@@ -206,8 +211,7 @@ export class StudioShellApp {
     this.#controls = ui.flex({ width: 'grow', height: 'grow' }); this.#inspector = ui.flex({ width: 'grow',height:'grow' });
     this.#workspace = ui.stack({ width: 'grow', height: 'grow' }); this.#secondary = ui.stack({ width: 'grow', height: 'grow' });
     const session = this.controller.session.snapshot();
-    const mapReadiness = this.controller.activeRoute().path === '/build/map' ? studioLiveMapReadiness(this.controller.liveAdapter()?.view().mapDocument) : null;
-    if (session.environment !== 'sandbox' && (session.phase !== 'connected' || mapReadiness !== null)) {
+    if (session.environment !== 'sandbox' && session.phase !== 'connected') {
       this.#surface?.input?.keyDown?.({key:'Escape',repeat:false,shiftKey:false,altKey:false,ctrlKey:false,metaKey:false});
       this.#secondarySurface?.input?.keyDown?.({key:'Escape',repeat:false,shiftKey:false,altKey:false,ctrlKey:false,metaKey:false});
       this.#toolPointerOwner = null;
@@ -216,7 +220,7 @@ export class StudioShellApp {
       this.#primaryBounds = null; this.#secondaryBounds = null;
       this.#root.mount(ui.flex({ width:'grow', height:'grow', align:'center', justify:'center', gap:12 }, [
         ui.text(session.phase === 'error' ? 'Unable to open live Studio' : 'Connecting to live Studio', {role:'header'}),
-        ui.text(session.error ?? (session.phase === 'connected' ? mapReadiness ?? 'Loading live Studio' : 'Sign in to load the live map')),
+        ui.text(session.error ?? 'Sign in to load live Studio', { wrap: true }),
         ...(session.phase === 'connecting' ? [] : [ui.button({ id:'studio-retry', label:'Retry sign in',
           onPress:()=>{void this.controller.connectExplicit().catch(()=>undefined);} })]),
       ]));
@@ -236,10 +240,16 @@ export class StudioShellApp {
       ]),secondary]), direction: this.#layoutState.direction, ratio: this.#layoutState.ratio,
       onResize: ratio => { this.#layoutState=resizeStudioCanvasSplit(this.#layoutState,ratio);this.persistLayoutSession();this.render(); },
     }) : primary;
-    this.#root.mount(ui.flex({width:'grow',height:'grow'},[ui.workbench({ navigation: this.routeNavigation(),
+    const toolbar = studioWorkspaceToolbar({ view: this.#workspaceView, onView: view => this.selectWorkspaceView(view),
+      notice: route.path === '/build/map' && studioLiveMapReadiness(this.controller.liveAdapter()?.view().mapDocument) === null
+        ? studioMapLoadError(this.controller.liveAdapter()?.view()) : null,
+      onCommands: () => this.openPalette(), splitOpen: this.#layoutState.splitOpen, onSplit: () => this.toggleSplit(route.tool.id),
+      onSave: () => this.saveNamedLayout(route), onRestore: () => this.restoreNamedLayout(route), onReset: () => this.resetWorkspaceLayout(),
+    });
+    this.#root.mount(ui.flex({width:'grow',height:'grow'},[toolbar,ui.workbench({ navigation: this.routeNavigation(),
       workspace, activeDrawer:this.#activeDrawer,
-      controls:{title:'',surface:'thin',fill:['map','items','npc-studio','dialogue-graph','quest-editor','world-tables','pack-studio','object'].includes(route.tool.id),visible:this.#toolControlsPath===route.path,width:uiFixed(this.#drawerWidths.left/2),...(route.tool.id==='map'?{minWidth:uiFixed(248),maxWidth:uiFixed(480)}:{}),content:this.#controls},
-      inspector:{title:route.tool.id==='map'?'':'Selection',surface:route.tool.id==='map'?'unframed':'thin',fill:['map','items','npc-studio','dialogue-graph','quest-editor','world-tables','pack-studio'].includes(route.tool.id),visible:this.#toolInspectorPath===route.path||this.#activeDrawer==='inspector',width:uiFixed(this.#drawerWidths.right/2),content:this.#inspector},
+      controls:{title:'',surface:'thin',fill:['map','items','npc-studio','dialogue-graph','quest-editor','world-tables','pack-studio','object'].includes(route.tool.id),visible:this.#toolControlsPath===route.path&&(this.#workspaceView==='both'||this.#workspaceView==='controls'),width:uiFixed(this.#drawerWidths.left/2),...(route.tool.id==='map'?{minWidth:uiFixed(248),maxWidth:uiFixed(480)}:{}),content:this.#controls},
+      inspector:{title:route.tool.id==='map'?'':'Selection',surface:route.tool.id==='map'?'unframed':'thin',fill:['map','items','npc-studio','dialogue-graph','quest-editor','world-tables','pack-studio'].includes(route.tool.id),visible:(this.#toolInspectorPath===route.path||this.#activeDrawer==='inspector')&&(this.#workspaceView==='both'||this.#workspaceView==='inspector'),width:uiFixed(this.#drawerWidths.right/2),content:this.#inspector},
       onRegionArrange:(name,rect)=>{this.#regions[name]=physical(rect);this.#dirtyTools=true;},
       onRegionVisibility:(name,visible)=>{if(!visible)delete this.#regions[name];this.#dirtyTools=true;},
       onDrawerResize:(side,width)=>{this.#drawerWidths[side==='controls'?'left':'right']=width.size*2;this.persistDrawers();this.render();},
@@ -277,6 +287,13 @@ export class StudioShellApp {
   }
   private replace(node:UiElement, children: readonly UiElement[]):void { for(const child of [...node.children]) child.dispose();node.replaceChildren(children); }
   private buildTool(route:ReturnType<StudioShellController['activeRoute']>,controlsBounds:UiRect,inspectorBounds:UiRect,workspaceBounds:UiRect):StudioCanvasToolSurface|null {
+    const view = this.controller.liveAdapter()?.view();
+    const readiness = route.path === '/build/map' && this.controller.session.snapshot().environment !== 'sandbox'
+      ? studioLiveMapReadiness(view?.mapDocument) : null;
+    if (readiness !== null) {
+      this.#surface?.input?.keyDown?.({ key: 'Escape', repeat: false, shiftKey: false, altKey: false, ctrlKey: false, metaKey: false });
+      return { kit: { workspace: studioMapLoadStatus(view, readiness) } };
+    }
     const builder=this.canvasTools.builder(route.tool.id);
     if(builder) return builder({occludedBounds:[this.#regions.controls??controlsBounds,this.#regions.inspector??inspectorBounds],route,controller:this.controller,controlsBounds,inspectorBounds,workspaceBounds,bounds:workspaceBounds,invalidate:()=>this.render()});
     if(!this.#loadingTools.has(route.tool.id)) { this.#loadingTools.add(route.tool.id);void this.canvasTools.load(route.tool.id).then(()=>this.render()).catch((error:unknown)=>{this.canvas.dataset['canvasToolError']=String(error);}).finally(()=>this.#loadingTools.delete(route.tool.id)); }
@@ -355,7 +372,6 @@ export class StudioShellApp {
     }
     this.#kitLab.resize();this.#kitLab.invalidate();
   }
-  private clampDrawer(value: number): number { return Math.max(236, Math.min(960, Math.round(value))); }
   private persistDrawers(): void {
     try { sessionStorage.setItem(DRAWER_WIDTHS_KEY, JSON.stringify(this.#drawerWidths)); } catch { /* non-persistent sandbox */ }
   }
@@ -384,6 +400,8 @@ export class StudioShellApp {
   private restoreLayoutSession(route: string): void {
     this.#layoutRoute = route;
     this.#layoutState = restoreStudioCanvasLayoutState(this.layoutStorage(), route);
+    this.#workspaceView = restoreStudioWorkspaceView(this.layoutStorage(), route);
+    this.#activeDrawer = this.#workspaceView === 'inspector' ? 'inspector' : this.#workspaceView === 'none' ? 'none' : 'controls';
     this.#shellKey = '';
   }
   private persistLayoutSession(): void {
@@ -408,11 +426,7 @@ export class StudioShellApp {
   private saveNamedLayout(route: ReturnType<StudioShellController['activeRoute']>): void {
     const name = studioCanvasNamedLayoutName(route.tool.label, route.path);
     const current = this.controller.layouts.load(name, route.tool.mode);
-    const docks = current.docks.map((dock) => Object.freeze({
-      ...dock,
-      size: dock.placement === 'left' ? this.#drawerWidths.left
-        : dock.placement === 'right' ? this.#drawerWidths.right : dock.size,
-    }));
+    const docks = studioWorkspaceLayoutDocks(current.docks, this.#drawerWidths, this.#workspaceView);
     this.controller.layouts.save(Object.freeze({
       ...current,
       name,
@@ -439,17 +453,26 @@ export class StudioShellApp {
     const left = saved.docks.find(({ placement }) => placement === 'left')?.size;
     const right = saved.docks.find(({ placement }) => placement === 'right')?.size;
     this.#drawerWidths = {
-      left: left === undefined ? this.#drawerWidths.left : this.clampDrawer(left),
-      right: right === undefined ? this.#drawerWidths.right : this.clampDrawer(right),
+      left: left === undefined ? this.#drawerWidths.left : clampStudioDrawerWidth(left, 270),
+      right: right === undefined ? this.#drawerWidths.right : clampStudioDrawerWidth(right, 286),
     };
     this.#layoutState = state;
     this.#shellKey = "";
     this.persistDrawers(); this.persistLayoutSession();
+    this.selectWorkspaceView(studioWorkspaceViewFromDocks(saved.docks));
     this.controller.notifications.push('success', 'Canvas layout restored', name);
     this.render();
   }
-  private resetDrawer(side: 'left' | 'right'): void {
-    this.#drawerWidths = { ...this.#drawerWidths, [side]: side === 'left' ? 270 : 286 };
-    this.#shellKey = ''; this.persistDrawers(); this.render();
+  private selectWorkspaceView(view: StudioWorkspaceView): void {
+    this.#workspaceView = view;
+    this.#activeDrawer = view === 'inspector' ? 'inspector' : view === 'none' ? 'none' : 'controls';
+    persistStudioWorkspaceView(this.layoutStorage(), this.#layoutRoute, view);
+    this.#pendingFocusId = 'studio-workspace-view';
+    this.#shellKey = ''; this.render();
+  }
+  private resetWorkspaceLayout(): void {
+    this.#drawerWidths = { left: 270, right: 286 };
+    this.#layoutState = defaultStudioCanvasLayoutState();
+    this.persistDrawers(); this.persistLayoutSession(); this.selectWorkspaceView('both');
   }
 }
