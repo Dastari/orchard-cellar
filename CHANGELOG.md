@@ -6,6 +6,10 @@ One heading per game version, newest first. Parallel branches that bumped to the
 
 - Expose canvas workspace view, command and layout controls, including narrow-screen Library/Inspector switching, named layouts and reset. Keep connected content tools reachable while the map loads; map startup presents its own verified progress and retry state.
 
+## Root 0.83.1 / Studio 0.18.2 — Verified Studio startup recovery
+
+- **BUG-079:** exclude immutable chunk and atlas-index requests from Studio dynamic proxy limits while retaining protected-route limits. Retain verified chunks across retries of the same publication and separate map loading errors from content/connection readiness.
+
 ## Root 0.83.0 / Client 0.57.0 / UI 0.55.0 — Illustrated player guide
 
 - Refresh the help book into 27 player-facing topics across Basics, Crafting, World and Adventures. Explain current activities, storage, equipment, gathering, food, weather, travel, trade, progression and expeditions; remove administrative commands and server/debug details.

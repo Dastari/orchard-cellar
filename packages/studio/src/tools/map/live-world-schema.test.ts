@@ -28,7 +28,7 @@ describe('Map Editor live player-owned world state', () => {
     expect(shellConnection).toContain('tables.worldWildlifeProfile');
     expect(shellConnection).toContain('tables.playerAppearance');
     expect(mapRuntime).toContain("mapId === 'live-island' ? context.controller.liveAdapter()?.view() : undefined");
-    expect(mapRuntime).toContain('const liveRows = liveView?.rows ?? null');
+    expect(mapRuntime).toContain('const liveRows = mapRegionAvailable(liveView) ? liveView?.rows ?? null : null');
     expect(mapRuntime).toContain('liveRows?.homesteads');
     expect(mapRuntime).toContain('liveRows?.placeables');
   });
