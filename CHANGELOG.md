@@ -2,6 +2,10 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Root 0.84.1 / Studio 0.19.1 — Readable startup status
+
+- **BUG-085:** put connection, sign-in and failure text on the reviewed neutral UI-kit frame, wrap status messages within a responsive card and retain keyboard-operable retry. Connected sessions keep the workspace open while the map displays its own verified-loading status; other authoring tools remain reachable.
+
 ## Root 0.84.0 / Studio 0.19.0 — Studio workspace controls
 
 - Expose canvas workspace view, command and layout controls, including narrow-screen Library/Inspector switching, named layouts and reset. Keep connected content tools reachable while the map loads; map startup presents its own verified progress and retry state.
