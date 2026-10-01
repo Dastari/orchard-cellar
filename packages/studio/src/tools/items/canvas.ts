@@ -5,13 +5,14 @@ import { studioDefinitionFields } from '../../shell/definition-fields.js';
 import { studioDefinitionPreview, studioDefinitionPreviewLifecycle } from '../../shell/definition-preview.js';
 import type { ItemDefinitionId, SupportedContentDefinition } from '@orchard/sim';
 import lifecycleSourceBundle from '@orchard/lifecycle-authoring/source' with { type: 'json' };
-import { CanvasTextEditor, ui as kit, type UiElement, type UiTone, type UiTableState } from '@orchard/ui/studio';
+import { CanvasTextEditor, ui as kit, type UiControlSize, type UiElement, type UiTone, type UiTableState } from '@orchard/ui/studio';
 import {
   STUDIO_LIFECYCLE_TRIGGER_ORDER,
   type LifecycleDraftStorage,
   type StudioLifecycleSourceBundle,
 } from '../../lifecycle/model.js';
 import type { StudioCanvasToolContext, StudioCanvasToolSurface } from '../../shell/canvas-tool.js';
+import { studioModeAccess, studioScopedToolAccess } from '../../shell/access.js';
 import { studioLiveContentSnapshot, studioLiveContentStatusSurface } from '../../shell/live-content-readiness.js';
 import {
   itemsAccessForConnection,
@@ -22,7 +23,7 @@ import {
 import { ITEMS_TOOL_CONTENT_KINDS, type ItemsToolContentKind } from './contracts.js';
 import { requestStudioFileDownload } from '../../shell/file-download.js';
 import { ItemsLifecycleDraft } from './lifecycle.js';
-import { createItemsTool, type ItemsToolModel } from './model.js';
+import { createItemsTool, ITEMS_TOOL_ENGINE_VERSION, type ItemsToolModel } from './model.js';
 
 interface ItemsCanvasState {
   readonly model: ItemsToolModel;
@@ -36,6 +37,7 @@ interface ItemsCanvasState {
   kind: ItemsToolContentKind;
   selectedId: string | null;
   syncedId: string | null;
+  syncedDefinition: string;
   browserTable?: UiTableState;
   tab: string;
   mutationSequence: number;
@@ -75,6 +77,8 @@ function createState(context: StudioCanvasToolContext): ItemsCanvasState {
   const live = context.controller.liveAdapter();
   const view = live?.view();
   const access = itemsAccessForConnection(context.route.access, live);
+  const environment = context.controller.session.snapshot().environment;
+  const identity = view?.identity;
   const head = view === undefined ? null : itemsHeadFromConnection(view);
   const history = view === undefined ? [] : itemsHistoryFromConnection(view);
   const model = createItemsTool({
@@ -83,9 +87,26 @@ function createState(context: StudioCanvasToolContext): ItemsCanvasState {
     history,
     ...(access === 'write' && live !== null ? {
       createPublishAdapter: () => {
-        const adapter = itemsPublishAdapterFromConnection(live);
-        if (adapter === null) throw new Error('items_publish_unavailable');
-        return adapter;
+        if (itemsPublishAdapterFromConnection(live) === null) throw new Error('items_publish_unavailable');
+        const currentPublishAdapter = (expectedRevision: bigint) => {
+          const connection = context.controller.liveAdapter();
+          const current = connection?.view();
+          const currentAccess = current?.scopes === undefined
+            ? studioModeAccess(current?.role ?? null, 'author') : studioScopedToolAccess(current.scopes, 'items');
+          if (current === undefined || identity === null || identity === undefined
+            || context.controller.session.snapshot().environment !== environment || current.identity !== identity
+            || current.role === null || itemsAccessForConnection(currentAccess, connection) !== 'write'
+            || studioLiveContentSnapshot(connection).mode !== 'ready') throw new Error('items_publish_unavailable');
+          if (current.contentHead?.engineVersion !== ITEMS_TOOL_ENGINE_VERSION) throw new Error('content_engine_update_required');
+          if (current.contentHead?.revision !== expectedRevision) throw new Error('content_revision_conflict');
+          const adapter = connection === null ? null : itemsPublishAdapterFromConnection(connection);
+          if (adapter === null) throw new Error('items_publish_unavailable');
+          return adapter;
+        };
+        return {
+          publishContentChangeSet: request => currentPublishAdapter(request.expectedRevision).publishContentChangeSet(request),
+          restoreContentRevision: request => currentPublishAdapter(request.expectedRevision).restoreContentRevision(request),
+        };
       },
     } : {}),
   });
@@ -114,6 +135,7 @@ function createState(context: StudioCanvasToolContext): ItemsCanvasState {
     kind: 'item',
     selectedId: model.definitions('item')[0]?.id ?? null,
     syncedId: null,
+    syncedDefinition: '',
     tab: 'fields',
     mutationSequence: 0,
     lifecycleItemId: null,
@@ -153,8 +175,11 @@ export function buildItemsCanvasTool(context: StudioCanvasToolContext): StudioCa
   const view = live?.view();
   const access = itemsAccessForConnection(context.route.access, live);
   const identity = view?.identity ?? 'anonymous';
+  // Head changes belong to receiveHead's conflict/acknowledgement workflow;
+  // replacing the canvas model here would strand its draft and pending editors.
+  const stateKey = `items-canvas:${context.controller.session.snapshot().environment}:${identity}:${access}:${content.mode}`;
   const state = context.controller.toolState(
-    `items-canvas:${identity}:${access}:${content.contentKey}`,
+    stateKey,
     () => createState(context),
   );
   const head = view === undefined ? null : itemsHeadFromConnection(view);
@@ -176,15 +201,19 @@ export function buildItemsCanvasTool(context: StudioCanvasToolContext): StudioCa
     state.selectedId = definitions[0]?.id ?? null;
   }
   const selected = snapshot.definitions.find(({ id }) => id === state.selectedId) ?? null;
-  if (state.syncedId !== selected?.id) {
-    state.definition.setValue(selected === null ? '' : JSON.stringify(selected, null, 2));
+  const selectedJson = selected === null ? '' : JSON.stringify(selected, null, 2);
+  if (state.syncedId !== selected?.id
+    || (state.syncedDefinition !== selectedJson && state.definition.snapshot().value === state.syncedDefinition)) {
+    state.definition.setValue(selectedJson);
     state.syncedId = selected?.id ?? null;
+    state.syncedDefinition = selectedJson;
   }
+  if (state.definition.snapshot().value === selectedJson) state.syncedDefinition = selectedJson;
   syncLifecycleSelection(state, selected);
 
   const id=(name:string)=>`${context.route.tool.id}-items:${name}`;
   const text=(name:string,value:string)=>kit.text(value,{id:id(name),layout:{width:'grow'}});
-  const button=(name:string,label:string,onPress:()=>void,disabled=false,tone:UiTone='primary')=>kit.button({id:id(name),label,disabled,tone,layout:{width:'grow',shrink:0},onPress:()=>{
+  const button=(name:string,label:string,onPress:()=>void,disabled=false,tone:UiTone='primary',size:UiControlSize='md')=>kit.button({id:id(name),label,disabled,tone,size,layout:{width:'grow',shrink:0},onPress:()=>{
     try { onPress(); } catch(error) { report(context,`${label} failed`,error); }
   }});
   const selectDefinition=(definitionId:string)=>{
@@ -193,11 +222,11 @@ export function buildItemsCanvasTool(context: StudioCanvasToolContext): StudioCa
     context.controller.selection.select({kind:'definition',definitionKind:definition.kind,id:definition.id});context.invalidate();
   };
   const controls=kit.flex({width:'grow',gap:4},[
-    kit.select({id:id('kind'),label:'Definition kind',value:state.kind,options:ITEMS_TOOL_CONTENT_KINDS.map(kind=>({value:kind,label:kind.replaceAll('_',' ').replace(/^./u, value=>value.toUpperCase())})),onChange:kind=>{
+    kit.select({id:id('kind'),label:'Definition kind',size:'sm',value:state.kind,options:ITEMS_TOOL_CONTENT_KINDS.map(kind=>({value:kind,label:kind.replaceAll('_',' ').replace(/^./u, value=>value.toUpperCase())})),onChange:kind=>{
       state.kind=kind as ItemsToolContentKind;state.selectedId=state.model.definitions(state.kind,state.query.snapshot().value)[0]?.id??null;
       state.syncedId=null;state.browserTable=undefined;context.invalidate();
     }}),
-    kit.input({id:id('query'),label:'Search definitions',placeholder:'Search definitions',editor:state.query,onChange:()=>context.invalidate()}),
+    kit.input({id:id('query'),label:'Search definitions',size:'sm',placeholder:'Search definitions',editor:state.query,onChange:()=>context.invalidate()}),
     kit.input({id:id('note'),label:'Publish note',placeholder:'Publish note',editor:state.note}),
     button('rebase','Rebase content',()=>{
     try { state.model.rebase('safe'); context.invalidate(); } catch (error) { report(context, 'Content rebase blocked', error); }
@@ -313,7 +342,8 @@ export function buildItemsCanvasTool(context: StudioCanvasToolContext): StudioCa
     {id:'lifecycle',label:'Lifecycle',content:kit.text('Edit and test callbacks in the workspace.',{wrap:true})},
   ]});
   const [kindPicker, queryInput, noteInput, rebase, clear, publish] = controls.children;
-  const drawer = studioLibraryDrawer([kindPicker!, queryInput!, button('new-item','New item',()=>{createDefinition('item');context.invalidate();},access==='read_only'), button('new-recipe','New recipe',()=>{createDefinition('recipe');context.invalidate();},access==='read_only')], browser, [
+  // Compact library headers leave room for the full-size publication footer at short viewport heights.
+  const drawer = studioLibraryDrawer([kindPicker!, queryInput!, button('new-item','New item',()=>{createDefinition('item');context.invalidate();},access==='read_only','primary','sm'), button('new-recipe','New recipe',()=>{createDefinition('recipe');context.invalidate();},access==='read_only','primary','sm')], browser, [
     studioActionBar([studioIconAction(rebase!, {lucide:'cloudConnect'}), studioIconAction(clear!, {lucide:'trash'})]),
     noteInput!, publish!,
   ]);

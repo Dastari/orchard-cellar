@@ -359,6 +359,7 @@ export interface MapEditorInteractionSnapshot {
   readonly transitionFeedback: string | null;
   readonly scatterDensity: number;
   readonly eyedropperActive: boolean;
+  readonly groupDrag: { readonly ids: readonly string[]; readonly deltaX: number; readonly deltaY: number } | null;
   readonly dragDestination: {
     readonly kind: 'object' | 'landmark' | 'anchor' | 'resource';
     readonly id: string;
@@ -771,6 +772,7 @@ export class MapEditorController {
   #selectedExactPart: CellPart | null = null;
   #pan: { readonly x: number; readonly y: number } | null = null;
   #drag: DragState | null = null;
+  #groupDrag: { document: MapDocumentV3; ids: readonly string[]; pointerX: number; pointerY: number; elevation: number; deltaX: number; deltaY: number } | null = null;
   #stroke: PaintStroke | null = null;
   #floodFill: { readonly task: MapEditorFloodFillTask; readonly document: MapDocumentV3;
     readonly tool: MapEditorTerrainTool } | null = null;
@@ -838,6 +840,7 @@ export class MapEditorController {
       transitionFeedback: this.#transitionFeedback,
       scatterDensity: this.#scatterDensity,
       eyedropperActive: this.#eyedropperActive,
+      groupDrag: this.#groupDrag ? { ids: this.#groupDrag.ids, deltaX: this.#groupDrag.deltaX, deltaY: this.#groupDrag.deltaY } : null,
       dragDestination: this.#drag === null ? null : {
         kind: this.#drag.kind,
         id: this.#drag.id,
@@ -1399,7 +1402,9 @@ export class MapEditorController {
     }
     if (button !== 0) return false;
     if (this.selectionCursorActive()) {
-      const picked = this.selectAt(tile.tileX, tile.tileY);
+      const adding = shiftHeld || this.model.groupSelectionMode();
+      const picked = this.selectAt(tile.tileX, tile.tileY, adding);
+      if (adding) return true;
       if (picked !== null) {
         this.beginAuthoredDrag(picked, tile.tileX, tile.tileY);
         return true;
@@ -1524,6 +1529,15 @@ export class MapEditorController {
   }
 
   pointerMove(point: UiPoint): boolean {
+    if (this.#groupDrag) {
+      const drag = this.#groupDrag;
+      const tile = this.tileAt(point, drag.elevation);
+      if (tile) {
+        const delta = this.clampObjectGroup(drag.ids, tile.tileX - drag.pointerX, tile.tileY - drag.pointerY);
+        drag.deltaX = delta.tileX; drag.deltaY = delta.tileY;
+      }
+      return true;
+    }
     if(this.#objectStroke){const tile=this.tileAt(point,this.#objectStroke.elevation);if(tile){for(const p of rasterMapLine(this.#objectStroke,tile).slice(1))this.placeSelectedPrefab(p.tileX,p.tileY,tile.elevation);this.#objectStroke=tile;}return true;}
     if (this.#pan !== null) {
       this.#camera = Object.freeze({
@@ -1584,6 +1598,14 @@ export class MapEditorController {
   }
 
   pointerUp(): boolean {
+    if (this.#groupDrag) {
+      const drag = this.#groupDrag;
+      this.#groupDrag = null;
+      if (this.model.document() === drag.document && drag.ids.join('\0') === this.model.selectedObjectIds().join('\0')) {
+        this.model.mutateObjectGroup('move', drag.deltaX, drag.deltaY);
+      }
+      return true;
+    }
     if(this.#objectStroke){this.#objectStroke=null;return true;}
     if (this.#pan !== null) {
       this.#pan = null;
@@ -1684,9 +1706,10 @@ export class MapEditorController {
   pointerCancel(): boolean {
     const objectStrokeActive=this.#objectStroke!==null;
     this.#objectStroke=null;
-    const active = objectStrokeActive || this.#pan !== null || this.#drag !== null || this.#stroke !== null
+    const active = this.#groupDrag !== null || objectStrokeActive || this.#pan !== null || this.#drag !== null || this.#stroke !== null
       || this.#transitionDraft !== null || this.#floodFill !== null;
     this.#pan = null;
+    this.#groupDrag = null;
     this.#drag = null;
     this.#stroke = null;
     this.#transitionDraft = null;
@@ -1771,6 +1794,8 @@ export class MapEditorController {
     if (key === '=') return this.cycleSelectedScale();
     if (shift && key.toLocaleLowerCase() === 'h') return this.toggleSelectedVisibility();
     if (key === 'Escape') {
+      if (this.#groupDrag !== null) { this.pointerCancel(); return true; }
+      this.model.setGroupSelectionMode(false);
       this.#eyedropperActive = false;
       this.#selectedPrefabId = null;
       this.#selectedAnchorKind = null;
@@ -1801,6 +1826,7 @@ export class MapEditorController {
   }
 
   deleteSelected(): boolean {
+    if (this.model.selectedObjectIds().length > 1) return this.model.mutateObjectGroup('delete');
     const anchor = this.selectedAuthoredAnchor();
     if (anchor !== null && this.layerEditableAndVisible('anchors')) {
       this.model.removeAnchor(anchor.id);
@@ -1824,6 +1850,10 @@ export class MapEditorController {
 
   /** Move authored content one tile without ever mutating live/generated rows. */
   nudgeSelected(deltaX: number, deltaY: number): boolean {
+    if (this.model.selectedObjectIds().length > 1) {
+      const delta = this.clampObjectGroup(this.model.selectedObjectIds(), deltaX, deltaY);
+      return this.model.mutateObjectGroup('move', delta.tileX, delta.tileY);
+    }
     const anchor = this.selectedAuthoredAnchor();
     if (anchor !== null && this.layerEditableAndVisible('anchors')) {
       const document = this.model.document();
@@ -1858,6 +1888,7 @@ export class MapEditorController {
   }
 
   toggleSelectedVisibility(): boolean {
+    if (this.model.selectedObjectIds().length > 1) return false;
     const selection = this.selectedAuthoredForMutation();
     if (selection === null) return false;
     if (selection.kind === 'object') this.model.placeObject({ ...selection.value, enabled: !selection.value.enabled });
@@ -1881,6 +1912,7 @@ export class MapEditorController {
   }
 
   cloneSelected(): boolean {
+    if (this.model.selectedObjectIds().length > 1) return this.model.mutateObjectGroup('duplicate', 1, 0);
     const selection = this.selectedAuthoredForMutation();
     if (selection === null) return false;
     const document = this.model.document();
@@ -2110,6 +2142,7 @@ export class MapEditorController {
   private updateSelected(
     update: (value: MapObjectInstance | MapLandmarkInstance) => MapObjectInstance | MapLandmarkInstance,
   ): boolean {
+    if (this.model.selectedObjectIds().length > 1) return false;
     const selection = this.selectedAuthored();
     if (selection === null || !this.layerEditableAndVisible(selection.value.layer)) return false;
     if (selection.kind === 'object') this.model.placeObject(update(selection.value) as MapObjectInstance);
@@ -2124,6 +2157,21 @@ export class MapEditorController {
     return this.model.workspace() !== 'terrain' || this.#terrainTool === 'inspect';
   }
 
+  private clampObjectGroup(ids: readonly string[], deltaX: number, deltaY: number): MapPoint {
+    const document = this.model.document();
+    let minimumX = -Infinity, minimumY = -Infinity, maximumX = Infinity, maximumY = Infinity;
+    const selected = new Set(ids);
+    for (const object of document.objects) if (selected.has(object.id)) {
+      for (const cell of [{ tileX: object.tileX, tileY: object.tileY }, ...mapEditorAuthoredObjectFootprint(document, object)]) {
+        minimumX = Math.max(minimumX, -cell.tileX); minimumY = Math.max(minimumY, -cell.tileY);
+        maximumX = Math.min(maximumX, document.width - 1 - cell.tileX);
+        maximumY = Math.min(maximumY, document.height - 1 - cell.tileY);
+      }
+    }
+    if (!Number.isFinite(minimumX)) return { tileX: 0, tileY: 0 };
+    return { tileX: Math.max(minimumX, Math.min(maximumX, deltaX)), tileY: Math.max(minimumY, Math.min(maximumY, deltaY)) };
+  }
+
   private beginAuthoredDrag(
     selected: MapEditorVisibleEntityPick,
     pointerTileX: number,
@@ -2133,6 +2181,11 @@ export class MapEditorController {
       ||this.liveMarkers().some(marker=>marker.entityKind==='resource'&&marker.id===selected.id&&marker.fixedResourceSite))) return;
     if (selected.kind === 'anchor' && this.selectedAuthoredAnchor() === null) return;
     if (!this.layerEditableAndVisible(selected.layer)) return;
+    if (selected.kind === 'object' && this.model.selectedObjectIds().length > 1) {
+      this.#groupDrag = { document: this.model.document(), ids: [...this.model.selectedObjectIds()],
+        pointerX: pointerTileX, pointerY: pointerTileY, elevation: selected.elevation, deltaX: 0, deltaY: 0 };
+      return;
+    }
     this.#drag = {
       kind: selected.kind==='live'?'resource':selected.kind,
       id: selected.id,
@@ -2149,7 +2202,7 @@ export class MapEditorController {
 
   selectAtPoint(point: UiPoint): boolean {const tile=this.tileAt(point);return tile!==null&&this.selectAt(tile.tileX,tile.tileY)!==null;}
 
-  private selectAt(tileX: number, tileY: number): MapEditorVisibleEntityPick | null {
+  private selectAt(tileX: number, tileY: number, additive = false): MapEditorVisibleEntityPick | null {
     const selected = pickTopmostVisibleMapEntity(
       this.model.document(),
       this.liveMarkers(),
@@ -2158,7 +2211,12 @@ export class MapEditorController {
       tileY,
       this.model.publishedDocument(),
     );
+    if (additive) {
+      if (selected?.kind === 'object' && this.layerEditableAndVisible(selected.layer)) this.model.toggleObjectSelection(selected.id);
+      return selected;
+    }
     if (selected !== null) {
+      const retained = [...this.model.selectedObjectIds()];
       this.model.selectWorkspace('objects');
       this.#activeLayer = selected.layer;
       this.#selectedPrefabId = null;
@@ -2168,7 +2226,9 @@ export class MapEditorController {
         if (selected.entityKind === 'player') this.model.selectPlayer(selected.id, selected.spaceId);
         else this.model.selectEntity(selected.entityKind, selected.id, selected.spaceId);
       } else if (selected.kind === 'anchor') this.model.selectAnchor(selected.id);
-      else this.model.selectObject(selected.id);
+      else if (selected.kind === 'object' && retained.length > 1 && retained.includes(selected.id)) {
+        this.model.selectObjects(retained, selected.id);
+      } else this.model.selectObject(selected.id);
       return selected;
     }
     this.model.selectTile(tileX, tileY);
@@ -2274,6 +2334,7 @@ export class MapEditorController {
 
   private reconcileDocumentBounds(): void {
     this.#pan = null;
+    this.#groupDrag = null;
     this.#drag = null;
     this.#stroke = null;
     this.#transitionDraft = null;

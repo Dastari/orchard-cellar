@@ -2,6 +2,16 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Root 0.85.0 / Studio 0.20.0 / Sim 0.37.1 / Assets 0.26.0 / Tools 0.26.0 — Authoring and native art batch
+
+- Select, move, duplicate and delete authored prop groups as one undoable operation. Preserve relative transforms, complete-footprint bounds, locked/hidden safety, joined-fence geometry and guarded publication.
+- **BUG-081:** compact Items library header controls so the complete publication footer stays reachable at 720×540 with the workspace toolbar.
+- **BUG-083:** retain the same author's staged Items draft, selection and note across verified heads and reconnects; preserve conflict/rebase/acknowledgement checks and publish through the current authorized adapter.
+- **BUG-082:** mark item `onUse` optional only in the authoring field graph so valid omitted arrays can be edited; preserve runtime parser defaults and reject malformed present values.
+- Register native volcanic banks/scenery, complete shrub and column crops, foam, and exact lavafall emission masks. Add editable island design exports, actual engine captures and a lighting proof; visual drafts do not replace the published world or implement playable slopes.
+- Add reproducible natural-cliff/slope movement and native-rendering investigation fixtures. Preserve existing golden recorder digests, terrain rules, live map/content and database schema.
+- Integrate owner-reviewed PRs #318, #319, #320, #321, #322 and #324 with original branch ancestry; reconcile package/lock metadata and retain the reviewed Studio UI-kit build guard.
+
 ## Root 0.84.1 / Studio 0.19.1 — Readable startup status
 
 - **BUG-085:** put connection, sign-in and failure text on the reviewed neutral UI-kit frame, wrap status messages within a responsive card and retain keyboard-operable retry. Connected sessions keep the workspace open while the map displays its own verified-loading status; other authoring tools remain reachable.

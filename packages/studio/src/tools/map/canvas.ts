@@ -1869,7 +1869,20 @@ function appendRightDrawer(state: MapCanvasState, context: StudioCanvasToolConte
   // Scrolling now belongs to the retained drawer, not the map's wheel router.
   state.selectionBounds = {x:0,y:0,width:0,height:0}; state.layerBounds = {x:0,y:0,width:0,height:0};
   state.selectionRowCount = 0;
-  if (inspection) {
+  children.push(kit.checkbox({ id: 'map-group-selection-mode', label: 'Group selection', value: state.model.groupSelectionMode(),
+    onChange: value => { state.model.setGroupSelectionMode(value === true); context.invalidate(); } }));
+  const groupCount = state.model.selectedObjectIds().length;
+  if (groupCount > 1) {
+    children.push(kit.text(`${groupCount} authored props selected`, { id: 'map-group-count' }));
+    children.push(kit.text('Shift-click to toggle props. Turn Group selection off to drag. Arrow keys move; Ctrl/Cmd+D duplicates one tile right.', { maxLines: 4 }));
+    for (const [id, label, x, y] of [['left', 'Move left', -1, 0], ['right', 'Move right', 1, 0], ['up', 'Move up', 0, -1], ['down', 'Move down', 0, 1]] as const) {
+      action(`group-${id}`, label, () => { state.interaction.nudgeSelected(x, y); context.invalidate(); }, { disabled: state.model.publishing() });
+    }
+    action('group-duplicate', 'Duplicate group', () => { state.interaction.cloneSelected(); context.invalidate(); }, { disabled: state.model.publishing() });
+    action('group-delete', 'Delete group', () => { state.interaction.deleteSelected(); context.invalidate(); }, { tone: 'danger', disabled: state.model.publishing() });
+    action('group-clear', 'Clear selection', () => { state.model.clearSelection(); context.invalidate(); });
+  }
+  if (inspection && groupCount <= 1) {
     const selected=state.model.document().objects.find(value=>value.id===inspection.entity?.id);
     const prefab=selected&&state.model.document().prefabs.find(value=>value.id===selected.prefabId);
     const terrainCell=state.model.document().cells[mapCellKey(inspection.tileX,inspection.tileY)];

@@ -10,7 +10,7 @@
 // Frame numbers are indexes into each asset's base frames (the same order as
 // the terrain catalogue's frameIds): fake source rectangles encode the index as
 // x = frame * FRAME_STRIDE, so no reverse atlas lookup is needed.
-import { createEmptyMapDocument, expandStairRun, mapCellKey, rampPlacementFindings, stairRunValid, type MapDocumentV2, type RampPlacementFinding, type StairRun } from '../packages/sim/src/index.js';
+import { createEmptyMapDocument, expandStairRun, mapCellKey, migrateMapDocumentV2, rampPlacementFindings, stairRunValid, type MapBiomeId, type MapDocumentV2, type RampPlacementFinding, type StairRun, type TerrainTransition } from '../packages/sim/src/index.js';
 import type { EmptyMapOptions } from '../packages/sim/src/terrain-lab.js';
 import { terrainArrayForMapDocument } from '../packages/engine/src/editor-terrain.js';
 import { GroundChunkCache } from '../packages/engine/src/ground-cache.js';
@@ -26,7 +26,7 @@ export interface TerrainPlanAtlasAsset {
   animations?: Record<string, FrameSize[]>;
   states?: Record<string, FrameSize | FrameSize[]>;
 }
-export interface TerrainPlanCell { x: number; y: number; cliffFamily?: string; surfaceFamily?: string; surface?: string }
+export interface TerrainPlanCell { x: number; y: number; cliffFamily?: string; surfaceFamily?: string; surface?: string; biome?: MapBiomeId }
 export interface TerrainPlanInput {
   width: number;
   height: number;
@@ -35,9 +35,13 @@ export interface TerrainPlanInput {
   /** Map defaults (cliff family also sets the per-level projection). */
   cliffFamily?: string;
   surfaceFamily?: string;
+  /** Optional semantic biome channel used by current Studio maps. */
+  baseBiome?: MapBiomeId;
   cells?: TerrainPlanCell[];
   /** North/up runs, at least two lanes wide: x, y is the bottom-left lower tile. */
   stairRuns?: StairRun[];
+  /** Explicit authored crossings, including the currently supported slope banks. */
+  transitions?: TerrainTransition[];
   atlas: Record<string, TerrainPlanAtlasAsset>;
 }
 /** One sprite draw in paint order. x, y are the sprite's top-left in map pixels
@@ -149,8 +153,15 @@ export function planTerrain(input: TerrainPlanInput): TerrainPlanDraw[] {
       ...(c.surface ? { surface: c.surface } : {}),
     };
   }
-  const document = { ...empty, cells, stairRuns: input.stairRuns ?? [] } as MapDocumentV2;
-  const terrain = terrainArrayForMapDocument(document, undefined, undefined, { includeTerrainPlaneCollision: false });
+  const document = { ...empty, cells, stairRuns: input.stairRuns ?? [], transitions: input.transitions ?? [] } as MapDocumentV2;
+  const semantic = input.baseBiome !== undefined || input.cells?.some((cell) => cell.biome !== undefined)
+    ? { ...migrateMapDocumentV2(document),
+      ...(input.baseBiome === undefined ? {} : { baseBiome: input.baseBiome }),
+      cells: Object.fromEntries(Object.entries(cells).map(([key, cell]) => [key, { ...cell }])) } : undefined;
+  if (semantic) for (const cell of input.cells ?? []) {
+    if (cell.biome !== undefined) semantic.cells[mapCellKey(cell.x, cell.y)] = { ...semantic.cells[mapCellKey(cell.x, cell.y)], biome: cell.biome };
+  }
+  const terrain = terrainArrayForMapDocument(document, undefined, semantic, { includeTerrainPlaneCollision: false });
   const art = recordingArt(input.atlas) as never;
   const ctx = new RecordingContext();
   const c2d = ctx as unknown as CanvasRenderingContext2D;
