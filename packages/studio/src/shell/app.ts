@@ -6,6 +6,7 @@ import { ui, uiFixed, UiRoot, type UiElement, UiTextBridge, UiLabWorld, CanvasTe
   loadUiKitArt, loadStudioSpatialArt, createUiFrameDesignerModel, studioToolIcon,
   type UiPoint, type UiRect, type UiKitArt, type UiWorkbenchRegion, type StudioSpatialArt } from '@orchard/ui/studio';
 import { StudioShellController } from './controller.js';
+import { studioConnectionStatus } from './connection-status.js';
 import { studioLiveContentSnapshot } from './live-content-readiness.js';
 import { StudioShortcutMap } from './shortcuts.js';
 import { defaultStudioCanvasToolRegistry, type StudioCanvasToolRegistry } from './canvas-tool-registry.js';
@@ -214,12 +215,9 @@ export class StudioShellApp {
       this.#mountedToolLifecycles = reconcileStudioToolLifecycles(this.#mountedToolLifecycles, []);
       this.#surface = null; this.#secondarySurface = null;
       this.#primaryBounds = null; this.#secondaryBounds = null;
-      this.#root.mount(ui.flex({ width:'grow', height:'grow', align:'center', justify:'center', gap:12 }, [
-        ui.text(session.phase === 'error' ? 'Unable to open live Studio' : 'Connecting to live Studio', {role:'header'}),
-        ui.text(session.error ?? (session.phase === 'connected' ? mapReadiness ?? 'Loading live Studio' : 'Sign in to load the live map')),
-        ...(session.phase === 'connecting' ? [] : [ui.button({ id:'studio-retry', label:'Retry sign in',
-          onPress:()=>{void this.controller.connectExplicit().catch(()=>undefined);} })]),
-      ]));
+      this.#root.mount(studioConnectionStatus(session,
+        () => { void this.controller.connectExplicit().catch(() => undefined); },
+        studioLiveMapReadiness(this.controller.liveAdapter()?.view().mapDocument)));
       return;
     }
     const route = this.controller.activeRoute();
