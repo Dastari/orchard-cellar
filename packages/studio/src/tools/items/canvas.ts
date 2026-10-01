@@ -12,6 +12,7 @@ import {
   type StudioLifecycleSourceBundle,
 } from '../../lifecycle/model.js';
 import type { StudioCanvasToolContext, StudioCanvasToolSurface } from '../../shell/canvas-tool.js';
+import { studioModeAccess, studioScopedToolAccess } from '../../shell/access.js';
 import { studioLiveContentSnapshot, studioLiveContentStatusSurface } from '../../shell/live-content-readiness.js';
 import {
   itemsAccessForConnection,
@@ -22,7 +23,7 @@ import {
 import { ITEMS_TOOL_CONTENT_KINDS, type ItemsToolContentKind } from './contracts.js';
 import { requestStudioFileDownload } from '../../shell/file-download.js';
 import { ItemsLifecycleDraft } from './lifecycle.js';
-import { createItemsTool, type ItemsToolModel } from './model.js';
+import { createItemsTool, ITEMS_TOOL_ENGINE_VERSION, type ItemsToolModel } from './model.js';
 
 interface ItemsCanvasState {
   readonly model: ItemsToolModel;
@@ -36,6 +37,7 @@ interface ItemsCanvasState {
   kind: ItemsToolContentKind;
   selectedId: string | null;
   syncedId: string | null;
+  syncedDefinition: string;
   browserTable?: UiTableState;
   tab: string;
   mutationSequence: number;
@@ -75,6 +77,8 @@ function createState(context: StudioCanvasToolContext): ItemsCanvasState {
   const live = context.controller.liveAdapter();
   const view = live?.view();
   const access = itemsAccessForConnection(context.route.access, live);
+  const environment = context.controller.session.snapshot().environment;
+  const identity = view?.identity;
   const head = view === undefined ? null : itemsHeadFromConnection(view);
   const history = view === undefined ? [] : itemsHistoryFromConnection(view);
   const model = createItemsTool({
@@ -83,9 +87,26 @@ function createState(context: StudioCanvasToolContext): ItemsCanvasState {
     history,
     ...(access === 'write' && live !== null ? {
       createPublishAdapter: () => {
-        const adapter = itemsPublishAdapterFromConnection(live);
-        if (adapter === null) throw new Error('items_publish_unavailable');
-        return adapter;
+        if (itemsPublishAdapterFromConnection(live) === null) throw new Error('items_publish_unavailable');
+        const currentPublishAdapter = (expectedRevision: bigint) => {
+          const connection = context.controller.liveAdapter();
+          const current = connection?.view();
+          const currentAccess = current?.scopes === undefined
+            ? studioModeAccess(current?.role ?? null, 'author') : studioScopedToolAccess(current.scopes, 'items');
+          if (current === undefined || identity === null || identity === undefined
+            || context.controller.session.snapshot().environment !== environment || current.identity !== identity
+            || current.role === null || itemsAccessForConnection(currentAccess, connection) !== 'write'
+            || studioLiveContentSnapshot(connection).mode !== 'ready') throw new Error('items_publish_unavailable');
+          if (current.contentHead?.engineVersion !== ITEMS_TOOL_ENGINE_VERSION) throw new Error('content_engine_update_required');
+          if (current.contentHead?.revision !== expectedRevision) throw new Error('content_revision_conflict');
+          const adapter = connection === null ? null : itemsPublishAdapterFromConnection(connection);
+          if (adapter === null) throw new Error('items_publish_unavailable');
+          return adapter;
+        };
+        return {
+          publishContentChangeSet: request => currentPublishAdapter(request.expectedRevision).publishContentChangeSet(request),
+          restoreContentRevision: request => currentPublishAdapter(request.expectedRevision).restoreContentRevision(request),
+        };
       },
     } : {}),
   });
@@ -114,6 +135,7 @@ function createState(context: StudioCanvasToolContext): ItemsCanvasState {
     kind: 'item',
     selectedId: model.definitions('item')[0]?.id ?? null,
     syncedId: null,
+    syncedDefinition: '',
     tab: 'fields',
     mutationSequence: 0,
     lifecycleItemId: null,
@@ -153,8 +175,11 @@ export function buildItemsCanvasTool(context: StudioCanvasToolContext): StudioCa
   const view = live?.view();
   const access = itemsAccessForConnection(context.route.access, live);
   const identity = view?.identity ?? 'anonymous';
+  // Head changes belong to receiveHead's conflict/acknowledgement workflow;
+  // replacing the canvas model here would strand its draft and pending editors.
+  const stateKey = `items-canvas:${context.controller.session.snapshot().environment}:${identity}:${access}:${content.mode}`;
   const state = context.controller.toolState(
-    `items-canvas:${identity}:${access}:${content.contentKey}`,
+    stateKey,
     () => createState(context),
   );
   const head = view === undefined ? null : itemsHeadFromConnection(view);
@@ -176,10 +201,14 @@ export function buildItemsCanvasTool(context: StudioCanvasToolContext): StudioCa
     state.selectedId = definitions[0]?.id ?? null;
   }
   const selected = snapshot.definitions.find(({ id }) => id === state.selectedId) ?? null;
-  if (state.syncedId !== selected?.id) {
-    state.definition.setValue(selected === null ? '' : JSON.stringify(selected, null, 2));
+  const selectedJson = selected === null ? '' : JSON.stringify(selected, null, 2);
+  if (state.syncedId !== selected?.id
+    || (state.syncedDefinition !== selectedJson && state.definition.snapshot().value === state.syncedDefinition)) {
+    state.definition.setValue(selectedJson);
     state.syncedId = selected?.id ?? null;
+    state.syncedDefinition = selectedJson;
   }
+  if (state.definition.snapshot().value === selectedJson) state.syncedDefinition = selectedJson;
   syncLifecycleSelection(state, selected);
 
   const id=(name:string)=>`${context.route.tool.id}-items:${name}`;
