@@ -6,6 +6,7 @@ import { buildItemsCanvasTool } from './canvas.js';
 import { buildWorldAuthoringCanvasTool } from '../world-tables/canvas.js';
 import { openStudioDefinition } from '../../shell/content-navigation.js';
 import { kitElements, pressKit } from '../kit-test-driver.js';
+import { UiRoot, type CanvasTextEditor } from '@orchard/ui/studio';
 import type { StudioCanvasToolContext } from '../../shell/canvas-tool.js';
 function context() {
   const controller = new StudioShellController(async () => { throw new Error('offline'); }); controller.navigate('/author/items');
@@ -39,5 +40,28 @@ describe('content form integration', () => {
     const surface = buildWorldAuthoringCanvasTool(make()); expect(controller.activeRoute().path).toBe('/author/world-tables');
     expect(kitElements(surface).some(node => node.id.includes('field:components'))).toBe(true);
     expect(controller.selection.current()).toMatchObject({id:'object:anvil'});
+  });
+  it.each(['item:apple_seed', 'item:apple'])('stages a name-only Details edit for %s through the rendered form (BUG-082)', id => {
+    const { controller, make } = context();
+    expect(openStudioDefinition(controller, id)).toBe(true);
+    let surface = buildItemsCanvasTool(make());
+    const form = surface.kit!.inspector!;
+    const root = new UiRoot({ scale: 1 }); root.resize(600, 1400); root.mount(form); root.arrange();
+    try {
+      const find = (suffix: string) => kitElements(surface).find(node => node.id === `items-items:field:${suffix}`)!;
+      root.focus.set(find('displayName'));
+      root.key({ key: 'a', ctrlKey: true }); root.text('Name-only local edit');
+      root.focus.set(find('apply')); expect(root.key({ key: 'Enter' })).toBe(true);
+      expect(find('error').props['text']).toBe('');
+    } finally { root.unmount(form); root.dispose(); }
+    surface = buildItemsCanvasTool(make());
+    expect(kitElements(surface).find(node => node.id === 'items-items:status')!.props['text']).toContain('1 CHANGES');
+    const name = kitElements(surface).find(node => node.id === 'items-items:field:displayName')!.props['editor'] as CanvasTextEditor;
+    expect(name.snapshot().value).toBe('Name-only local edit');
+    // Omitted onUse stays omitted in the form; it is never silently added to permit Apply.
+    if (id === 'item:apple_seed') expect(kitElements(surface).some(node => node.id === 'items-items:field:onUse:add')).toBe(true);
+    pressKit(surface, 'items-items:clear');
+    surface = buildItemsCanvasTool(make());
+    expect(kitElements(surface).find(node => node.id === 'items-items:status')!.props['text']).toContain('0 CHANGES');
   });
 });
