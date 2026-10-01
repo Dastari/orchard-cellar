@@ -29,7 +29,7 @@ import {
 } from './studio-connection-refresh.js';
 import { publishLiveMapWithChunks, type LiveMapPublicationProgress } from '../world-chunks/publication.js';
 import { studioChunkBlobReader, studioChunkPublicationPort } from '../world-chunks/studio-port.js';
-import { chunkPublicationCarriesMap, loadChunkMapHead, type ChunkMapHead } from '../world-chunks/map-head.js';
+import { chunkPublicationCarriesMap, loadChunkMapHead, type ChunkMapHead, type ChunkMapLoadProgress } from '../world-chunks/map-head.js';
 import {
   StudioMapRegionHandover,
   type StudioMapChunkBounds,
@@ -126,6 +126,9 @@ export interface StudioConnectionView {
   readonly contentEditorGrant?: ContentEditorGrant | null;
   readonly supportGrant?: SupportGrant | null;
   readonly mapRevision: number | null;
+  /** Map delivery failures are independent of verified content and connection failures. */
+  readonly mapError?: string | null;
+  readonly mapLoadProgress?: (ChunkMapLoadProgress & { readonly attempt: number }) | null;
   readonly mapDocument: StudioMapHead | null;
   /** S7c: the editable head comes only from the verified chunk publication. */
   readonly mapHeadSource?: 'chunks' | null;
@@ -568,6 +571,10 @@ export class StudioConnection implements StudioLiveAdapter {
   #supportGrant: SupportGrant | null = null;
   #publishingMap = false;
   #chunkMapHead: ChunkMapHead | null = null;
+  #verifiedChunkBlobs = new Map<string, Uint8Array>();
+  #mapHeadError: string | null = null;
+  #mapRegionError: string | null = null;
+  #mapLoadProgress: StudioConnectionView['mapLoadProgress'] = null;
   #chunkMapHeadKey: string | null = null;
   #chunkMapHeadRetry: ReturnType<typeof setTimeout> | null = null;
   #chunkMapHeadAttempt = 0;
@@ -617,6 +624,8 @@ export class StudioConnection implements StudioLiveAdapter {
       contentEditorGrant: this.#contentEditorGrant,
       supportGrant: this.#supportGrant,
       mapRevision: this.#mapRevision,
+      mapError: this.#mapHeadError ?? this.#mapRegionError,
+      mapLoadProgress: this.#mapLoadProgress,
       mapDocument: this.#mapDocument,
       mapHeadSource: this.#mapHeadSource,
       publishingMap: this.#publishingMap,
@@ -678,13 +687,13 @@ export class StudioConnection implements StudioLiveAdapter {
             this.#rowsProjection.markAll();
             const changed = this.refreshRows(connection);
             this.#refreshScheduler.noteRowsRefresh();
-            const recovered = this.#error === 'studio_region_subscription_failed';
-            if (recovered) this.#error = null;
+            const recovered = this.#mapRegionError !== null;
+            this.#mapRegionError = null;
             if (changed || recovered) this.onChanged();
           },
           () => {
             if (generation !== this.#connectionGeneration || connection !== this.#connection) return;
-            this.#error = 'studio_region_subscription_failed';
+            this.#mapRegionError = 'The map region could not load. Try moving to another region.';
             this.onChanged();
           },
         );
@@ -897,17 +906,23 @@ export class StudioConnection implements StudioLiveAdapter {
     const shadow = connection.db.worldChunkShadow.spaceId.find(BigInt(STUDIO_LIVE_ISLAND_SPACE_ID));
     const key = shadow === null || shadow === undefined || !chunkPublicationCarriesMap(shadow.manifestJson)
       ? null : `${shadow.revision}:${shadow.contentHash}`;
-    if (key === this.#chunkMapHeadKey) return;
+    if (key === this.#chunkMapHeadKey) {
+      if (key === null) this.#mapHeadError = 'The published map is unavailable.';
+      return;
+    }
     if (this.#chunkMapHeadRetry !== null) clearTimeout(this.#chunkMapHeadRetry);
     this.#chunkMapHeadRetry = null;
     this.#chunkMapHeadLoadAbort?.abort();
     this.#chunkMapHeadLoadAbort = null;
     this.#chunkMapHeadAttempt = 0;
+    this.#verifiedChunkBlobs = new Map();
+    this.#mapHeadError = null;
+    this.#mapLoadProgress = null;
     this.#chunkMapHeadKey = key;
     this.#chunkMapHead = null;
     this.selectMapHead();
     if (key === null || shadow === null || shadow === undefined) {
-      this.#error = 'The published map is unavailable. Try reconnecting.';
+      this.#mapHeadError = 'The published map is unavailable.';
       return;
     }
     this.loadChunkMapHead(connection, key, shadow.manifestJson);
@@ -916,15 +931,26 @@ export class StudioConnection implements StudioLiveAdapter {
   private loadChunkMapHead(connection: DbConnection, key: string, manifestJson: string): void {
     this.#chunkMapHeadAttempt += 1;
     this.#chunkMapHeadLoadAbort = new AbortController();
-    loadChunkMapHead(LIVE_MAP_ID, manifestJson, studioChunkBlobReader(connection), 8, this.#chunkMapHeadLoadAbort.signal).then((head) => {
+    const attempt = this.#chunkMapHeadAttempt;
+    loadChunkMapHead(LIVE_MAP_ID, manifestJson, studioChunkBlobReader(connection), 8, this.#chunkMapHeadLoadAbort.signal, {
+      verifiedBlobs: this.#verifiedChunkBlobs,
+      onProgress: (progress) => {
+        if (connection !== this.#connection || this.#chunkMapHeadKey !== key) return;
+        this.#mapLoadProgress = Object.freeze({ ...progress, attempt });
+        this.onChanged();
+      },
+    }).then((head) => {
       if (connection !== this.#connection || this.#chunkMapHeadKey !== key) return;
       this.#chunkMapHead = Object.freeze(head);
-      this.#error = null;
+      // The verified editable document now owns the head; retry buffers are no longer needed.
+      this.#verifiedChunkBlobs = new Map();
+      this.#mapHeadError = null;
+      this.#mapLoadProgress = null;
       this.selectMapHead();
       this.onChanged();
     }, () => {
       if (connection !== this.#connection || this.#chunkMapHeadKey !== key) return;
-      this.#error = 'The published map could not load. Retrying…';
+      this.#mapHeadError = 'The published map could not load. Retrying…';
       this.onChanged();
       // Bounded exponential delay, one retry in flight. Keep retrying the same head after transient failures.
       const delay = Math.min(30_000, 1_000 * 2 ** Math.min(this.#chunkMapHeadAttempt - 1, 5));
@@ -975,6 +1001,10 @@ export class StudioConnection implements StudioLiveAdapter {
     this.#mapDocument = null;
     this.#chunkMapHead = null;
     this.#chunkMapHeadKey = null;
+    this.#verifiedChunkBlobs = new Map();
+    this.#mapHeadError = null;
+    this.#mapRegionError = null;
+    this.#mapLoadProgress = null;
     if (this.#chunkMapHeadRetry !== null) clearTimeout(this.#chunkMapHeadRetry);
     this.#chunkMapHeadRetry = null;
     this.#chunkMapHeadLoadAbort?.abort();
