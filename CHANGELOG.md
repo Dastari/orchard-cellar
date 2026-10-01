@@ -2,6 +2,10 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Root 0.85.1 / Engine 0.30.2 — Native ground emission
+
+- **BUG-086:** preserve native emissive spans before item alpha and cutaways in Canvas ground lighting and WebGL ground-field partitions. Keep cooled pixels lit, partial alpha intact and rotated/reflected ground light coordinates correct.
+
 ## Root 0.85.0 / Studio 0.20.0 / Sim 0.37.1 / Assets 0.26.0 / Tools 0.26.0 — Authoring and native art batch
 
 - Select, move, duplicate and delete authored prop groups as one undoable operation. Preserve relative transforms, complete-footprint bounds, locked/hidden safety, joined-fence geometry and guarded publication.

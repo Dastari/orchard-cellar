@@ -252,6 +252,14 @@ export class WorldLightingRenderer {
     context.globalCompositeOperation = 'destination-in'; context.imageSmoothingEnabled = false;
     context.drawImage(source.image, source.x, source.y, source.width, source.height, 0, 0, source.width, source.height);
     context.globalCompositeOperation = 'source-over';
+    // Restore native emission inside the source surface before the painter
+    // applies item alpha, cutaways or depth coverage to the finished sprite.
+    const emission = source.emissiveSpans;
+    for (let i = 0; i < (emission?.length ?? 0); i += 3) {
+      const row = emission![i]!, left = emission![i + 1]!, width = emission![i + 2]!;
+      context.clearRect(left, row, width, 1);
+      context.drawImage(source.image, source.x + left, source.y + row, width, 1, left, row, width, 1);
+    }
     renderOperationCounters.groundSourceOperations += 3;
     return { image: canvas, x: 0, y: 0, width: source.width, height: source.height };
   }
