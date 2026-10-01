@@ -26,4 +26,28 @@ describe('type-derived content field schemas', () => {
     expect(index.get(item.id)?.filter(use => use.sourceId === recipe.id).map(use => use.path)).toEqual(['inputs[0].item', 'output.item']);
     expect(index.get(item.id)?.some(use => use.path === 'id')).toBe(false);
   });
+  it('accepts serialized Apple Seed without materializing its omitted onUse array (BUG-082)', () => {
+    const seed = bootstrapContentDefinitions().find(definition => definition.id === 'item:apple_seed')!;
+    const draft = JSON.parse(JSON.stringify(seed));
+    expect(Object.hasOwn(draft, 'onUse')).toBe(false);
+    expect(() => parseContentDefinition('item', draft)).not.toThrow();
+    expect(contentFieldErrors(CONTENT_FIELD_SCHEMAS, CONTENT_FIELD_SCHEMAS.roots.item!, draft)).toEqual([]);
+    expect(Object.hasOwn(draft, 'onUse')).toBe(false);
+  });
+  it.each([null, {}, 'invalid'])('rejects malformed present optional arrays: %j', onUse => {
+    const seed = bootstrapContentDefinitions().find(definition => definition.id === 'item:apple_seed')!;
+    const draft = { ...JSON.parse(JSON.stringify(seed)), onUse };
+    expect(contentFieldErrors(CONTENT_FIELD_SCHEMAS, CONTENT_FIELD_SCHEMAS.roots.item!, draft))
+      .toContain('$.onUse: expected array');
+    expect(() => parseContentDefinition('item', draft)).toThrow();
+  });
+  it('still requires authored tags and preserves explicitly supplied empty onUse arrays', () => {
+    const seed = bootstrapContentDefinitions().find(definition => definition.id === 'item:apple_seed')!;
+    const draft = { ...JSON.parse(JSON.stringify(seed)), onUse: [] };
+    expect(contentFieldErrors(CONTENT_FIELD_SCHEMAS, CONTENT_FIELD_SCHEMAS.roots.item!, draft)).toEqual([]);
+    expect(Object.hasOwn(draft, 'onUse')).toBe(true);
+    delete draft.tags;
+    expect(contentFieldErrors(CONTENT_FIELD_SCHEMAS, CONTENT_FIELD_SCHEMAS.roots.item!, draft))
+      .toContain('$.tags: expected array');
+  });
 });

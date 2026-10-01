@@ -52,8 +52,12 @@ function schema(type: ts.Type): string {
       // TypeScript exposes it as undefined; it has no JSON field to edit.
       if ((field.flags & ts.SymbolFlags.Optional) && (fieldType.flags & (ts.TypeFlags.Undefined | ts.TypeFlags.Never))) continue;
       const help = ts.displayPartsToString(field.getDocumentationComment(checker));
+      // Some parser-normalized runtime fields are intentionally absent in authored JSON.
+      // Preserve their required runtime type while allowing omission in the authoring form.
+      const optional = (field.flags & ts.SymbolFlags.Optional) !== 0
+        || field.getJsDocTags(checker).some(tag => tag.name === 'authoringOptional');
       const unit = /Ticks$/u.test(field.name) || field.name === 'ticksPerUnit' ? 'ticks' : /Centi$/u.test(field.name) ? 'hundredths' : /Tiles$/u.test(field.name) ? 'tiles' : /Degrees$/u.test(field.name) ? 'degrees' : /BasisPoints$/u.test(field.name) ? 'basis points' : undefined;
-      fields[field.name] = { schema: schema(fieldType), ...(field.flags & ts.SymbolFlags.Optional ? { optional: true } : {}), ...(help ? { help } : {}), ...(unit ? { unit } : {}) };
+      fields[field.name] = { schema: schema(fieldType), ...(optional ? { optional: true } : {}), ...(help ? { help } : {}), ...(unit ? { unit } : {}) };
     }
     const index = checker.getIndexTypeOfType(type, ts.IndexKind.String);
     node = { type: 'object', fields, ...(index ? { additional: schema(index) } : {}) };

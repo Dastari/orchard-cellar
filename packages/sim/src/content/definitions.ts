@@ -236,7 +236,9 @@ export interface ItemContentDefinition extends DefinitionBase<'item', ItemDefini
   };
   /** Universal selected-item lifecycle surface. An empty list means the item
    * has no direct use action; non-empty actions are compiled into the same
-   * handler ABI as object interactions. */
+   * handler ABI as object interactions.
+   * @authoringOptional The parser supplies a non-enumerable empty array when omitted from authored JSON.
+   */
   readonly onUse: readonly InteractionDefinition[];
 }
 

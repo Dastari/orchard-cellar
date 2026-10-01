@@ -2,6 +2,10 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Root 0.83.2 / Studio 0.18.3 / Sim 0.37.1 — Optional item authoring fields
+
+- **BUG-082:** item Details edits accept omitted `onUse` arrays, matching the domain parser without inserting an empty authoring value. Generated field schemas honor explicit authoring-optional metadata while keeping runtime types and malformed/required-array validation intact. Actual Apple Seed and Apple form regressions cover Apply and Clear draft.
+
 ## Root 0.83.0 / Client 0.57.0 / UI 0.55.0 — Illustrated player guide
 
 - Refresh the help book into 27 player-facing topics across Basics, Crafting, World and Adventures. Explain current activities, storage, equipment, gathering, food, weather, travel, trade, progression and expeditions; remove administrative commands and server/debug details.

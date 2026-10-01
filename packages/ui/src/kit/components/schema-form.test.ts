@@ -7,7 +7,7 @@ import { uiSchemaForm, UiSchemaFormState } from './schema-form.js';
 import { uiText } from './text.js';
 import { uiReferencePicker, uiUsedBy } from './reference-picker.js';
 const graph: ContentFieldSchemaGraph = { roots: {}, nodes: {
-  root: { type: 'object', fields: { amounts: { schema: 'array' }, tuple: { schema: 'tuple' }, optional: { schema: 'string', optional: true }, variant: { schema: 'union' } } },
+  root: { type: 'object', fields: { amounts: { schema: 'array' }, tuple: { schema: 'tuple' }, optional: { schema: 'string', optional: true }, optionalArray: { schema: 'array', optional: true }, variant: { schema: 'union' } } },
   array: { type: 'array', items: 'number' }, number: { type: 'number' }, string: { type: 'string' },
   tuple: { type: 'tuple', items: ['number','number'], minItems: 1, rest: 'string' },
   union: { type: 'union', options: ['left','right'] },
@@ -56,6 +56,26 @@ describe('schema form editing', () => {
     press(node, 'form:amounts:add'); press(node, 'form:apply');
     expect(state.get(['amounts'])).toEqual([1,2]); expect(onApply).not.toHaveBeenCalled(); expect(state.error).toContain('finite number');
   });
+  it('preserves omitted optional arrays until explicitly added and removes them without defaults', () => {
+    const { state, node, onApply } = setup();
+    press(node, 'form:apply');
+    expect(onApply.mock.calls.at(-1)![0]).not.toHaveProperty('optionalArray');
+    expect(state.value).not.toHaveProperty('optionalArray');
+    press(node, 'form:optionalArray:add'); press(node, 'form:apply');
+    expect(onApply.mock.calls.at(-1)![0].optionalArray).toEqual([]);
+    press(node, 'form:optionalArray:remove'); press(node, 'form:apply');
+    expect(onApply.mock.calls.at(-1)![0]).not.toHaveProperty('optionalArray');
+  });
+  it.each([{ optionalArray: 'invalid' }, { amounts: undefined }, { amounts: 'invalid' }])(
+    'rejects invalid present optional and missing/malformed required arrays: %j', invalid => {
+      const state = new UiSchemaFormState({ amounts: [1,2], tuple: [8], variant: { type: 'left', name: 'Keep me' }, ...invalid });
+      const onApply = vi.fn();
+      const node = uiSchemaForm({ id: 'form', graph, schema: 'root', state, onApply });
+      press(node, 'form:apply');
+      expect(onApply).not.toHaveBeenCalled();
+      expect(state.error).toContain('expected array');
+    },
+  );
 });
 describe('typed references', () => {
   it('filters choices by kind, searches by name and opens the selected target with preview', async () => {
