@@ -1,0 +1,75 @@
+{
+  "name": "prop_cf_cinder_detail_blue_crystal_1",
+  "category": "props",
+  "size": [
+    16,
+    16
+  ],
+  "anchor": [
+    8,
+    15
+  ],
+  "frames": {
+    "base": [
+      [
+        "................",
+        "................",
+        "..........00....",
+        ".........0110...",
+        "....00...0120...",
+        "...0110.0300....",
+        "...0120.040.....",
+        "....040.040.00..",
+        "..00.0304500110.",
+        ".01100405500120.",
+        ".01200530503006.",
+        ".600340400406666",
+        ".666050500506666",
+        "..6666050666666.",
+        "....666666666...",
+        "......6666......"
+      ]
+    ]
+  },
+  "sourcePalette": {
+    "0": "#1a131bff",
+    "1": "#8fd3ffff",
+    "2": "#4d9be6ff",
+    "3": "#0098dcff",
+    "4": "#4d65b4ff",
+    "5": "#484a77ff",
+    "6": "#00000064"
+  },
+  "sourcePath": "references/art/kenmi/cute-fantasy/volcano/Volcano_Props/Volcano_Plants.png",
+  "importedFrom": "Volcano_Plants.png",
+  "sourceRegions": {
+    "base": [
+      [
+        0,
+        64,
+        16,
+        16
+      ]
+    ]
+  },
+  "frameKinds": {
+    "base": "variant"
+  },
+  "sourcePaletteMode": "exact",
+  "tags": [
+    "source.cute_fantasy",
+    "scenery.cinderwake",
+    "native.manual-placement"
+  ],
+  "bakedShadowColor": "#00000064",
+  "placement": {
+    "layer": "object",
+    "footprint": [
+      1,
+      1
+    ],
+    "blocksMovement": false,
+    "builderAvailable": false
+  },
+  "approved": true
+}
