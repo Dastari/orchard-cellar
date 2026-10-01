@@ -1,3 +1,4 @@
+import { mapEditorAuthoredObjectFootprint } from './selection-footprint.js';
 import { parseVerifiedStudioMapHead } from './verified-live-map.js';
 import { mapEditorJoinedPrefabForEdit, mapEditorObjectPlacementConflict } from './connected-object-footprint.js';
 import {
@@ -140,6 +141,9 @@ export class MapEditorModel {
   #publishedDocument: MapDocumentV3 | null = null;
   #publishedEntityStates: readonly MapEntityStateEdit[] = [];
   #past: MapDocumentV3[] = [];
+  #objectSelectionIds: string[] = [];
+  #settingObjectSelection = false;
+  #groupSelectionMode = false;
   #future: MapDocumentV3[] = [];
   #workspace: MapEditorWorkspace = 'terrain';
   #hiddenLayers = new Set<MapContentLayerId>();
@@ -182,7 +186,16 @@ export class MapEditorModel {
     if (typeof window !== 'undefined') window.addEventListener('pagehide', this.#flushPendingDraft);
     this.#terrainIdentities.set(this.#document, this.#terrainIdentity);
     this.#terrainValidationIdentities.set(this.#document, this.#terrainValidationIdentity);
-    this.#unsubscribeSelection = this.services.selection.subscribe((selection) => this.inspect(selection));
+    this.#unsubscribeSelection = this.services.selection.subscribe((selection) => {
+      if (!this.#settingObjectSelection) {
+        const object = selection.kind === 'entity' && selection.entityKind === 'map-object' && selection.spaceId === 0
+          ? this.#document.objects.find(({ id }) => id === selection.id) : undefined;
+        if (object && this.#groupSelectionMode && this.isLayerInteractionEnabled(object.layer)) {
+          this.#objectSelectionIds = [...new Set([...this.selectedObjectIds(), object.id])];
+        } else this.#objectSelectionIds = object ? [object.id] : [];
+      }
+      this.inspect(selection);
+    });
     this.reconcileKernels();
   }
 
@@ -500,8 +513,90 @@ export class MapEditorModel {
   selectTile(tileX: number, tileY: number): void {
     this.services.selection.select({ kind: 'tile', spaceId: 0, tileX, tileY });
   }
+  selectedObjectIds(): readonly string[] {
+    const ids = new Set(this.#document.objects.map(({ id }) => id));
+    if (this.#objectSelectionIds.some(id => !ids.has(id))) {
+      this.#objectSelectionIds = [];
+      this.#groupSelectionMode = false;
+      this.services.selection.select({ kind: 'none' });
+    }
+    return this.#objectSelectionIds;
+  }
+  groupSelectionMode(): boolean { return this.#groupSelectionMode; }
+  setGroupSelectionMode(enabled: boolean): void { this.#groupSelectionMode = enabled; }
+  selectObjects(ids: readonly string[], activeId = ids.at(-1)): void {
+    const objects = new Set(this.#document.objects.map(({ id }) => id));
+    this.#objectSelectionIds = [...new Set(ids)].filter(id => objects.has(id));
+    this.#settingObjectSelection = true;
+    try {
+      const id = activeId && this.#objectSelectionIds.includes(activeId) ? activeId : this.#objectSelectionIds.at(-1);
+      this.services.selection.select(id ? { kind: 'entity', entityKind: 'map-object', id, spaceId: 0 } : { kind: 'none' });
+    } finally { this.#settingObjectSelection = false; }
+  }
+  toggleObjectSelection(id: string): void {
+    const object = this.#document.objects.find(object => object.id === id);
+    if (!object || !this.isLayerInteractionEnabled(object.layer)) return;
+    const ids = this.selectedObjectIds();
+    this.selectObjects(ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id]);
+  }
   selectObject(id: string): void {
-    this.services.selection.select({ kind: 'entity', entityKind: 'map-object', id, spaceId: 0 });
+    if (this.#groupSelectionMode && this.#document.objects.some(object => object.id === id)) this.toggleObjectSelection(id);
+    else {
+      this.#objectSelectionIds = this.#document.objects.some(object => object.id === id) ? [id] : [];
+      this.services.selection.select({ kind: 'entity', entityKind: 'map-object', id, spaceId: 0 });
+    }
+  }
+
+  /** Stage all group members before validating targets; never expose a partial edit. */
+  mutateObjectGroup(kind: 'move' | 'duplicate' | 'delete', deltaX = 0, deltaY = 0): boolean {
+    if (this.publishing()) return false;
+    const source = this.#document;
+    const ids = this.selectedObjectIds();
+    const objects = ids.map(id => source.objects.find(object => object.id === id)!);
+    const focus = this.selection();
+    const activeIndex = focus.kind === 'entity' ? ids.indexOf(focus.id) : -1;
+    if (!objects.length || objects.some(object => !this.isLayerInteractionEnabled(object.layer))) {
+      this.services.notifications.push('warning', 'Group unavailable', 'Every selected prop must be visible and unlocked.');
+      return false;
+    }
+    if (!Number.isSafeInteger(deltaX) || !Number.isSafeInteger(deltaY)) return false;
+    if (kind === 'move' && deltaX === 0 && deltaY === 0) return true;
+    let next = { ...source, objects: kind === 'duplicate' ? [...source.objects] : source.objects.filter(object => !ids.includes(object.id)) };
+    const usedIds = new Set([...source.objects, ...source.landmarks, ...source.anchors].map(({ id }) => id));
+    const replacements: MapObjectInstance[] = [];
+    if (kind !== 'delete') for (const object of objects) {
+      let id = object.id;
+      if (kind === 'duplicate') {
+        const stem = `clone-${id}`.replace(/[^a-z0-9_-]/giu, '-').slice(0, 80);
+        let suffix = source.revision + 1;
+        id = `${stem}-${suffix}`;
+        while (usedIds.has(id)) id = `${stem}-${++suffix}`;
+        usedIds.add(id);
+      }
+      let target: MapObjectInstance = { ...object, id, tileX: object.tileX + deltaX, tileY: object.tileY + deltaY };
+      const prefab = mapEditorJoinedPrefabForEdit(next, target);
+      if (prefab) {
+        next = { ...next, prefabs: [...next.prefabs, prefab] };
+        target = { ...target, prefabId: prefab.id, prefabRevision: prefab.revision };
+      }
+      replacements.push(target);
+    }
+    next = { ...next, objects: [...next.objects, ...replacements] };
+    if (replacements.some(object => object.tileX < 0 || object.tileY < 0 || object.tileX >= source.width || object.tileY >= source.height
+      || mapEditorAuthoredObjectFootprint(next, object).some(cell => cell.tileX < 0 || cell.tileY < 0 || cell.tileX >= source.width || cell.tileY >= source.height)
+      || mapEditorObjectPlacementConflict(next, object) !== null || this.#liveOccupancy(object))) {
+      this.services.notifications.push('warning', 'Group destination unavailable', 'The entire group stays unchanged. Choose empty space inside the map.');
+      return false;
+    }
+    let normalized: MapDocumentV3;
+    try { normalized = normalizeMapDocumentV3({ ...next, revision: source.revision + 1 }); }
+    catch {
+      this.services.notifications.push('warning', 'Group edit refused', 'The entire group stays unchanged. Check the selected prop definitions.');
+      return false;
+    }
+    this.acceptDocument(normalized);
+    this.selectObjects(kind === 'delete' ? [] : replacements.map(({ id }) => id), replacements[activeIndex]?.id);
+    return true;
   }
   selectAnchor(id: string): void {
     this.services.selection.select({ kind: 'entity', entityKind: 'map-anchor', id, spaceId: 0 });
