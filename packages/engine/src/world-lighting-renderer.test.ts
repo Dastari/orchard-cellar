@@ -7,10 +7,38 @@ import { FIXED_UNITS_PER_PIXEL } from '@orchard/sim';
 import { groundSpriteSource } from './ground-light-source.js';
 import { celestialLightingAtCalendar } from './celestial-lighting.js';
 import { TileLightmap } from './lighting.js';
+import { createCanvas } from '@napi-rs/canvas';
 
 const terrain = { width: 20, height: 20, baseDatum: 0 } as TerrainArray;
 afterEach(() => vi.unstubAllGlobals());
 describe('world lighting lifecycle', () => {
+  it('preserves emissive ground pixels before item alpha while lighting cooled pixels and preserving transparency', () => {
+    vi.stubGlobal('document', { createElement: () => createCanvas(1, 1) });
+    const world = new WorldLightingRenderer(terrain);
+    const field = createCanvas(8, 8), fieldContext = field.getContext('2d');
+    fieldContext.fillStyle = '#202020'; fieldContext.fillRect(0, 0, 8, 8);
+    Reflect.set(world, 'plane', () => ({ canvas: field, left: 0, top: 0, step: 1 }));
+    Reflect.set(world, 'actorStamps', () => []);
+    const original = createCanvas(4, 4), originalContext = original.getContext('2d');
+    originalContext.fillStyle = '#888888'; originalContext.fillRect(0, 0, 4, 3);
+    originalContext.fillStyle = '#fb6b1d'; originalContext.fillRect(1, 1, 2, 1);
+    originalContext.clearRect(2, 1, 1, 1);
+    originalContext.fillStyle = '#fb6b1d80'; originalContext.fillRect(2, 1, 1, 1);
+    const source = world.groundSource({ image: original as unknown as CanvasImageSource,
+      x: 0, y: 0, width: 4, height: 4, emissiveSpans: [1, 1, 2] }, 0, 0, 0);
+    const painted = createCanvas(4, 4), context = painted.getContext('2d');
+    context.drawImage(source.image as unknown as typeof original, 0, 0);
+    expect([...context.getImageData(1, 1, 1, 1).data]).toEqual([251, 107, 29, 255]);
+    expect(context.getImageData(0, 0, 1, 1).data[0]).toBeLessThan(40);
+    expect(context.getImageData(0, 3, 1, 1).data[3]).toBe(0);
+    expect(context.getImageData(2, 1, 1, 1).data[3]).toBe(128);
+    context.clearRect(0, 0, 4, 4); context.globalAlpha = .5;
+    context.drawImage(source.image as unknown as typeof original, 0, 0);
+    const faded = context.getImageData(1, 1, 1, 1).data;
+    expect(faded[3]).toBeGreaterThanOrEqual(127); expect(faded[3]).toBeLessThanOrEqual(128);
+    expect(faded[0]).toBeGreaterThan(248);
+    world.reset();
+  });
   it('reuses one warm flame halo and releases it with the lighting renderer', () => {
     const surface = { width: 0, height: 0, getContext: () => ({
       createRadialGradient: () => ({ addColorStop: vi.fn() }), fillRect: vi.fn(),

@@ -174,27 +174,31 @@ export class WebGLWorldPassBackend implements WorldPassBackend {
     const emission=matches ? pending.source.emissiveSpans:undefined;
     const quad=(left:number,top:number,width:number,height:number,operation:number) => {
       const sx=rect[0]!+left,sy=rect[1]!+top;
+      const ground=options.ground,basis=ground?.basis;
+      const partLight=ground ? groundLightTextureCoordinates({...ground,
+        worldX:ground.worldX+left*(basis?.a??1)+top*(basis?.c??0),
+        worldY:ground.worldY+left*(basis?.b??0)+top*(basis?.d??1)},width,height):light;
       this.geometry.quad([rect[4]!+left*rect[6]!/rect[2]!,rect[5]!+top*rect[7]!/rect[3]!,width*rect[6]!/rect[2]!,height*rect[7]!/rect[3]!],
-        [sx/texture.width,sy/texture.height,(sx+width)/texture.width,(sy+height)/texture.height],color,light,operation,state);
+        [sx/texture.width,sy/texture.height,(sx+width)/texture.width,(sy+height)/texture.height],color,partLight,operation,state);
     };
-    if (mode!==1 || !emission?.length) quad(0,0,rect[2]!,rect[3]!,mode);
+    if (mode===0 || !emission?.length) quad(0,0,rect[2]!,rect[3]!,mode);
     else {
       // Partition the source, rather than overlaying emission after globalAlpha:
       // the reference applies item alpha only after its emissive restoration.
       let top=0,index=0;
       while (index<emission.length) {
         const row=emission[index]!;
-        if (row>top) quad(0,top,rect[2]!,row-top,1);
+        if (row>top) quad(0,top,rect[2]!,row-top,mode);
         let left=0;
         while (index<emission.length && emission[index]===row) {
           const start=emission[index+1]!,width=emission[index+2]!;
-          if (start>left) quad(left,row,start-left,1,1);
+          if (start>left) quad(left,row,start-left,1,mode);
           quad(start,row,width,1,4); left=start+width; index+=3;
         }
-        if (left<rect[2]!) quad(left,row,rect[2]!-left,1,1);
+        if (left<rect[2]!) quad(left,row,rect[2]!-left,1,mode);
         top=row+1;
       }
-      if (top<rect[3]!) quad(0,top,rect[2]!,rect[3]!-top,1);
+      if (top<rect[3]!) quad(0,top,rect[2]!,rect[3]!-top,mode);
     }
   }
   private select(image:CanvasImageSource,revision:number,field:WebGLGroundField | undefined,state:CanvasState) {
