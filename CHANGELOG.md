@@ -2,6 +2,14 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Root 0.86.0 / Game 0.58.0 / Studio 0.21.0 / Engine 0.31.0 / World 0.35.0 / Assets 0.27.0 — Native island world designs
+
+- Prepare both reviewed island designs against the live authored map: Willowharbour coves and headlands; Cinderwake's three real cliff shelves, continuous masonry curbs, buried paving patches, lava blends, full native waterfalls, shore foam and fire-tree scenery. Preserve existing buildings, world fixtures and encounter coordinates.
+- Import complete 3/5/7-column licensed lava waterfall poses with native emissive pixels, so elevation projection keeps intake, wall flow and impact together.
+- **BUG-088:** align ground tile stamps with logical cells and their lighting transforms; prevent underlying lava from showing through one-pixel seams without changing cliff depth, cutaway or movement.
+- Bound authored map publication at 16 million characters for native scenery; retain full validation, revision/hash guards and atomic map-plus-chunk publication.
+- Provide deterministic editable candidates, real-engine before/after captures, scoped deltas, full-hitbox access checks including all ten town approaches and Cinder encounters, and offline verified chunk preparation. Live application remains a separate reviewed deployment/publication step.
+
 ## Root 0.85.1 / Engine 0.30.2 — Native ground emission
 
 - **BUG-086:** preserve native emissive spans before item alpha and cutaways in Canvas ground lighting and WebGL ground-field partitions. Keep cooled pixels lit, partial alpha intact and rotated/reflected ground light coordinates correct.

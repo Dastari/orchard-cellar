@@ -61,13 +61,15 @@ vi.mock('@orchard/ui', async (original) => {
     ...await original<typeof import('@orchard/ui')>(),
     loadGeneratedAsset: async (name: string) => ({
       name,
+      emissiveFrames: name==='tile_cf_volcano_design_sheet'?{base:[[],Array.from({length:16},(_,y)=>[y,0,16]).flat()]}:name==='prop_cf_cinder_lavafall_flow'?{base:[[10,20,48,11,20,48,12,20,48]]}:undefined,
       metadata: {
+        variants:name==='tile_cf_volcano_design_sheet'?{base:[frame(0,16),frame(16,16)]}:{},
         image: `${name}.png`,
         animations: { burn: [frame(0), frame(16)], sway: [frame(32), frame(48, 48)] },
         animationMeta: { sway: { fps: 5 } },
-        states: { base: frame(64), on: frame(80, 40) },
+        states: { base: frame(64, name === 'tile_native_ground_fixture' ? 16 : 32), on: frame(80, 40) },
       },
-      anchor: name.length % 2 === 0 ? [8, 31] : [7, 29],
+      anchor: name === 'tile_native_ground_fixture'||name==='tile_cf_volcano_design_sheet' ? [8,15] : name.length % 2 === 0 ? [8, 31] : [7, 29],
     }),
   };
 });
@@ -437,4 +439,32 @@ describe('map object presentation import boundary', () => {
     const through = [...legacyReachThrough(entry).keys()];
     expect(through.filter((specifier) => !preExisting.includes(specifier))).toEqual([]);
   });
+});
+
+
+it('aligns native ground tiles and their emissive source to the logical cell without shifting painter feet', async () => {
+  const tile = prefab('native-ground', {placements:[placement('tile','tile_native_ground_fixture',{kind:'state',name:'base'},{layer:'ground'})]});
+  const map:MapObjectRecords={id:'native-ground-test',layers:[{id:'ground',order:0}],prefabs:[tile],objects:[{id:'tile',prefabId:tile.id,prefabRevision:tile.revision,tileX:10,tileY:10,elevation:0,layer:'ground',quarterTurns:0,flipX:false,enabled:true}]};
+  await preloadMapObjectAssets(map);
+  const output=drawSpecs((context,enqueue)=>enqueueMapObjects(map,{context,enqueue,cameraX:0,cameraY:0,scale:1,timeMs:0,visible:()=>true}));
+  expect(output.count).toBe(1);
+  const item=output.items[0]!;
+  expect(item.spec.footY).toBe(176);
+  expect(item.calls.find(c=>Array.isArray(c)&&c[0]==='ground-source')).toEqual(['ground-source',160,160,{a:1,b:0,c:0,d:1}]);
+  expect((item.calls.find(c=>Array.isArray(c)&&c[0]==='drawImage') as unknown[])[7]).toBe(-16);
+});
+
+
+it('emits bounded native lava lights from the selected mask and keeps a fall from blocking its own seed',async()=>{
+ const lava=prefab('lava',{placements:[placement('lava','tile_cf_volcano_design_sheet',{kind:'state',name:'base'},{visual:{kind:'variant',name:'base',frameIndex:1},layer:'ground'})]});
+ const ash=prefab('ash',{placements:[placement('ash','tile_cf_volcano_design_sheet',{kind:'state',name:'base'},{visual:{kind:'variant',name:'base',frameIndex:0},layer:'ground'})]});
+ const fall=prefab('fall',{placements:[placement('flow','prop_cf_cinder_lavafall_flow',{kind:'state',name:'base'})]});
+ const at=(id:string,p:MapPrefabDocumentV2,x:number,layer:'ground'|'objects'):MapObjectInstance=>({id,prefabId:p.id,prefabRevision:p.revision,tileX:x,tileY:8,elevation:0,layer,quarterTurns:0,flipX:false,enabled:true});
+ const records:MapObjectRecords={id:'native-emission',layers:[{id:'ground',order:0},{id:'objects',order:1}],prefabs:[lava,ash,fall],objects:[at('hot',lava,8,'ground'),at('off-grid',lava,9,'ground'),at('cold',ash,12,'ground'),at('fall',fall,16,'objects')]};
+ await preloadMapObjectAssets(records);
+ const lights=mapObjectPointLights(records,registry,0n);
+ expect(lights).toHaveLength(2);
+ expect(lights[0]).toMatchObject({worldX:136,worldY:136,receiverDirectionWorldY:144,terrainContactX:136,color:{r:251,g:107,b:29},radiusTiles:5,intensityPerMille:450});
+ expect(lights[1]).toMatchObject({terrainContactX:264,radiusTiles:4,intensityPerMille:700});
+ expect(mapObjectLightOccluders(records,{version:1} as TerrainArray,directSampler,registry,0)).toEqual([]);
 });

@@ -1,5 +1,5 @@
 import {
-  createEmptyMapDocument,
+  createEmptyMapDocument, createMapPrefabDocument,
   migrateMapDocumentV2,
   parseMapDocumentV3,
   serializeMapDocumentV3,
@@ -117,4 +117,17 @@ describe('map document export', () => {
       },
     });
   });
+});
+
+
+it('shares the bounded native-art budget with authority and exports a real draft above four million characters',async()=>{
+ const {LIVE_MAP_MAX_DOCUMENT_CHARACTERS}=await import('../../../../world/src/live-map-publication.js');
+ const {MAP_DOCUMENT_EXPORT_MAX_CHARACTERS,MAP_DOCUMENT_EXPORT_MAX_BYTES}=await import('./document-export.js');
+ expect(MAP_DOCUMENT_EXPORT_MAX_CHARACTERS).toBe(LIVE_MAP_MAX_DOCUMENT_CHARACTERS);
+ // Many individually editable ground stamps, as in the native island pass.
+ const original=fixture(),document={...original,width:832,height:832,prefabs:[createMapPrefabDocument({id:'native-paving',title:'Native paving'})],objects:Array.from({length:25000},(_,i)=>({id:`native-ground-${i}`,prefabId:'native-paving',prefabRevision:0,tileX:i%832,tileY:Math.floor(i/832),elevation:0,layer:'ground' as const,quarterTurns:0 as const,flipX:false,enabled:true}))};
+ const result=createMapDocumentExport(document);expect(result.ok).toBe(true);if(!result.ok)return;
+ expect(result.payload.characterLength).toBeGreaterThan(4_000_000);
+ expect(result.payload.byteLength).toBeLessThanOrEqual(MAP_DOCUMENT_EXPORT_MAX_BYTES);
+ expect(parseMapDocumentV3(result.payload.json).objects).toHaveLength(25000);
 });

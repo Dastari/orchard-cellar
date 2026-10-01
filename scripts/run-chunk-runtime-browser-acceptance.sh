@@ -133,13 +133,8 @@ fi
 sed -i "s/export const OIDC_CLIENT_IDS: readonly string\[\] = \['orchard-web', 'orchard-studio'\];/export const OIDC_CLIENT_IDS: readonly string[] = [];/" "${auth_file}"
 sed -i "s/^export const BOOTSTRAP_OWNER_IDENTITIES: readonly string\[\] = \[$/export const BOOTSTRAP_OWNER_IDENTITIES: readonly string[] = ['${owner_identity}',/" "${auth_file}"
 sed -i "s/^  if (productionAuthEnabled()$/  if (true/" "${index_file}"
-# The production-shaped fixture (the full Hearth composition the nightly parity tests use)
-# serialises to about 5.3 M characters, over the 4 M live-map cap (disposable copy only).
-publication_file="${work_dir}/packages/world/src/live-map-publication.ts"
-if [[ "$(grep -c "^export const LIVE_MAP_MAX_DOCUMENT_CHARACTERS = 4_000_000;$" "${publication_file}")" != "1" ]]; then
-  echo "s4g_live_map_cap_unexpected" >&2; exit 1
-fi
-sed -i "s/^export const LIVE_MAP_MAX_DOCUMENT_CHARACTERS = 4_000_000;$/export const LIVE_MAP_MAX_DOCUMENT_CHARACTERS = 8_000_000;/" "${publication_file}"
+# The production-shaped fixture fits the reviewed native-map authoring budget;
+# use the production ceiling unchanged in this disposable rehearsal.
 
 if ! spacetime publish "${database}" --no-config --server "${host}" --module-path "${work_dir}/packages/world" --delete-data=never --yes=remote,migrate,break-clients >"${work_dir}/publish.log" 2>&1; then
   echo "s4g_disposable_publish_failed" >&2; tail -100 "${work_dir}/publish.log" >&2; exit 1

@@ -7,7 +7,7 @@ import {
 /** Mirrors the authoritative live-map ingestion ceiling. Export deliberately
  * cannot raise this bound: an exported draft should remain small enough to be
  * inspected and handed to the normal validation/publish pipeline. */
-export const MAP_DOCUMENT_EXPORT_MAX_CHARACTERS = 4_000_000;
+export const MAP_DOCUMENT_EXPORT_MAX_CHARACTERS = 16_000_000;
 export const MAP_DOCUMENT_EXPORT_MAX_BYTES = 16_000_000;
 export const MAP_DOCUMENT_EXPORT_MAX_PREFABS = 2_048;
 export const MAP_DOCUMENT_EXPORT_MAX_OBJECTS = 50_000;
