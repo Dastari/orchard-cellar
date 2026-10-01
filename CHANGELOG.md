@@ -2,6 +2,10 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Root 0.83.1 / Studio 0.18.2 — Reachable Items publication footer
+
+- **BUG-081:** use the reviewed UI kit’s compact size for the Items kind, search and creation controls, keeping the full-size note, discard and Publish controls visible at 720×540, including the shared toolbar height. The library retains independent scrolling; publication and draft semantics are unchanged.
+
 ## Root 0.83.0 / Client 0.57.0 / UI 0.55.0 — Illustrated player guide
 
 - Refresh the help book into 27 player-facing topics across Basics, Crafting, World and Adventures. Explain current activities, storage, equipment, gathering, food, weather, travel, trade, progression and expeditions; remove administrative commands and server/debug details.

@@ -5,7 +5,7 @@ import { studioDefinitionFields } from '../../shell/definition-fields.js';
 import { studioDefinitionPreview, studioDefinitionPreviewLifecycle } from '../../shell/definition-preview.js';
 import type { ItemDefinitionId, SupportedContentDefinition } from '@orchard/sim';
 import lifecycleSourceBundle from '@orchard/lifecycle-authoring/source' with { type: 'json' };
-import { CanvasTextEditor, ui as kit, type UiElement, type UiTone, type UiTableState } from '@orchard/ui/studio';
+import { CanvasTextEditor, ui as kit, type UiControlSize, type UiElement, type UiTone, type UiTableState } from '@orchard/ui/studio';
 import {
   STUDIO_LIFECYCLE_TRIGGER_ORDER,
   type LifecycleDraftStorage,
@@ -184,7 +184,7 @@ export function buildItemsCanvasTool(context: StudioCanvasToolContext): StudioCa
 
   const id=(name:string)=>`${context.route.tool.id}-items:${name}`;
   const text=(name:string,value:string)=>kit.text(value,{id:id(name),layout:{width:'grow'}});
-  const button=(name:string,label:string,onPress:()=>void,disabled=false,tone:UiTone='primary')=>kit.button({id:id(name),label,disabled,tone,layout:{width:'grow',shrink:0},onPress:()=>{
+  const button=(name:string,label:string,onPress:()=>void,disabled=false,tone:UiTone='primary',size:UiControlSize='md')=>kit.button({id:id(name),label,disabled,tone,size,layout:{width:'grow',shrink:0},onPress:()=>{
     try { onPress(); } catch(error) { report(context,`${label} failed`,error); }
   }});
   const selectDefinition=(definitionId:string)=>{
@@ -193,11 +193,11 @@ export function buildItemsCanvasTool(context: StudioCanvasToolContext): StudioCa
     context.controller.selection.select({kind:'definition',definitionKind:definition.kind,id:definition.id});context.invalidate();
   };
   const controls=kit.flex({width:'grow',gap:4},[
-    kit.select({id:id('kind'),label:'Definition kind',value:state.kind,options:ITEMS_TOOL_CONTENT_KINDS.map(kind=>({value:kind,label:kind.replaceAll('_',' ').replace(/^./u, value=>value.toUpperCase())})),onChange:kind=>{
+    kit.select({id:id('kind'),label:'Definition kind',size:'sm',value:state.kind,options:ITEMS_TOOL_CONTENT_KINDS.map(kind=>({value:kind,label:kind.replaceAll('_',' ').replace(/^./u, value=>value.toUpperCase())})),onChange:kind=>{
       state.kind=kind as ItemsToolContentKind;state.selectedId=state.model.definitions(state.kind,state.query.snapshot().value)[0]?.id??null;
       state.syncedId=null;state.browserTable=undefined;context.invalidate();
     }}),
-    kit.input({id:id('query'),label:'Search definitions',placeholder:'Search definitions',editor:state.query,onChange:()=>context.invalidate()}),
+    kit.input({id:id('query'),label:'Search definitions',size:'sm',placeholder:'Search definitions',editor:state.query,onChange:()=>context.invalidate()}),
     kit.input({id:id('note'),label:'Publish note',placeholder:'Publish note',editor:state.note}),
     button('rebase','Rebase content',()=>{
     try { state.model.rebase('safe'); context.invalidate(); } catch (error) { report(context, 'Content rebase blocked', error); }
@@ -313,7 +313,8 @@ export function buildItemsCanvasTool(context: StudioCanvasToolContext): StudioCa
     {id:'lifecycle',label:'Lifecycle',content:kit.text('Edit and test callbacks in the workspace.',{wrap:true})},
   ]});
   const [kindPicker, queryInput, noteInput, rebase, clear, publish] = controls.children;
-  const drawer = studioLibraryDrawer([kindPicker!, queryInput!, button('new-item','New item',()=>{createDefinition('item');context.invalidate();},access==='read_only'), button('new-recipe','New recipe',()=>{createDefinition('recipe');context.invalidate();},access==='read_only')], browser, [
+  // Compact library headers leave room for the full-size publication footer at short viewport heights.
+  const drawer = studioLibraryDrawer([kindPicker!, queryInput!, button('new-item','New item',()=>{createDefinition('item');context.invalidate();},access==='read_only','primary','sm'), button('new-recipe','New recipe',()=>{createDefinition('recipe');context.invalidate();},access==='read_only','primary','sm')], browser, [
     studioActionBar([studioIconAction(rebase!, {lucide:'cloudConnect'}), studioIconAction(clear!, {lucide:'trash'})]),
     noteInput!, publish!,
   ]);
