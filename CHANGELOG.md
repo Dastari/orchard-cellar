@@ -2,6 +2,10 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Root 0.84.0 / Studio 0.19.0 — Studio workspace controls
+
+- Expose canvas workspace view, command and layout controls, including narrow-screen Library/Inspector switching, named layouts and reset. Keep connected content tools reachable while the map loads; map startup presents its own verified progress and retry state.
+
 ## Root 0.83.0 / Client 0.57.0 / UI 0.55.0 — Illustrated player guide
 
 - Refresh the help book into 27 player-facing topics across Basics, Crafting, World and Adventures. Explain current activities, storage, equipment, gathering, food, weather, travel, trade, progression and expeditions; remove administrative commands and server/debug details.
