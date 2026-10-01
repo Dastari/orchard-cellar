@@ -6528,6 +6528,10 @@
     "builderAvailable": false
   },
   "emissiveColors": [
+    "#7c0916",
+    "#971221",
+    "#ae2334",
+    "#e83b3b",
     "#fb6b1d"
   ]
 }

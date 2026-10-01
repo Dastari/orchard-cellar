@@ -45,7 +45,7 @@ describe('Native island art provenance and emission',()=>{
       for(let j=0;j<spans.length;j+=3)for(let x=spans[j+1]!;x<spans[j+1]!+spans[j+2]!;x++)mask.add(`${x},${spans[j]}`);
       grid.forEach((row,y)=>[...row].forEach((token,x)=>{
         const rgba=resolveColor(token,palette,{},asset.markers??{},asset.sourcePalette??{});
-        const expected=rgba[0]===251&&rgba[1]===107&&rgba[2]===29&&rgba[3]===255;
+        const expected=rgba[3]===255&&['251,107,29','232,59,59','247,150,23'].includes(rgba.slice(0,3).join(','));
         expect(mask.has(`${x},${y}`)).toBe(expected);if(expected)molten++;else nonMolten++;
       }));
     });

@@ -48,7 +48,7 @@ export function importNativeIslandArt(): void {
     const asset={name:specification.name,category:specification.category,size:[width,height],anchor:[Math.floor(width/2),height-1],
       frames:{base:frames},sourcePalette:palette,sourcePath,importedFrom:specification.sheet.split('/').at(-1),sourceRegions:{base:regions},
       frameKinds:{base:'variant'},sourcePaletteMode:'exact',
-      ...('bank' in specification ? {emissiveColors:['#fb6b1d']} : {}),
+      ...('bank' in specification ? {emissiveColors:['#fb6b1d','#e83b3b','#f79617']} : {}),
       tags:['source.cute_fantasy','scenery.cinderwake','native.manual-placement'],
       ...(shadows.length===1?{bakedShadowColor:shadows[0]}:{}),
       placement:{layer:specification.category==='tiles'?'ground':'object',footprint:[1,1],blocksMovement:false,builderAvailable:false},approved:true};
@@ -57,7 +57,7 @@ export function importNativeIslandArt(): void {
   }
   const fall = resolve(root,'packages/assets/tiles/tile_cf_volcanic_lavafall.tile.json');
   const existing = JSON.parse(readFileSync(fall,'utf8')) as Record<string, unknown>;
-  existing['emissiveColors']=['#fb6b1d'];
+  existing['emissiveColors']=['#7c0916','#971221','#ae2334','#e83b3b','#fb6b1d'];
   writeFileSync(fall,JSON.stringify(existing,null,2)+'\n');
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) importNativeIslandArt();

@@ -99,10 +99,12 @@ export function cinderwakeDesign(): NativeIslandScene {
     tile(x,y,col,row,'wall','lava');
     // Sparse native floating crust, not prop pillars masquerading as a river.
     if (col===8 && row===7 && rand()<.11) tile(x,y,12+Math.floor(rand()*3),6+Math.floor(rand()*3),'wall','lava');
+    if (col===8 && row===7 && rand()<.05)p.push({id:`cinder-${String(p.length).padStart(6,'0')}`,asset:'tile_cf_volcano_design_bubbles',frame:4,x:x*16,y:y*16,layer:'wall',material:'lava'});
   }
   // Native fall strips at real visual drops; bottom impact pool belongs to the same flow.
   for(const face of faces) if(lava(face.x,face.y) && lava(face.x,face.y+3)) {
-    for(let dy=1;dy<=3;dy++) add('source:volcano-lavafall',face.x*16,(face.y+dy)*16,'wall',[16,dy===3?48:16,16,16],'lava');
+    const col=!lava(face.x-1,face.y)?0:!lava(face.x+1,face.y)?2:1;
+    for(let dy=1;dy<=3;dy++) add('source:volcano-lavafall',face.x*16,(face.y+dy)*16,'wall',[col*16,dy*16,16,16],'lava');
   }
   const road = [[16,79],[16,72],[25,72],[25,64],[43,64],[43,57],[67,57],[67,49],[46,49],[46,42],[56,42],[56,35]];
   const roadAt=(x:number,y:number)=>onLine(road,x,y,1.5);

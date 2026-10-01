@@ -1057,7 +1057,9 @@
   },
   "sourcePaletteMode": "exact",
   "emissiveColors": [
-    "#fb6b1d"
+    "#fb6b1d",
+    "#e83b3b",
+    "#f79617"
   ],
   "tags": [
     "source.cute_fantasy",
