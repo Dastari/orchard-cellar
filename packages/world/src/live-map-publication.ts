@@ -3,7 +3,9 @@ import {
   type MapDocumentV3,
 } from '@orchard/sim';
 
-export const LIVE_MAP_MAX_DOCUMENT_CHARACTERS = 4_000_000;
+// Native authored island art brings the reviewed 832×832 map to ~5.5 MB.
+// Bound both the delta and reconstructed snapshot; CAS/full validation remain.
+export const LIVE_MAP_MAX_DOCUMENT_CHARACTERS = 16_000_000;
 
 interface LiveMapPublicationHead {
   readonly revision: number;

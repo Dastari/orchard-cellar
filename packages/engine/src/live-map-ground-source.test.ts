@@ -4,7 +4,7 @@ import {enqueueLiveMapObjects,preloadLiveMapObjectAssets} from './live-map-runti
 import {withGroundSpriteSource} from './ground-light-source.js';
 import type {WorldDepthItem} from './renderer.js';
 import type {AssetFrameSource} from '@orchard/ui';
-vi.mock('@orchard/ui',async original=>({...await original<typeof import('@orchard/ui')>(),loadGeneratedAsset:async()=>({
+vi.mock('@orchard/ui',async original=>({...await original<typeof import('@orchard/ui')>(),loadGeneratedAsset:async(name:string)=>({name,
   metadata:{image:'fixture.png',animations:{},states:{base:{x:0,y:0,width:16,height:16,durationTicks:1}}},anchor:[8,15]})}));
 vi.mock('./world-asset-presentation.js',()=>({worldAssetFrameSource:(_context:unknown,_asset:unknown,_frame:unknown,transform?:(source:AssetFrameSource)=>AssetFrameSource)=>{
   const source={image:{} as CanvasImageSource,x:0,y:0,width:16,height:16};return transform?.(source)??source;

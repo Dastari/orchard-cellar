@@ -4,7 +4,8 @@ import {enqueueLiveMapObjects,preloadLiveMapObjectAssets} from './live-map-runti
 import {sortWorldDepthItems,type WorldDepthItem} from './renderer.js';
 vi.mock('@orchard/ui',async importOriginal=>{
   const actual=await importOriginal<typeof import('@orchard/ui')>();
-  return {...actual,loadGeneratedAsset:async()=>({
+  return {...actual,loadGeneratedAsset:async(name:string)=>({
+    name,
     metadata:{image:'fixture.png',animations:{},states:{base:{x:0,y:0,width:16,height:16,durationTicks:1}}},
     anchor:[8,15],
   })};

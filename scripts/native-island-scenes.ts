@@ -41,8 +41,8 @@ function base(id: string, width: number, height: number): DraftDocument {
   return { ...migrateMapDocumentV2(createEmptyMapDocument({ id, title: id, width, height })), baseBiome: 'water' };
 }
 
-/** Source masonry bank topology: border fragments belong only on boundaries. */
-export function cinderPavingFrame(n:boolean,e:boolean,s:boolean,w:boolean,nw=true,ne=true,se=true,sw=true):number {
+/** Torn masonry is exposed buried paving, separate from engineered road curbs. */
+export function cinderUncoveredPavingFrame(n:boolean,e:boolean,s:boolean,w:boolean,nw=true,ne=true,se=true,sw=true):number {
   let col=20,row=7;
   if(!n&&!w){col=18;row=6;}else if(!n&&!e){col=19;row=6;}
   else if(!s&&!w){col=18;row=7;}else if(!s&&!e){col=19;row=7;}
@@ -51,6 +51,19 @@ export function cinderPavingFrame(n:boolean,e:boolean,s:boolean,w:boolean,nw=tru
   else if(!se){col=15;row=6;}else if(!sw){col=17;row=6;}
   else if(!ne){col=15;row=8;}else if(!nw){col=17;row=8;}
   return row*29+col;
+}
+
+export function cinderCurbFrame(n:boolean,e:boolean,s:boolean,w:boolean):number|null {
+  if(n&&w)return 104;if(n&&e)return 105;if(s&&w)return 133;if(s&&e)return 134;
+  if(s)return 102;if(n)return 160;if(e)return 130;if(w)return 132;
+  return null;
+}
+
+export function cinderHeatedAshFrame(n:boolean,e:boolean,s:boolean,w:boolean,nw=true,ne=true,se=true,sw=true):number {
+  if(!n&&!w)return 7;if(!n&&!e)return 9;if(!s&&!w)return 65;if(!s&&!e)return 67;
+  if(!n)return 8;if(!s)return 66;if(!e)return 38;if(!w)return 36;
+  if(!se)return 94;if(!sw)return 95;if(!ne)return 123;if(!nw)return 124;
+  return 37;
 }
 
 export function cinderwakeDesign(): NativeIslandScene {
@@ -138,9 +151,17 @@ export function cinderwakeDesign(): NativeIslandScene {
   const paved=(x:number,y:number)=>roadCells.has(`${x},${y}`);
   for(const cell of roadCells){
     const [x,y]=cell.split(',').map(Number) as [number,number];
-    const frame=cinderPavingFrame(paved(x,y-1),paved(x+1,y),paved(x,y+1),paved(x-1,y),paved(x-1,y-1),paved(x+1,y-1),paved(x+1,y+1),paved(x-1,y+1));
+    const frame=223;
     tile(x,y,frame%29,Math.floor(frame/29),'object','stone','masonry');
   }
+  const curbCells:string[]=[];
+  for(let y=0;y<height;y++)for(let x=0;x<width;x++)if(at(x,y)&&!paved(x,y)&&!lava(x,y)){
+    let frame=cinderCurbFrame(paved(x,y-1),paved(x+1,y),paved(x,y+1),paved(x-1,y));
+    if(frame===null){if(paved(x+1,y+1))frame=101;else if(paved(x-1,y+1))frame=103;else if(paved(x+1,y-1))frame=159;else if(paved(x-1,y-1))frame=161;}
+    if(frame===null||p.some(item=>item.role==='cliff'&&item.x===x*16&&item.y===y*16))continue;
+    tile(x,y,frame%29,Math.floor(frame/29),'object','stone','masonry');curbCells.push(`${x},${y}`);
+  }
+  for(const cell of curbCells)roadCells.add(cell);
   // Bridges are derived from real crossings of the connected route. Each
   // native end overlaps a masonry landing; unrelated floating spans are gone.
   for(let i=1;i<road.length;i++){
@@ -224,8 +245,18 @@ export function cinderwakeDesign(): NativeIslandScene {
   }
   const cliffCells=new Set(p.filter(item=>item.role==='cliff').map(item=>`${item.x/16},${item.y/16}`));
   const moltenCells=new Set(p.filter(item=>item.material==='lava').map(item=>`${item.x/16},${item.y/16}`));
+  const hotCells=new Set(moltenCells);
+  for(const cell of moltenCells){const [x,y]=cell.split(',').map(Number) as [number,number];
+    for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)if(dx*dx+dy*dy<=5&&at(x+dx,y+dy)&&!paved(x+dx,y+dy)&&!cliffCells.has(`${x+dx},${y+dy}`))hotCells.add(`${x+dx},${y+dy}`);
+  }
+  const hot=(x:number,y:number)=>hotCells.has(`${x},${y}`);
+  for(const cell of hotCells)if(!moltenCells.has(cell)){
+    const [x,y]=cell.split(',').map(Number) as [number,number];
+    const frame=cinderHeatedAshFrame(hot(x,y-1),hot(x+1,y),hot(x,y+1),hot(x-1,y),hot(x-1,y-1),hot(x+1,y-1),hot(x+1,y+1),hot(x-1,y+1));
+    tile(x,y,frame%29,Math.floor(frame/29),'ground','stone','clutter');
+  }
   const occupied=new Set<string>();
-  const clear=(x:number,y:number)=>at(x,y)&&!moltenCells.has(`${x},${y}`)&&!paved(x,y)&&!cliffCells.has(`${x},${y}`)&&!fallCells.has(`${x},${y}`)&&!occupied.has(`${x},${y}`);
+  const clear=(x:number,y:number)=>at(x,y)&&!hotCells.has(`${x},${y}`)&&!paved(x,y)&&!cliffCells.has(`${x},${y}`)&&!fallCells.has(`${x},${y}`)&&!occupied.has(`${x},${y}`);
   const cellsForSprite=(x:number,y:number,w:number,h:number,ax:number,ay:number)=>{
     const cells:string[]=[];
     const left=x*16+8-ax,top=y*16+16-ay;
@@ -263,6 +294,15 @@ export function cinderwakeDesign(): NativeIslandScene {
     if(!cells.every(([cx,cy])=>clear(cx,cy)))continue;
     for(let dy=0;dy<3;dy++)for(let dx=0;dx<3;dx++)tile(x+dx,y+dy,4+dx,dy,'ground','stone','clutter');
     cells.forEach(([cx,cy])=>occupied.add(`${cx},${cy}`));
+  }
+  // Old paving revealed through ash belongs in occasional isolated patches.
+  for(const [x,y]of [[26,28],[52,55],[71,70],[41,75]] as const){
+    const cells=Array.from({length:9},(_,j)=>[x+j%3,y+Math.floor(j/3)] as const);
+    if(!cells.every(([cx,cy])=>clear(cx,cy)))continue;
+    for(let dy=0;dy<3;dy++)for(let dx=0;dx<3;dx++){
+      const frame=cinderUncoveredPavingFrame(dy>0,dx<2,dy<2,dx>0);
+      tile(x+dx,y+dy,frame%29,Math.floor(frame/29),'ground','stone','clutter');
+    }
   }
   // Native basalt courses make offshore islets. The previous little burning
   // rock props were not sea stacks and had no water contact at all.

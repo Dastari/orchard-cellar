@@ -1,5 +1,28 @@
 {
-  "extends":"../tsconfig.base.json",
-  "compilerOptions":{"noEmit":true,"types":["node"],"lib":["ES2023","DOM","DOM.Iterable"],"module":"ESNext","moduleResolution":"Bundler","exactOptionalPropertyTypes":false},
-  "files":["native-island-scenes.ts","native-island-evidence.ts","native-island-light-proof.ts","render-native-islands.ts","native-island-preview/main.ts"]
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": [
+      "node"
+    ],
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "exactOptionalPropertyTypes": false
+  },
+  "files": [
+    "native-island-scenes.ts",
+    "native-island-evidence.ts",
+    "native-island-light-proof.ts",
+    "render-native-islands.ts",
+    "native-island-preview/main.ts",
+    "apply-native-island-designs.ts",
+    "native-island-world-evidence.ts",
+    "native-island-validation.ts",
+    "native-island-publication.ts"
+  ]
 }

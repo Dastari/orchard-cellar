@@ -72,3 +72,14 @@ describe('authority map delta preparation', () => {
     expect(prepareLiveMapPublication(payload, 6, 'new', () => head, validate)?.objects).toEqual([]);
   });
 });
+
+
+it('accepts a native-art snapshot above the legacy four-million-character cap through full validation',()=>{
+ const {base,head}=fixture();
+ // Padding JSON is valid and exercises the transport budget without inventing
+ // oversized gameplay fields. The validator still parses the whole snapshot.
+ const payload=serializeMapDocumentV3ForTransport(base)+' '.repeat(4_100_000);
+ const validate=vi.fn(parseMapDocumentV3);
+ expect(prepareLiveMapPublication(payload,6,'native-art',()=>head,validate)).toEqual(base);
+ expect(validate).toHaveBeenCalledExactlyOnceWith(payload);
+});

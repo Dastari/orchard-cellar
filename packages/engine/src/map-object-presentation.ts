@@ -20,6 +20,7 @@ import type {
   MapStampVisual,
   ObjectContentDefinition,
   ResolvedObjectAppearance,
+  ResolvedObjectLight,
   StateValues,
 } from '@orchard/sim';
 import { resolveObjectLight } from '@orchard/sim/behaviour/data-graph';
@@ -30,7 +31,7 @@ import { authoredMapContentPainterTie, mapObjectCollisionCells, mapObjectPrefab 
 import { resolveObjectAppearance } from '@orchard/sim/object-presentation';
 import { FIXED_UNITS_PER_PIXEL } from '@orchard/sim/state';
 import { streetlampState } from '@orchard/sim/streetlamp';
-import { loadGeneratedAsset, selectAtlasFrame, type AssetFrameSource, type AtlasFrame, type LoadedAsset } from '@orchard/ui';
+import { emissiveFrameSpans, loadGeneratedAsset, selectAtlasFrame, type AssetFrameSource, type AtlasFrame, type LoadedAsset } from '@orchard/ui';
 import { drawConnectedObject, preloadConnectedObjectArt } from './connected-objects.js';
 import { groundSpriteSource } from './ground-light-source.js';
 import { createFrameLightOccluder, type LightTrunkOccluder } from './light-occlusion.js';
@@ -187,6 +188,10 @@ export function enqueueMapObjects(
       const visual=lamp?{...placement.visual,name:streetlampState('{}',options.calendarTick??0n).lit?'on':'base'}:placement.visual;
       const frame = visualFrame(asset, visual, options.timeMs);
       if (frame === null) continue;
+      // Ground tile stamps cover their logical cell. Sprite feet anchors
+      // otherwise shift native 16px tiles down one pixel and expose old ground.
+      const groundTopOffset = object.layer === 'ground' && asset.name.startsWith('tile_')
+        && frame.width === 16 && frame.height === 16 ? asset.anchor[1] - 16 : 0;
       const delta = transformedDelta(placement.tileX, placement.tileY, prefab, object);
       const worldX = (object.tileX + delta.tileX) * 16 + 8;
       const worldFootY = (object.tileY + delta.tileY + 1) * 16;
@@ -216,7 +221,7 @@ export function enqueueMapObjects(
               const [px,py]=rotate(placement.flipX?-x:x,y,placement.quarterTurns);
               return rotate(px*(object.flipX?-objectScale:objectScale),py*objectScale,object.quarterTurns);
             };
-            const [a,b]=vector(1,0),[c,d]=vector(0,1),[left,top]=vector(-asset.anchor[0],-asset.anchor[1]);
+            const [a,b]=vector(1,0),[c,d]=vector(0,1),[left,top]=vector(-asset.anchor[0],-asset.anchor[1]+groundTopOffset);
             groundTransform=original=>groundSpriteSource(options.context,original,worldX+left,worldFootY+top,{a,b,c,d});
           }
           const receivesGlobal = options.contentRegistry === undefined ? true
@@ -229,7 +234,7 @@ export function enqueueMapObjects(
             frame.width,
             frame.height,
             -asset.anchor[0] * options.scale,
-            -asset.anchor[1] * options.scale,
+            (-asset.anchor[1] + groundTopOffset) * options.scale,
             frame.width * options.scale,
             frame.height * options.scale,
           );
@@ -279,6 +284,17 @@ function boundMapAppearance(registry: ContentRegistry, assetName: string, visual
   const declared = Object.fromEntries(Object.entries(state).filter(([key]) => binding.definition.components.states?.[key] !== undefined));
   return { ...binding, appearance: resolveObjectDefinitionAppearance(binding.definition, { ...binding.state, ...declared }) };
 }
+/** Lava art carries exact selected-frame emission masks. Explicit content
+ * lights still take precedence. Sparse ground seeds keep a broad field bounded. */
+function nativeLavaLight(asset:LoadedAsset,frame:AtlasFrame,ground:boolean):ResolvedObjectLight|null {
+  if(asset.name!=='tile_cf_volcano_design_sheet'&&asset.name!=='prop_cf_cinder_lavafall_flow')return null;
+  const spans=emissiveFrameSpans(asset,frame);if(!spans?.length)return null;
+  let weightedY=0,pixels=0;
+  for(let i=0;i<spans.length;i+=3){const count=spans[i+2]!;weightedY+=(spans[i]!+.5)*count;pixels+=count;}
+  if(pixels===0||(ground&&pixels<128))return null;
+  return {enabled:true,color:[251,107,29],radiusTiles:ground?5:4,profile:'steady',intensityPerMille:ground?450:700,
+    offsetY:weightedY/pixels-asset.anchor[1]+(ground&&frame.height===16?asset.anchor[1]-16:0)};
+}
 /** Lights follow the same loaded native placements as the map renderer. */
 export interface MapObjectPointLight extends PointLight {readonly terrainContactX:number}
 export function mapObjectPointLights(records:MapObjectRecords|null,registry:ContentRegistry,authorityTick:bigint,materializedStreetlamps=false):MapObjectPointLight[]{
@@ -292,10 +308,11 @@ export function mapObjectPointLights(records:MapObjectRecords|null,registry:Cont
       const mapAppearance=resolveObjectAppearance(originalPlacement,prefab.presentation,object.state);
       const placement=mapAppearance.placement;
       const binding=boundMapAppearance(registry,placement.assetName,placement.visual.name,object.state);
-      const component=binding?.appearance.light;
+      const asset=loadedAsset(placement.assetName);if(!asset)continue;
+      const frame=visualFrame(asset,placement.visual,Number(authorityTick%1_000_000n)*50);if(!frame)continue;
+      const component=binding?.appearance.light??nativeLavaLight(asset,frame,object.layer==='ground');
       if(!component)continue;
-      const asset=loadedAsset(placement.assetName);
-      if(!asset||!visualFrame(asset,placement.visual,0))continue;
+      if(binding?.appearance.light==null&&object.layer==='ground'&&(object.tileX%4!==0||object.tileY%4!==0))continue;
       const lamp=placement.assetName==='prop_cf_hearth_streetlamp';
       if(lamp&&materializedStreetlamps)continue;
       const lit=!lamp||streetlampState('{}',authorityTick).lit;
@@ -303,7 +320,7 @@ export function mapObjectPointLights(records:MapObjectRecords|null,registry:Cont
       const authored=resolveObjectLight(component,{lit});
       let seed=0n;
       for(const character of `${object.id}/${placement.id}`)seed=(seed*31n+BigInt(character.charCodeAt(0)))&0xffffffffffffffffn;
-      const light=placeablePointLight({id:seed,kind:binding!.definition.id,tileX:0,tileY:0},authorityTick,authored);
+      const light=placeablePointLight({id:seed,kind:binding?.definition.id??'native.lava',tileX:0,tileY:0},authorityTick,authored);
       if(!light)continue;
       const delta=transformedDelta(placement.tileX,placement.tileY,prefab,object);
       const x=(object.tileX+delta.tileX)*16+8,y=(object.tileY+delta.tileY+1)*16;
@@ -373,6 +390,7 @@ export function mapObjectLightOccluders<Terrain extends MapObjectTerrain>(record
       if(!asset)continue;
       const frame=visualFrame(asset,placement.visual,timeMs);
       if(!frame)continue;
+      if(!explicitLighting&&nativeLavaLight(asset,frame,false)!==null)continue;
       const native=createFrameLightOccluder(asset,frame,0,0);
       if(!native)continue;
       const delta=transformedDelta(placement.tileX,placement.tileY,prefab,object);
