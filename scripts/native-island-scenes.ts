@@ -54,19 +54,29 @@ export function cinderwakeDesign(): NativeIslandScene {
   const p: NativePlacement[] = [], rand = random(4101);
   const add = (asset: string, x: number, y: number, layer: NativePlacement['layer'], crop?: NativePlacement['crop'], material?: NativePlacement['material']) => p.push({ id: `cinder-${String(p.length).padStart(6,'0')}`, asset, x, y, layer, ...(crop ? { crop } : {}), ...(material ? { material } : {}) });
   const tile = (x: number, y: number, col: number, row: number, layer: NativePlacement['layer'] = 'ground', material: NativePlacement['material'] = 'stone') => add('source:volcano-tiles', x * 16, y * 16, layer, [col * 16, row * 16, 16, 16], material);
-  // Manually composed native shoreline, cap and wall tiles, independent of cliff-tool grammar.
+  // The flat ash-edge bank is not coastal rock. Use full ash tops and basalt
+  // cap/side/front courses; surf is composed outside the complete visual footprint.
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) if (at(x, y)) {
-    const edgeX = !at(x - 1, y) ? 1 : !at(x + 1, y) ? 3 : 2;
-    const edgeY = !at(x, y - 1) ? 6 : !at(x, y + 1) ? 8 : 7;
-    tile(x, y, edgeX, edgeY);
-    if (edgeY === 7 && edgeX === 2) tile(x, y, 2, rand() < .12 ? 3 : 1);
+    tile(x, y, 2, rand() < .12 ? 3 : 1);
     document.cells[`${x},${y}`] = { biome: 'volcanic_ash' };
+  }
+  const coastalFootprint = new Set<string>();
+  const occupy=(x:number,y:number)=>coastalFootprint.add(`${x},${y}`);
+  for(let y=0;y<height;y++)for(let x=0;x<width;x++)if(at(x,y)){
+    occupy(x,y);
+    if(!at(x,y-1))tile(x,y,12,0,'wall');
   }
   // Each front face is a three-row native column; irregular ledges replace circular rings.
   const faces: { x: number; y: number; level: number }[] = [];
-  for(let x=0;x<width;x++){
-    let y=height-1;while(y>=0&&!at(x,y))y--;if(y<0)continue;
-    tile(x,y,12,1,'wall');tile(x,y+1,12,2,'wall');tile(x,y+2,12,4,'wall');
+  // All exposed fronts, including recessed coves, need faces. A lowest-y-only
+  // scan misses concave coast segments and leaves flat ash hanging over water.
+  for(let y=0;y<height;y++)for(let x=0;x<width;x++)if(at(x,y)&&!at(x,y+1)){
+    // End columns 11/13 are mostly transparent seams. Replacing a complete
+    // exposed tile with those strips leaves rectangular holes in the coast.
+    const col=12;
+    tile(x,y,col,1,'wall');
+    for(let dy=1;dy<=3&&!at(x,y+dy);dy++){tile(x,y+dy,col,dy+1,'wall');occupy(x,y+dy);}
+    faces.push({x,y,level:0});
   }
   for (let level = 1; level <= 6; level++) {
     const polygon=polygons[level-1]!;
@@ -102,7 +112,7 @@ export function cinderwakeDesign(): NativeIslandScene {
     if (col===8 && row===7 && rand()<.05)p.push({id:`cinder-${String(p.length).padStart(6,'0')}`,asset:'tile_cf_volcano_design_bubbles',frame:4,x:x*16,y:y*16,layer:'wall',material:'lava'});
   }
   // Native fall strips at real visual drops; bottom impact pool belongs to the same flow.
-  for(const face of faces) if(lava(face.x,face.y) && lava(face.x,face.y+3)) {
+  for(const face of faces) if(lava(face.x,face.y) && (face.level===0||lava(face.x,face.y+3))) {
     const col=!lava(face.x-1,face.y)?0:!lava(face.x+1,face.y)?2:1;
     for(let dy=1;dy<=3;dy++) add('source:volcano-lavafall',face.x*16,(face.y+dy)*16,'wall',[col*16,dy*16,16,16],'lava');
   }
@@ -140,8 +150,30 @@ export function cinderwakeDesign(): NativeIslandScene {
     if(rand()<.1)add('prop_cf_cinder_column_cluster',x*16,y*16,'object');
     else tile(x,y,4+Math.floor(rand()*6),Math.floor(rand()*5),'ground');
   }
-  for(const [x,y] of [[7,70],[24,87],[58,88],[88,83],[96,71],[91,32],[13,18]] as const)
-    add(`prop_cf_cinder_detail_broad_pillar_${1+Math.floor(rand()*3)}`,x*16,y*16,'object');
+  // Native basalt courses make offshore islets. The previous little burning
+  // rock props were not sea stacks and had no water contact at all.
+  for(const [cx,cy,w] of [[8,28,2],[12,16,2],[32,6,2],[76,7,2],[94,31,2],[98,60,2],[92,79,2],[73,87,3],[30,87,2],[5,63,2]] as const){
+    for(let dx=0;dx<w;dx++){
+      tile(cx+dx,cy,12,0,'wall');occupy(cx+dx,cy);
+      tile(cx+dx,cy+1,2,1,'wall');occupy(cx+dx,cy+1);
+      for(let dy=2;dy<=4;dy++){tile(cx+dx,cy+dy,12,dy===2?1:dy===4?4:2,'wall');occupy(cx+dx,cy+dy);}
+    }
+  }
+  // First temporal pose of the real 3x3 foam ring. Choose the edge that faces
+  // adjacent basalt; never stamp the centre wave over the shore itself.
+  const solid=(x:number,y:number)=>coastalFootprint.has(`${x},${y}`);
+  for(let y=0;y<height;y++)for(let x=0;x<width;x++)if(!solid(x,y)){
+    const n=solid(x,y-1),e=solid(x+1,y),s=solid(x,y+1),w=solid(x-1,y);
+    let col=-1,row=-1;
+    if(s&&e){col=0;row=0;}else if(s&&w){col=2;row=0;}
+    else if(n&&e){col=0;row=2;}else if(n&&w){col=2;row=2;}
+    else if(s){col=1;row=0;}else if(n){col=1;row=2;}
+    else if(e){col=0;row=1;}else if(w){col=2;row=1;}
+    else if(solid(x+1,y+1)){col=0;row=0;}else if(solid(x-1,y+1)){col=2;row=0;}
+    else if(solid(x+1,y-1)){col=0;row=2;}else if(solid(x-1,y-1)){col=2;row=2;}
+    if(col>=0)p.push({id:`cinder-${String(p.length).padStart(6,'0')}`,asset:'tile_cf_cinder_coast_foam',frame:row*20+col,x:x*16,y:y*16,layer:'ground',material:'water'});
+    else if(rand()<.12)add(rand()<.6?'nature_cf_ocean_surface_01':'nature_cf_ocean_surface_02',x*16,y*16,'ground',undefined,'water');
+  }
   return { id:'cinderwake', title:'Cinderwake — basalt terraces, lava and summit road',document,placements:registered(p),
     intendedTerraces:polygons.map((polygon,i)=>({level:i+1,polygon})),
     views:[{id:'summit',x:38*16,y:14*16,width:39*16,height:35*16},{id:'ascent',x:16*16,y:40*16,width:68*16,height:40*16}] };

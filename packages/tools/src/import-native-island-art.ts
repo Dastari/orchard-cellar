@@ -13,6 +13,7 @@ export const islandArtImports = [
   { name: 'tile_cf_volcano_design_bubbles', sheet: 'Tiles/Volcano_lava_buble.png', category: 'tiles', size: [16,16], bank: true },
   { name: 'tile_cf_volcano_design_plants', sheet: 'Volcano_Props/Volcano_Plants.png', category: 'tiles', size: [16,16], bank: true },
   { name: 'tile_cf_volcano_design_rocks', sheet: 'Volcano_Props/Volcano_Rocks.png', category: 'tiles', size: [16,16], bank: true },
+  { name: 'tile_cf_cinder_coast_foam', sheet: 'Tiles/Water/Water_Foam_Animation.png', sourceDirectory: 'core', category: 'tiles', size: [16,16], bank: true },
   ...Array.from({length:5}, (_,i) => ({name:`prop_cf_cinder_detail_ember_${i+1}`,sheet:'Volcano_Props/Volcano_Plants.png',category:'props',size:[16,16],rect:[i*16,48,16,16]})),
   ...Array.from({length:3}, (_,i) => ({name:`prop_cf_cinder_detail_blue_crystal_${i+1}`,sheet:'Volcano_Props/Volcano_Plants.png',category:'props',size:[16,16],rect:[i*16,64,16,16]})),
   ...Array.from({length:2}, (_,i) => ({name:`prop_cf_cinder_detail_violet_crystal_${i+1}`,sheet:'Volcano_Props/Volcano_Plants.png',category:'props',size:[16,16],rect:[i*16,80,16,16]})),
@@ -24,7 +25,9 @@ export const islandArtImports = [
 
 export function importNativeIslandArt(): void {
   for (const specification of islandArtImports) {
-    const sourcePath = directory + specification.sheet;
+    const sourcePath = 'sourceDirectory' in specification
+      ? `references/art/kenmi/cute-fantasy/${specification.sourceDirectory}/${specification.sheet}`
+      : directory + specification.sheet;
     const png = decodePng(readFileSync(resolve(root, sourcePath)));
     const regions: number[][] = [];
     if ('bank' in specification) {
@@ -48,7 +51,7 @@ export function importNativeIslandArt(): void {
     const asset={name:specification.name,category:specification.category,size:[width,height],anchor:[Math.floor(width/2),height-1],
       frames:{base:frames},sourcePalette:palette,sourcePath,importedFrom:specification.sheet.split('/').at(-1),sourceRegions:{base:regions},
       frameKinds:{base:'variant'},sourcePaletteMode:'exact',
-      ...('bank' in specification ? {emissiveColors:['#fb6b1d','#e83b3b','#f79617']} : {}),
+      ...('bank' in specification && !('sourceDirectory' in specification) ? {emissiveColors:['#fb6b1d','#e83b3b','#f79617']} : {}),
       tags:['source.cute_fantasy','scenery.cinderwake','native.manual-placement'],
       ...(shadows.length===1?{bakedShadowColor:shadows[0]}:{}),
       placement:{layer:specification.category==='tiles'?'ground':'object',footprint:[1,1],blocksMovement:false,builderAvailable:false},approved:true};

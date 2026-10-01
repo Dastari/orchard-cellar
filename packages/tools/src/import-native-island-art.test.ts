@@ -13,7 +13,7 @@ describe('Native island art provenance and emission',()=>{
     const suffix=specification.category==='tiles'?'tile':'sprite';
     const asset=JSON.parse(readFileSync(resolve(root,`packages/assets/${specification.category}/${specification.name}.${suffix}.json`),'utf8')) as AssetSource;
     expect(asset.approved).toBe(true);expect(asset.sourcePaletteMode).toBe('exact');
-    expect(asset.sourcePath).toBe('references/art/kenmi/cute-fantasy/volcano/'+specification.sheet);
+    expect(asset.sourcePath).toBe(`references/art/kenmi/cute-fantasy/${'sourceDirectory' in specification?specification.sourceDirectory:'volcano'}/`+specification.sheet);
     expect(asset.importedFrom).toBe(specification.sheet.split('/').at(-1));
     const grids=framesForAsset(asset).base!;
     expect(grids.length).toBe(asset.sourceRegions!.base!.length);

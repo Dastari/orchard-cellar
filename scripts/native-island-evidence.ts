@@ -2,6 +2,7 @@
 import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
 import { createCanvas, loadImage, ImageData, type Canvas } from '@napi-rs/canvas';
 import { MAP_EDITOR_ASSET_NAMES, type OverworldArt } from '../packages/engine/src/overworld-art.js';
 import type { BuiltAssetRecord, LoadedAsset } from '../packages/ui/src/index.js';
@@ -44,3 +45,20 @@ const proof=lavaLightProof(art,assets);
 await writeFile(resolve(output,'lava-proof-comparison.png'),(proof.board as unknown as Canvas).toBuffer('image/png'));
 await writeFile(resolve(output,'lava-proof-metrics.json'),JSON.stringify({stats:proof.stats,note:proof.note},null,2)+'\n');
 console.log('Lava emission, cliff occlusion and elevation isolation verified.');
+
+// Optional review board preserves each input's aspect ratio. This only arranges
+// existing reference/capture images; the island itself always uses the atlas.
+const {values}=parseArgs({options:{reference:{type:'string'},before:{type:'string'}}});
+if(values.reference){
+  const inputs=[['Approved reference',values.reference],
+    ...(values.before?[['Previous native draft',values.before]]:[]),
+    ['Native shoreline correction',resolve(output,'cinderwake-overview.png')]];
+  const board=createCanvas(inputs.length*640,620),ctx=board.getContext('2d');
+  ctx.fillStyle='#18212b';ctx.fillRect(0,0,board.width,board.height);ctx.imageSmoothingEnabled=false;
+  for(const [index,[label,path]] of inputs.entries()){
+    const source=await loadImage(path!),scale=Math.min(624/source.width,560/source.height);
+    ctx.drawImage(source,index*640+(640-source.width*scale)/2,48+(560-source.height*scale)/2,source.width*scale,source.height*scale);
+    ctx.fillStyle='#eef1f5';ctx.font='20px sans-serif';ctx.fillText(label!,index*640+16,30);
+  }
+  await writeFile(resolve(output,'cinderwake-reference-comparison.png'),board.toBuffer('image/png'));
+}
