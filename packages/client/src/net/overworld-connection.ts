@@ -985,6 +985,7 @@ export class OverworldConnection {
     if (this.chunkRuntime === undefined) {
       const authority = spaceAdminFlagChunkAuthority();
       this.chunkRuntime = new ChunkRuntimeController({ buildMode: this.chunkRuntimeMode, authority: authority.source, watchAuthority: authority.watch,
+        retryAuthority: authority.retry,
         ...(atlasPackDeliveryEnabled() ? { loadAtlasPacks: (ids: readonly string[]) => loadAtlasPacks(ids) } : {}) });
     }
     this.chunkRuntime.update(connection, BigInt(position.spaceId), this.chunkPinFor(position), this.chunkRuntimeSource());
