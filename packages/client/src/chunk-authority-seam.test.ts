@@ -15,7 +15,7 @@ function world() {
   const rows = new Map<number, FlagRow>();
   type Listener = (context: unknown, ...rows: FlagRow[]) => void;
   const listeners = { insert: new Set<Listener>(), update: new Set<Listener>(), delete: new Set<Listener>() };
-  const subscriptions: { queries: readonly string[]; applied: () => void; unsubscribe: ReturnType<typeof vi.fn>; ended: boolean }[] = [];
+  const subscriptions: { queries: readonly string[]; applied: () => void; fail: () => void; unsubscribe: ReturnType<typeof vi.fn>; ended: boolean }[] = [];
   const noEvents = { onInsert: () => {}, onUpdate: () => {}, onDelete: () => {} };
   const connection = {
     db: {
@@ -30,11 +30,13 @@ function world() {
     },
     subscriptionBuilder: () => {
       let applied = () => {};
+      let error = () => {};
       const builder = {
         onApplied: (fn: () => void) => { applied = fn; return builder; },
-        onError: () => builder,
+        onError: (fn: () => void) => { error = fn; return builder; },
         subscribe: (queries: readonly string[]) => {
-          const record = { queries, applied: () => applied(), unsubscribe: vi.fn(() => { record.ended = true; }), ended: false };
+          const record = { queries, applied: () => applied(), fail: () => { record.ended = true; error(); },
+            unsubscribe: vi.fn(() => { record.ended = true; }), ended: false };
           subscriptions.push(record);
           return { unsubscribe: record.unsubscribe, isEnded: () => record.ended };
         },
@@ -58,6 +60,7 @@ function controllerFor(buildMode: ChunkRuntimeMode) {
   const w = world();
   const authority = spaceAdminFlagChunkAuthority();
   const controller = new ChunkRuntimeController({ buildMode, authority: authority.source, watchAuthority: authority.watch, cache: null,
+    retryAuthority: authority.retry,
     fetchBlob: async () => new Uint8Array() });
   controller.update(w.connection, 0n, [0, 0, 128, 128], { contentHash: 'content' });
   return { ...w, controller, mode: () => controller.status.mode };
@@ -108,6 +111,73 @@ describe('BUG-053: the chunk runtime follows the server chunkAuthority row', () 
     } finally {
       h.controller.dispose();
     }
+  });
+
+  it('BUG-089: the world-updating retry renews a failed authority subscription on the same connection', () => {
+    const h = controllerFor('on');
+    try {
+      h.insert({ spaceId: 0, flagsJson: flags('on') });
+      const first = h.authoritySubscription()!;
+      first.fail();
+      expect(h.mode()).toBe('shadow');
+      h.controller.retry();
+      const attempts = h.subscriptions.filter(({ queries }) => queries.includes(CHUNK_AUTHORITY_QUERY));
+      expect(attempts).toHaveLength(2);
+      expect(h.mode()).toBe('shadow');
+      attempts[1]!.applied();
+      expect(h.mode()).toBe('on');
+    } finally { h.controller.dispose(); }
+  });
+
+  it('BUG-089: a failed applied watch becomes unknown and the replacement respects maintenance off', () => {
+    const h = controllerFor('on');
+    try {
+      h.insert({ spaceId: 0, flagsJson: flags('on') });
+      const first = h.authoritySubscription()!;
+      first.applied();
+      expect(h.mode()).toBe('on');
+      first.fail();
+      expect(h.mode()).toBe('shadow');
+      h.rows.set(0, { spaceId: 0, flagsJson: flags('off') });
+      h.controller.retry();
+      first.applied(); // A delayed success from the failed attempt cannot authorize terrain.
+      expect(h.mode()).toBe('shadow');
+      h.subscriptions.filter(({ queries }) => queries.includes(CHUNK_AUTHORITY_QUERY))[1]!.applied();
+      expect(h.mode()).toBe('off');
+    } finally { h.controller.dispose(); }
+  });
+
+  it('BUG-089: retries preserve pending and healthy watches, and disposed callbacks stay inactive', () => {
+    const h = controllerFor('on');
+    h.controller.retry();
+    h.controller.retry();
+    expect(h.subscriptions.filter(({ queries }) => queries.includes(CHUNK_AUTHORITY_QUERY))).toHaveLength(1);
+    h.applyAuthority();
+    h.controller.retry();
+    expect(h.subscriptions.filter(({ queries }) => queries.includes(CHUNK_AUTHORITY_QUERY))).toHaveLength(1);
+    const first = h.authoritySubscription()!;
+    h.controller.dispose();
+    const status = { ...h.controller.status };
+    first.applied(); first.fail(); h.controller.retry();
+    expect(h.controller.status).toEqual(status);
+    expect([h.listeners.insert.size, h.listeners.update.size, h.listeners.delete.size]).toEqual([0, 0, 0]);
+  });
+
+  it('BUG-089: retries both failed subscriptions when losing authority changes the runtime state', () => {
+    const h = controllerFor('on');
+    try {
+      h.applyAuthority();
+      const terrain = h.subscriptions.find(({ queries }) => !queries.includes(CHUNK_AUTHORITY_QUERY))!;
+      terrain.fail();
+      h.authoritySubscription()!.fail();
+      expect(h.mode()).toBe('shadow');
+      h.controller.retry();
+      expect(h.subscriptions.filter(({ queries }) => queries.includes(CHUNK_AUTHORITY_QUERY))).toHaveLength(2);
+      expect(h.subscriptions.filter(({ queries }) => !queries.includes(CHUNK_AUTHORITY_QUERY))).toHaveLength(2);
+      terrain.fail(); // An obsolete terrain callback must not fail its replacement.
+      h.controller.retry();
+      expect(h.subscriptions.filter(({ queries }) => !queries.includes(CHUNK_AUTHORITY_QUERY))).toHaveLength(2);
+    } finally { h.controller.dispose(); }
   });
 
   it('ignores other spaces\' flag rows, and dispose removes the listeners and the subscription', () => {
@@ -174,12 +244,19 @@ describe('BUG-053: the chunk runtime follows the server chunkAuthority row', () 
       h.applyAuthority();
       h.insert({ spaceId: CHUNK_AUTHORITY_SPACE_ID, flagsJson: flags('on') });
       expect(runtime.status.mode).toBe('on');
+      h.authoritySubscription()!.fail();
+      expect(runtime.status.mode).toBe('shadow');
+      runtime.retry();
+      const attempts = h.subscriptions.filter(({ queries }) => queries.includes(CHUNK_AUTHORITY_QUERY));
+      expect(attempts).toHaveLength(2);
+      attempts[1]!.applied();
+      expect(runtime.status.mode).toBe('on');
       h.update({ spaceId: CHUNK_AUTHORITY_SPACE_ID, flagsJson: flags('off') });
       expect(runtime.status.mode).toBe('off');
       // Later updates reuse the same runtime (one seam, one subscription).
       updateChunkRuntime.call(self, h.connection, { spaceId: 0 });
       expect(self.chunkRuntime).toBe(runtime);
-      expect(h.subscriptions.filter(({ queries }) => queries.includes(CHUNK_AUTHORITY_QUERY))).toHaveLength(1);
+      expect(h.subscriptions.filter(({ queries }) => queries.includes(CHUNK_AUTHORITY_QUERY))).toHaveLength(2);
     } finally {
       self.chunkRuntime?.dispose();
     }

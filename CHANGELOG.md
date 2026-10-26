@@ -2,6 +2,10 @@
 
 One heading per game version, newest first. Parallel branches that bumped to the same version are merged under one heading, with a subsection per change. Workspace-only bumps (assets, sim, Studio) sit under the game version they were integrated and released with. Release records and narrative history are in the wiki: [Operations/Releases](https://wiki.orchard.dastari.net/Operations/Releases) and [History/Releases](https://wiki.orchard.dastari.net/History/Releases).
 
+## Root 0.86.1 / Game 0.58.1 — Recover terrain authority subscriptions
+
+- **BUG-089:** retry a failed terrain-authority subscription on the existing WORLD UPDATING retry cadence, so a transient failure can recover without a reload. Keep pending and healthy subscriptions intact, wait for replacement authority before serving terrain, respect maintenance mode, and ignore obsolete callbacks.
+
 ## Root 0.86.0 / Game 0.58.0 / Studio 0.21.0 / Engine 0.31.0 / World 0.35.0 / Assets 0.27.0 — Native island world designs
 
 - Prepare both reviewed island designs against the live authored map: Willowharbour coves and headlands; Cinderwake's three real cliff shelves, continuous masonry curbs, buried paving patches, lava blends, full native waterfalls, shore foam and fire-tree scenery. Preserve existing buildings, world fixtures and encounter coordinates.

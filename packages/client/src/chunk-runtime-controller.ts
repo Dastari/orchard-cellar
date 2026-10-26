@@ -91,6 +91,8 @@ export interface ChunkRuntimeControllerOptions {
   readonly authority?: ChunkAuthoritySource;
   /** Watches the authority per connection (BUG-053); the controller calls `authorityChanged()` on each change. */
   readonly watchAuthority?: ChunkAuthorityWatch;
+  /** Renews a failed authority watch on the existing world-updating retry cadence (BUG-089). */
+  readonly retryAuthority?: (connection: DbConnection) => void;
   /** undefined: the browser IndexedDB cache when available; null: memory only. */
   readonly cache?: ChunkBlobCache | null;
   readonly fetchBlob?: (path: string, maxBytes: number) => Promise<Uint8Array>;
@@ -139,12 +141,15 @@ export class ChunkRuntimeController {
   readonly buildMode: ChunkRuntimeMode;
   readonly #authority: ChunkAuthoritySource;
   readonly #watchAuthority: ChunkAuthorityWatch | undefined;
+  readonly #retryAuthority: ((connection: DbConnection) => void) | undefined;
   #authorityBound: DbConnection | undefined;
   #stopAuthority: (() => void) | undefined;
   readonly #fetchBlob: (path: string, maxBytes: number) => Promise<Uint8Array>;
   readonly #cache: ChunkBlobCache | undefined;
   readonly #ownedCache: IndexedDbChunkCache | undefined;
   #subscription: SubscriptionHandle | undefined;
+  #subscriptionFailed = false;
+  #subscriptionGeneration = 0;
   #key = '';
   #bound: DbConnection | undefined;
   #active: ChunkBuffer | undefined;
@@ -169,6 +174,7 @@ export class ChunkRuntimeController {
     this.buildMode = options.buildMode;
     this.#authority = options.authority ?? UNCONNECTED_CHUNK_AUTHORITY;
     this.#watchAuthority = options.watchAuthority;
+    this.#retryAuthority = options.retryAuthority;
     this.#fetchBlob = options.fetchBlob ?? fetchChunkBlob;
     this.#loadAtlasPacks = options.loadAtlasPacks;
     this.#ownedCache = options.cache === undefined ? browserChunkBlobCache() : undefined;
@@ -209,7 +215,13 @@ export class ChunkRuntimeController {
    * subscription failed (the key is cleared, so the next apply subscribes afresh). */
   retry(): void {
     if (this.#disposed || !this.#latest) return;
-    if (this.status.state === 'subscription_error') { this.#subscription?.unsubscribe(); this.#subscription = undefined; this.#key = ''; }
+    // Authority changes also change the displayed state. Retain the terrain subscription's
+    // failure separately so recovering one failed watch cannot hide the other's failure.
+    if (this.#subscriptionFailed) {
+      this.#subscriptionGeneration++;
+      this.#subscription?.unsubscribe(); this.#subscription = undefined; this.#key = ''; this.#subscriptionFailed = false;
+    }
+    this.#retryAuthority?.(this.#latest.connection);
     this.#apply();
   }
   #apply(): void {
@@ -243,24 +255,32 @@ export class ChunkRuntimeController {
     if (spaceChanged) this.#epoch++;
     const queries = chunkRuntimeQueries(input.spaceId, input.bounds), key = queries.join(';');
     if (key !== this.#key) {
+      const generation = ++this.#subscriptionGeneration;
       this.#subscription?.unsubscribe(); this.#key = key;
       const spaceId = input.spaceId;
       // Another space's manifest is not known yet, whatever this one showed before.
       if (this.#appliedSpace !== spaceId) this.#appliedSpace = undefined;
+      this.#subscriptionFailed = false;
       this.#subscription = connection.subscriptionBuilder().onApplied(() => {
         // `on`: marked as new input (like the row listeners) so a pass that is busy right now
         // re-runs and leaves `subscribing` (S4f). Shadow keeps its exact behaviour. A superseded
         // subscription applying late says nothing about the current one.
-        if (this.#key === key) this.#appliedSpace = spaceId;
+        if (this.#disposed || generation !== this.#subscriptionGeneration || this.#key !== key) return;
+        this.#appliedSpace = spaceId;
         if (this.status.mode === 'on' && this.#latest) this.#latest = { ...this.#latest }; void this.refresh();
       })
-        .onError(() => { this.status.state = 'subscription_error'; }).subscribe([...queries]);
+        .onError(() => {
+          if (this.#disposed || generation !== this.#subscriptionGeneration || this.#key !== key) return;
+          this.#subscriptionFailed = true; this.status.state = 'subscription_error';
+        }).subscribe([...queries]);
     }
     void this.refresh();
   }
   /** Rollback: release everything and stay idle until the authority allows chunks again. */
   #stop(): void {
+    this.#subscriptionGeneration++;
     this.#subscription?.unsubscribe(); this.#subscription = undefined; this.#key = ''; this.#appliedSpace = undefined;
+    this.#subscriptionFailed = false;
     if (this.#active) this.#drop(this.#active);
     if (this.#pending) this.#drop(this.#pending);
     this.#epoch++;
